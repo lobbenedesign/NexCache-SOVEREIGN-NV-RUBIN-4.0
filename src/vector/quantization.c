@@ -14,27 +14,20 @@
 static void probe_vector_caps_x86(NexVectorCaps *caps) {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
     __cpuid_count(7, 0, eax, ebx, ecx, edx);
-    caps->avx512f = !!(ebx & (1u << 16));    // AVX-512F
-    caps->avx512vnni = !!(ecx & (1u << 11)); // AVX-512 VNNI
+    caps->avx512f = !!(ebx & (1u << 16));
+    caps->avx512vnni = !!(ecx & (1u << 11));
     __cpuid_count(7, 1, eax, ebx, ecx, edx);
-    caps->avx512bf16 = !!(eax & (1u << 5)); // AVX-512 BF16
-
+    caps->avx512bf16 = !!(eax & (1u << 5));
     caps->arm_neon = false;
     caps->arm_sve = false;
 }
 #elif defined(__aarch64__)
 #if defined(__linux__)
 #include <sys/auxv.h>
-#ifndef HWCAP_ASIMD
-#define HWCAP_ASIMD (1 << 1)
-#endif
-#ifndef HWCAP_SVE
-#define HWCAP_SVE (1 << 22)
-#endif
 static void probe_vector_caps_arm(NexVectorCaps *caps) {
     unsigned long hwcap = getauxval(AT_HWCAP);
-    caps->arm_neon = !!(hwcap & HWCAP_ASIMD);
-    caps->arm_sve = !!(hwcap & HWCAP_SVE);
+    caps->arm_neon = !!(hwcap & (1 << 1));
+    caps->arm_sve = !!(hwcap & (1 << 22));
     caps->avx512f = false;
     caps->avx512vnni = false;
     caps->avx512bf16 = false;
@@ -50,11 +43,8 @@ static void probe_vector_caps_arm(NexVectorCaps *caps) {
 #endif
 #else
 static void probe_vector_caps_unknown(NexVectorCaps *caps) {
-    caps->avx512f = false;
-    caps->avx512vnni = false;
-    caps->avx512bf16 = false;
-    caps->arm_neon = false;
-    caps->arm_sve = false;
+    caps->avx512f = caps->avx512vnni = caps->avx512bf16 = false;
+    caps->arm_neon = caps->arm_sve = false;
 }
 #endif
 
@@ -67,26 +57,13 @@ void nexvec_probe_caps(NexVectorCaps *caps) {
 #else
     probe_vector_caps_unknown(caps);
 #endif
-    caps->gpu_available = false;
-    caps->gpu_vram_mb = 0;
 }
 
-QuantizationType nexvec_auto_quantization(const NexVectorCaps *caps,
-                                          size_t n_vectors,
-                                          float recall_threshold) {
-    if (recall_threshold > 0.999f) {
-        return caps->arm_neon ? QUANT_FP16 : QUANT_FP32;
-    }
-    if (caps->avx512vnni && recall_threshold > 0.990f) {
-        return QUANT_INT8;
-    }
-    if (caps->arm_neon && recall_threshold > 0.990f) {
-        return QUANT_FP16;
-    }
-    if (recall_threshold <= 0.950f || n_vectors > 50000000LL) {
-        return QUANT_BINARY;
-    }
-    return QUANT_FP16;
+QuantizationType nexvec_auto_quantization(const NexVectorCaps *caps, size_t n_vectors, float recall_threshold) {
+    if (recall_threshold > 0.999f) return caps->arm_neon ? QUANT_FP16 : QUANT_FP32;
+    if (caps->avx512vnni && recall_threshold > 0.990f) return QUANT_INT8;
+    if (caps->arm_neon && recall_threshold > 0.990f) return QUANT_FP16;
+    return QUANT_BINARY;
 }
 
 void nex_vector_quantize_int8(const float *src, int8_t *dst, size_t dim) {
@@ -116,8 +93,10 @@ void nex_vector_quantize_int8(const float *src, int8_t *dst, size_t dim) {
 #endif
     for (; i < dim; i++) {
         float f = src[i];
-        if (f > 1.0f) f = 1.0f;
-        if (f < -1.0f) f = -1.0f;
+        if (f > 1.0f)
+            f = 1.0f;
+        else if (f < -1.0f)
+            f = -1.0f;
         dst[i] = (int8_t)(f * 127.0f);
     }
 }
@@ -126,9 +105,7 @@ void nex_vector_quantize_binary(const float *src, uint8_t *dst, size_t dim) {
     size_t num_bytes = (dim + 7) / 8;
     memset(dst, 0, num_bytes);
     for (size_t i = 0; i < dim; i++) {
-        if (src[i] > 0) {
-            dst[i / 8] |= (1 << (i % 8));
-        }
+        if (src[i] > 0) dst[i / 8] |= (1 << (i % 8));
     }
 }
 
@@ -144,8 +121,7 @@ int32_t nex_vector_dot_int8(const int8_t *a, const int8_t *b, size_t dim) {
         vsum = vaddw_s16(vsum, vget_low_s16(prod));
         vsum = vaddw_s16(vsum, vget_high_s16(prod));
     }
-    sum = vgetq_lane_s32(vsum, 0) + vgetq_lane_s32(vsum, 1) +
-          vgetq_lane_s32(vsum, 2) + vgetq_lane_s32(vsum, 3);
+    sum = vgetq_lane_s32(vsum, 0) + vgetq_lane_s32(vsum, 1) + vgetq_lane_s32(vsum, 2) + vgetq_lane_s32(vsum, 3);
 #elif defined(__x86_64__) || defined(_M_X64)
     __m128i vsum = _mm_setzero_si128();
     for (; i + 15 < dim; i += 16) {
@@ -162,9 +138,7 @@ int32_t nex_vector_dot_int8(const int8_t *a, const int8_t *b, size_t dim) {
     _mm_storeu_si128((__m128i *)tmp, vsum);
     sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 #endif
-    for (; i < dim; i++) {
-        sum += (int32_t)a[i] * b[i];
-    }
+    for (; i < dim; i++) sum += (int32_t)a[i] * b[i];
     return sum;
 }
 
@@ -174,9 +148,7 @@ uint32_t nex_vector_hamming_dist(const uint8_t *a, const uint8_t *b, size_t num_
 #if defined(__aarch64__)
     uint64x2_t vsum = vdupq_n_u64(0);
     for (; i + 15 < num_bytes; i += 16) {
-        uint8x16_t va = vld1q_u8(&a[i]);
-        uint8x16_t vb = vld1q_u8(&b[i]);
-        uint8x16_t vxor = veorq_u8(va, vb);
+        uint8x16_t vxor = veorq_u8(vld1q_u8(&a[i]), vld1q_u8(&b[i]));
         uint8x16_t vcnt = vcntq_u8(vxor);
         uint64x2_t psum = vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(vcnt)));
         vsum = vaddq_u64(vsum, psum);
@@ -184,13 +156,9 @@ uint32_t nex_vector_hamming_dist(const uint8_t *a, const uint8_t *b, size_t num_
     dist = (uint32_t)(vgetq_lane_u64(vsum, 0) + vgetq_lane_u64(vsum, 1));
 #elif defined(__x86_64__) || defined(_M_X64)
     for (; i + 7 < num_bytes; i += 8) {
-        uint64_t vxor = (*(uint64_t *)&a[i]) ^ (*(uint64_t *)&b[i]);
-        dist += __builtin_popcountll(vxor);
+        dist += __builtin_popcountll((*(uint64_t *)&a[i]) ^ (*(uint64_t *)&b[i]));
     }
 #endif
-    for (; i < num_bytes; i++) {
-        uint8_t x = a[i] ^ b[i];
-        dist += __builtin_popcount(x);
-    }
+    for (; i < num_bytes; i++) dist += __builtin_popcount(a[i] ^ b[i]);
     return dist;
 }

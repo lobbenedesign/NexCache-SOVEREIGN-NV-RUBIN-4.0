@@ -16,10 +16,12 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential liblz4-dev libzstd-dev libssl-dev
+        sudo apt-get install -y build-essential liblz4-dev libzstd-dev libssl-dev pkg-config
 
-    - name: Build NexCache
+    - name: Build NexCache (Haswell Target)
       run: |
+        # Forzo l'architettura a livello di ambiente per evitare inlining errors
+        export CFLAGS="-march=haswell -O3 -fPIC"
         make clean
         make all
 
