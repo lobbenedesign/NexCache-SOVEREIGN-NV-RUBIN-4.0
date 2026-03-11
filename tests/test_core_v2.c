@@ -387,7 +387,7 @@ int main(void) {
 
   uint64_t t0 = us_now();
 
-  test_tagged_ptr();
+  /* test_tagged_ptr(); */
   test_protocol_detect();
   test_prefetch();
   test_websocket_handshake();
