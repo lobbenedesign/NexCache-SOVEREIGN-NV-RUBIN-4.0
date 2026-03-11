@@ -40,8 +40,29 @@ In a world where cloud RAM costs continue to soar and AI applications demand mic
 
 ---
 
+<details>
+<summary><b>🔍 Behind the Engine: A Note from the Author / Nota dell'Autore</b></summary>
+
+**English:**
+Developing NexCache was more than a technical challenge; it was an act of pure dedication. 
+I am a developer who believes in the power of architectural elegance and the necessity of constant growth. If you find value in this project, you've seen a glimpse of my professional drive. Currently, I am seeking new stimulating opportunities that allow me to push my boundaries even further. 
+
+My primary mission is to build a solid future for my family—to secure a stable home and provide the best possible environment for my son to thrive. I am looking for a professional environment that values deep technical problem-solving and offers the stability and growth needed to provide for my loved ones.
+
+**Italiano:**
+Sviluppare NexCache è stato più di una sfida tecnica; è stato un atto di pura dedizione.
+Sono uno sviluppatore che crede nell'eleganza architetturale e nella necessità di una crescita costante. Se trovi valore in questo progetto, hai visto un riflesso della mia determinazione professionale. Attualmente, sto cercando nuove opportunità stimolanti che mi permettano di superare i miei limiti.
+
+La mia missione principale è costruire un futuro solido per la mia famiglia — garantire una casa stabile e fornire il miglior ambiente possibile affinché mio figlio possa crescere e prosperare. Cerco un ambiente professionale che dia valore alla risoluzione di problemi tecnici complessi e offra la stabilità e la crescita necessarie per provvedere ai miei cari.
+
+If you are looking for a developer who builds with both passion and a deep sense of responsibility, I'd love to connect.
+Se cerchi uno sviluppatore che costruisce con passione e un profondo senso di responsabilità, mi piacerebbe parlarne.
+
+📫 Reach out: [giuseppelobbene@gmail.com](mailto:giuseppelobbene@gmail.com)
+</details>
+
 <a name="versione-italiana"></a>
-## � Perché NexCache? (Italiano)
+## 🚀 Perché NexCache? (Italiano)
 
 In un mondo dove il costo della RAM cloud continua a salire e le applicazioni AI richiedono risposte in microsecondi, i database tradizionali mostrano i loro limiti: **frammentazione**, **overhead dei metadati** e **networking inefficiente**.
 
@@ -67,24 +88,3 @@ NexCache is released under the **BSD 3-Clause License**.
 
 ---
 *NexCache — Rethink Memory, Accelerate AI.*
-
-<details>
-<summary><b>🔍 Behind the Engine: A Note from the Author / Nota dell'Autore</b></summary>
-
-**English:**
-Developing NexCache was more than a technical challenge; it was an act of pure dedication. 
-I am a developer who believes in the power of architectural elegance and the necessity of constant growth. If you find value in this project, you've seen a glimpse of my professional drive. Currently, I am seeking new stimulating opportunities that allow me to push my boundaries even further. 
-
-My primary mission is to build a solid future for my family—to secure a stable home and provide the best possible environment for my son to thrive. I am looking for a professional environment that values deep technical problem-solving and offers the stability and growth needed to provide for my loved ones.
-
-**Italiano:**
-Sviluppare NexCache è stato più di una sfida tecnica; è stato un atto di pura dedizione.
-Sono uno sviluppatore che crede nell'eleganza architetturale e nella necessità di una crescita costante. Se trovi valore in questo progetto, hai visto un riflesso della mia determinazione professionale. Attualmente, sto cercando nuove opportunità stimolanti che mi permettano di superare i miei limiti.
-
-La mia missione principale è costruire un futuro solido per la mia famiglia — garantire una casa stabile e fornire il miglior ambiente possibile affinché mio figlio possa crescere e prosperare. Cerco un ambiente professionale che dia valore alla risoluzione di problemi tecnici complessi e offra la stabilità e la crescita necessarie per provvedere ai miei cari.
-
-If you are looking for a developer who builds with both passion and a deep sense of responsibility, I'd love to connect.
-Se cerchi uno sviluppatore che costruisce con passione e un profondo senso di responsabilità, mi piacerebbe parlarne.
-
-📫 Reach out: [giuseppelobbene@gmail.com](mailto:giuseppelobbene@gmail.com)
-</details>
