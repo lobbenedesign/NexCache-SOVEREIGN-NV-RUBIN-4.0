@@ -36,7 +36,7 @@ endif
 # Detection architettura per ottimizzazioni SIMD x86
 ARCH := $(shell uname -m)
 ifeq ($(ARCH),x86_64)
-    CFLAGS += -msse4.1 -mavx2
+    CFLAGS += -march=haswell
 endif
 
 # Rileva sistema operativo per link flags
