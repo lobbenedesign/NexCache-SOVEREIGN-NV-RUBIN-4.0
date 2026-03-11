@@ -1,15 +1,12 @@
+#include "simd_config.h"
 #include "quantization.h"
 #include <string.h>
-#include <math.h>
 
 #if defined(__ARM_NEON) || defined(__aarch64__)
 #include <arm_neon.h>
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64)
-/* Forziamo il supporto SSE4.1 e AVX2 per tutto il file su sistemi x86 */
-#pragma GCC push_options
-#pragma GCC target("sse4.1,avx2")
 #include <immintrin.h>
 #include <cpuid.h>
 #endif
@@ -200,5 +197,7 @@ uint32_t nex_vector_hamming_dist(const uint8_t *a, const uint8_t *b, size_t num_
 }
 
 #if defined(__x86_64__) || defined(_M_X64)
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC pop_options
+#endif
 #endif
