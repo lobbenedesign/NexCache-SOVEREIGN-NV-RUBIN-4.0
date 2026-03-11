@@ -82,7 +82,6 @@ int32_t nex_vector_dot_int8(const int8_t *a, const int8_t *b, size_t dim) {
     for (; i + 15 < dim; i += 16) {
         __m128i va = _mm_loadu_si128((__m128i *)&a[i]);
         __m128i vb = _mm_loadu_si128((__m128i *)&b[i]);
-        /* 🛡️ Qui nasceva l'errore: GCC esige il target SSE4.1 per questa istruzione */
         vsum = _mm_add_epi32(vsum, _mm_madd_epi16(_mm_cvtepi8_epi16(va), _mm_cvtepi8_epi16(vb)));
         vsum = _mm_add_epi32(vsum, _mm_madd_epi16(_mm_cvtepi8_epi16(_mm_srli_si128(va, 8)), _mm_cvtepi8_epi16(_mm_srli_si128(vb, 8))));
     }
