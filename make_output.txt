@@ -1,0 +1,13 @@
+╔══════════════════════════════════════════╗
+║   NexCache — Build System v2.0           ║
+║   Base: Valkey 9.0.3 (fork)              ║
+╚══════════════════════════════════════════╝
+  LZ4:  yes
+  Zstd: yes
+  OS:   Darwin
+  [LD]  build/test_v4
+tests/test_v4.c:42:63: error: unknown type name 'EntryMeta'
+   42 | static void snap_count_cb(const char *k, uint8_t kl, void *v, EntryMeta m,
+      |                                                               ^
+1 error generated.
+make: *** [build/test_v4] Error 1
