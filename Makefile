@@ -5,7 +5,7 @@ CC      ?= gcc
 # Configuriamo le CFLAGS qui, in modo che siano protette
 CFLAGS  := -O3 -std=c11 -Wall -Wextra -pthread -D_GNU_SOURCE \
             -Isrc -Isrc/memory -Isrc/core -Isrc/vector -Isrc/hashtable \
-            -Isrc/segcache -Isrc/crdt -Isrc/bloom -Isrc/network -Isrc/security
+            -Isrc/segcache -Isrc/crdt -Isrc/bloom -Isrc/network -Isrc/security -Ideps/fpconv
 
 UNAME_S := $(shell uname -s)
 ARCH    := $(shell uname -m)
@@ -28,6 +28,7 @@ endif
 
 BUILD_DIR := build
 SRC_DIR   := src
+DEPS_DIR  := deps
 TEST_DIR  := tests
 
 SRCS := $(SRC_DIR)/memory/arena.c \
@@ -51,9 +52,16 @@ SRCS := $(SRC_DIR)/memory/arena.c \
         $(SRC_DIR)/network/websocket.c \
         $(SRC_DIR)/security/quota.c \
         $(SRC_DIR)/util.c \
-        $(SRC_DIR)/zmalloc.c
+        $(SRC_DIR)/zmalloc.c \
+        $(SRC_DIR)/flash/flash.c
+
+# Separate handling for deps
+DEPS_SRCS := $(DEPS_DIR)/fpconv/fpconv_dtoa.c
 
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
+DEPS_OBJS := $(patsubst $(DEPS_DIR)/%/fpconv_dtoa.c,$(BUILD_DIR)/fpconv/fpconv_dtoa.o,$(DEPS_SRCS))
+
+ALL_OBJS := $(OBJS) $(DEPS_OBJS)
 LIB  := $(BUILD_DIR)/libnexcache.a
 
 .PHONY: all clean dirs tests
@@ -63,17 +71,21 @@ all: dirs $(LIB) tests
 dirs:
 	@mkdir -p $(BUILD_DIR)/memory $(BUILD_DIR)/core $(BUILD_DIR)/vector \
 	           $(BUILD_DIR)/hashtable $(BUILD_DIR)/segcache $(BUILD_DIR)/crdt \
-	           $(BUILD_DIR)/bloom $(BUILD_DIR)/network $(BUILD_DIR)/security
+	           $(BUILD_DIR)/bloom $(BUILD_DIR)/network $(BUILD_DIR)/security $(BUILD_DIR)/fpconv $(BUILD_DIR)/flash
 
-$(LIB): $(OBJS)
+$(LIB): $(ALL_OBJS)
 	@echo "  [AR]  $@"
-	@ar rcs $@ $(OBJS)
+	@ar rcs $@ $(ALL_OBJS)
 
 $(BUILD_DIR)/vector/quantization.o: $(SRC_DIR)/vector/quantization.c
 	@echo "  [CC]  $< (SIMD Optimized)"
 	@$(CC) $(CFLAGS) $(SIMD_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "  [CC]  $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/fpconv/%.o: $(DEPS_DIR)/fpconv/%.c
 	@echo "  [CC]  $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 

@@ -539,9 +539,10 @@ NexStorage *nexstorage_create(const char *backend_name,
     const NexStorageAPI *api = &NexDashTableAPI; /* Default */
     if (backend_name && strcmp(backend_name, "segcache") == 0)
         api = &NexSegcacheAPI;
-    else if (backend_name && strcmp(backend_name, "cloud") == 0)
-        api = &NexCloudTierAPI;
-    else if (backend_name && strcmp(backend_name, "flash") == 0)
+    else if (backend_name && strcmp(backend_name, "cloud") == 0) {
+        fprintf(stderr, "Cloud Tiering is an Enterprise Edition feature.\n");
+        return NULL;
+    } else if (backend_name && strcmp(backend_name, "flash") == 0)
         api = &NexFlashAPI;
 
     ns->api = api; /* Primary API for fallback */

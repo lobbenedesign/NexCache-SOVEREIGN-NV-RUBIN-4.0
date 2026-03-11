@@ -15,7 +15,7 @@
 #include "../src/core/vll.h"
 #include "../src/crdt/crdt.h"
 #include "../src/hashtable/nexdash.h"
-#include "../src/observability/anomaly.h"
+/* anomaly.h removed for CE */
 #include "../src/segcache/segcache.h"
 
 /* ── Harness ────────────────────────────────────────────────── */
@@ -619,58 +619,10 @@ static void test_nexstorage(void) {
 /* ════════════════════════════════════════════════════════════════
  * MODULO 7 — Anomaly Detection
  * ══════════════════════════════════════════════════════════════ */
-static int anomaly_alerts = 0;
-static void on_anomaly(const AnomalyEvent *ev, void *ctx) {
-  (void)ev;
-  (void)ctx;
-  anomaly_alerts++;
-}
-
 static void test_anomaly(void) {
-  printf("\n── Anomaly Detection Tests ─────────────────────────────\n");
-  AnomalyDetector *d = anomaly_create(NULL, on_anomaly, NULL);
-
-  T_START("Anomaly: create detector with default config");
-  if (!d) {
-    T_FAIL("NULL");
-    return;
-  }
+  printf("\n── Anomaly Detection Tests (Skipped in CE) ─────────────\n");
+  T_START("Anomaly: tests skipped in CE");
   T_OK();
-
-  T_START("Anomaly: update metrics API works");
-  {
-    anomaly_update_latency(d, 150.0);
-    anomaly_update_memory(d, 100 * 1024 * 1024);
-    anomaly_update_evictions(d, 50);
-    anomaly_update_connections(d, 100);
-    anomaly_update_errors(d, 0.5);
-    anomaly_record_key_access(d, "user:123");
-    T_OK(); /* No crash = OK */
-  }
-
-  T_START("Anomaly: hot key tracking via Count-Min Sketch");
-  {
-    for (int i = 0; i < 50; i++)
-      anomaly_record_key_access(d, "hot_key:viral");
-    int ok = d->hot_key_tracker.top_count >= 50;
-    if (!ok)
-      T_FAIL("count too low");
-    else
-      T_OK();
-  }
-
-  T_START("Anomaly: JSON export");
-  {
-    char buf[512];
-    int n = anomaly_export_json(d, buf, sizeof(buf));
-    int ok = (n > 0) && (strstr(buf, "total_anomalies") != NULL);
-    if (!ok)
-      T_FAIL("export wrong");
-    else
-      T_OK();
-  }
-
-  anomaly_destroy(d);
 }
 
 /* ════════════════════════════════════════════════════════════════
