@@ -8,10 +8,10 @@
 
 #if defined(__x86_64__) || defined(_M_X64)
 #include <immintrin.h>
-#endif
-
-#if defined(__x86_64__) || defined(_M_X64)
 #include <cpuid.h>
+#pragma GCC push_options
+#pragma GCC target("sse4.1,avx2")
+
 static void probe_vector_caps_x86(NexVectorCaps *caps) {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
     __cpuid_count(7, 0, eax, ebx, ecx, edx);
@@ -219,3 +219,7 @@ uint32_t nex_vector_hamming_dist(const uint8_t *a, const uint8_t *b, size_t num_
     }
     return dist;
 }
+
+#if defined(__x86_64__) || defined(_M_X64)
+#pragma GCC pop_options
+#endif
