@@ -6,11 +6,13 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Forza Node.js 24 per tutti gli step per pulire i log
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v4
@@ -22,7 +24,6 @@ jobs:
 
     - name: Build NexCache Core
       run: |
-        # Usiamo il Makefile integrato che ora gestisce tutto internamente
         make clean
         make all
 
