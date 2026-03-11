@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v4
@@ -18,14 +20,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential liblz4-dev libzstd-dev libssl-dev pkg-config
 
-    - name: Build NexCache
+    - name: Build NexCache Core
       run: |
-        # Usiamo il Makefile corretto che ora vede tutti gli oggetti (OBJS)
-        # e forziamo l'architettura per sbloccare SIMD
+        # Usiamo il Makefile integrato che ora gestisce tutto internamente
         make clean
-        make all CFLAGS="-O3 -march=haswell -std=c11 -D_GNU_SOURCE -Isrc -Isrc/memory -Isrc/core -Isrc/vector -Isrc/hashtable -Isrc/segcache -Isrc/crdt -Isrc/bloom"
+        make all
 
-    - name: Run Tests
+    - name: Run Core Tests
       run: |
         ./build/test_arena
         ./build/test_core_v2

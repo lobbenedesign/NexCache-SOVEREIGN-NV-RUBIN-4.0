@@ -1,4 +1,4 @@
-# NexCache Makefile — v2.2 (Gold)
+# NexCache Makefile — v2.3 (Final Release)
 # ============================================================
 CC      ?= gcc
 CFLAGS  += -O3 -std=c11 -Wall -Wextra -pthread -D_GNU_SOURCE \
@@ -6,16 +6,25 @@ CFLAGS  += -O3 -std=c11 -Wall -Wextra -pthread -D_GNU_SOURCE \
             -Isrc/segcache -Isrc/crdt -Isrc/bloom -Isrc/network -Isrc/security
 
 UNAME_S := $(shell uname -s)
+ARCH    := $(shell uname -m)
+
 LDFLAGS += -lpthread -lm
 ifneq ($(UNAME_S),Darwin)
     LDFLAGS += -lrt
+endif
+
+# Flags SIMD (Automatici per architettura)
+ifeq ($(ARCH),x86_64)
+    SIMD_FLAGS := -msse4.1 -mavx2 -mfma
+else
+    SIMD_FLAGS := 
 endif
 
 BUILD_DIR := build
 SRC_DIR   := src
 TEST_DIR  := tests
 
-# --- MODULI CORE (Senza questi i test falliscono) ---
+# --- MODULI CORE ---
 SRCS := $(SRC_DIR)/memory/arena.c \
         $(SRC_DIR)/memory/hybrid.c \
         $(SRC_DIR)/memory/arch_probe.c \
@@ -40,6 +49,12 @@ SRCS := $(SRC_DIR)/memory/arena.c \
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 LIB  := $(BUILD_DIR)/libnexcache.a
 
+# Test definiti esplicitamente
+TEST_NAMES := arena core_v2 v4
+TEST_BINS  := $(addprefix $(BUILD_DIR)/test_,$(TEST_NAMES))
+
+.PHONY: all clean dirs tests
+
 all: dirs $(LIB) tests
 
 dirs:
@@ -51,12 +66,16 @@ $(LIB): $(OBJS)
 	@echo "  [AR]  $@"
 	@ar rcs $@ $(OBJS)
 
+# Regola speciale per SIMD
+$(BUILD_DIR)/vector/quantization.o: $(SRC_DIR)/vector/quantization.c
+	@echo "  [CC]  $< (SIMD Optimized)"
+	@$(CC) $(CFLAGS) $(SIMD_FLAGS) -c $< -o $@
+
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "  [CC]  $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Test Targets (Inclusi test_core_v2 e test_v4 che fallivano)
-tests: $(BUILD_DIR)/test_arena $(BUILD_DIR)/test_core_v2 $(BUILD_DIR)/test_v4
+tests: $(TEST_BINS)
 
 $(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.c $(LIB)
 	@echo "  [LD]  $@"
