@@ -1,4 +1,4 @@
-# NexCache Makefile — v3.0 (Omnibus Release)
+# NexCache Makefile — v2.5 (Release Official)
 # ============================================================
 CC      ?= gcc
 CFLAGS  += -O3 -std=c11 -Wall -Wextra -pthread -D_GNU_SOURCE \
@@ -22,36 +22,56 @@ BUILD_DIR := build
 SRC_DIR   := src
 TEST_DIR  := tests
 
-# --- SCOPERTA AUTOMATICA DEI SORGENTI ---
-# Prendiamo tutti i file .c nella cartella src e sottocartelle
-SRCS := $(shell find $(SRC_DIR) -name "*.c" | grep -v "enterprise" | grep -v "valkey-")
+# --- SELEZIONE MANUALE SORGENTI (Per evitare conflitti di 'main') ---
+SRCS := $(SRC_DIR)/memory/arena.c \
+        $(SRC_DIR)/memory/hybrid.c \
+        $(SRC_DIR)/memory/arch_probe.c \
+        $(SRC_DIR)/memory/hazard_ptr.c \
+        $(SRC_DIR)/core/engine.c \
+        $(SRC_DIR)/core/scheduler.c \
+        $(SRC_DIR)/core/vll.c \
+        $(SRC_DIR)/core/subkey_ttl.c \
+        $(SRC_DIR)/core/nexstorage.c \
+        $(SRC_DIR)/core/planes.c \
+        $(SRC_DIR)/hashtable/nexdash.c \
+        $(SRC_DIR)/segcache/segcache.c \
+        $(SRC_DIR)/crdt/crdt.c \
+        $(SRC_DIR)/bloom/nexbloom.c \
+        $(SRC_DIR)/vector/quantization.c \
+        $(SRC_DIR)/vector/router.c \
+        $(SRC_DIR)/vector/hnsw.c \
+        $(SRC_DIR)/network/protocol_detect.c \
+        $(SRC_DIR)/network/websocket.c \
+        $(SRC_DIR)/security/quota.c \
+        $(SRC_DIR)/util.c \
+        $(SRC_DIR)/zmalloc.c
 
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 LIB  := $(BUILD_DIR)/libnexcache.a
-TEST_BINS := $(BUILD_DIR)/test_arena $(BUILD_DIR)/test_core_v2 $(BUILD_DIR)/test_v4
 
 .PHONY: all clean dirs tests
 
-all: dirs $(LIB) $(TEST_BINS)
-	@echo "✅ NexCache build COMPLETO con successo (Omnibus mode)"
+all: dirs $(LIB) tests
 
 dirs:
-	@mkdir -p $(shell find $(SRC_DIR) -type d | sed 's|^$(SRC_DIR)|$(BUILD_DIR)|')
+	@mkdir -p $(BUILD_DIR)/memory $(BUILD_DIR)/core $(BUILD_DIR)/vector \
+	           $(BUILD_DIR)/hashtable $(BUILD_DIR)/segcache $(BUILD_DIR)/crdt \
+	           $(BUILD_DIR)/bloom $(BUILD_DIR)/network $(BUILD_DIR)/security
 
 $(LIB): $(OBJS)
 	@echo "  [AR]  $@"
 	@ar rcs $@ $(OBJS)
 
-# Regola speciale per SIMD
 $(BUILD_DIR)/vector/quantization.o: $(SRC_DIR)/vector/quantization.c
-	@mkdir -p $(dir $@)
 	@echo "  [CC]  $< (SIMD Optimized)"
 	@$(CC) $(CFLAGS) $(SIMD_FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
 	@echo "  [CC]  $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Test Targets espliciti
+tests: $(BUILD_DIR)/test_arena $(BUILD_DIR)/test_core_v2 $(BUILD_DIR)/test_v4
 
 $(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.c $(LIB)
 	@echo "  [LD]  $@"
