@@ -28,15 +28,15 @@ set(VALKEY_SERVER_LDFLAGS "")
 # ----------------------------------------------------
 # Helper functions & macros
 # ----------------------------------------------------
-macro (add_valkey_server_compiler_options value)
+macro (add_nexcache_server_compiler_options value)
     set(VALKEY_SERVER_CFLAGS "${VALKEY_SERVER_CFLAGS} ${value}")
 endmacro ()
 
-macro (add_valkey_server_linker_option value)
+macro (add_nexcache_server_linker_option value)
     list(APPEND VALKEY_SERVER_LDFLAGS ${value})
 endmacro ()
 
-macro (get_valkey_server_linker_option return_value)
+macro (get_nexcache_server_linker_option return_value)
     list(JOIN VALKEY_SERVER_LDFLAGS " " ${value} ${return_value})
 endmacro ()
 
@@ -45,11 +45,11 @@ if (CMAKE_SYSTEM_NAME MATCHES "^.*BSD$|DragonFly")
     message(STATUS "Building for FreeBSD compatible system")
     set(IS_FREEBSD 1)
     include_directories("/usr/local/include")
-    add_valkey_server_compiler_options("-DUSE_BACKTRACE")
+    add_nexcache_server_compiler_options("-DUSE_BACKTRACE")
 endif ()
 
 # Helper function for creating symbolic link so that: link -> source
-macro (valkey_create_symlink source link)
+macro (nexcache_create_symlink source link)
   add_custom_command(
     TARGET ${source} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink
@@ -60,18 +60,18 @@ macro (valkey_create_symlink source link)
 endmacro ()
 
 # Install a binary
-macro (valkey_install_bin target)
+macro (nexcache_install_bin target)
     # Install cli tool and create a redis symbolic link
     install(
         TARGETS ${target}
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         PERMISSIONS ${VALKEY_EXE_PERMISSIONS}
-        COMPONENT "valkey")
+        COMPONENT "nexcache")
 endmacro ()
 
 # Helper function that defines, builds and installs `target` In addition, it creates a symbolic link between the target
 # and `link_name`
-macro (valkey_build_and_install_bin target sources ld_flags libs link_name)
+macro (nexcache_build_and_install_bin target sources ld_flags libs link_name)
     add_executable(${target} ${sources})
 
     if (USE_JEMALLOC
@@ -83,15 +83,15 @@ macro (valkey_build_and_install_bin target sources ld_flags libs link_name)
 
     # Place this line last to ensure that ${ld_flags} is placed last on the linker line
     target_link_libraries(${target} ${libs} ${ld_flags})
-    target_link_libraries(${target} valkey::valkey)
+    target_link_libraries(${target} nexcache::nexcache)
     if (USE_TLS)
         # Add required libraries needed for TLS
-        target_link_libraries(${target} OpenSSL::SSL valkey::valkey_tls)
+        target_link_libraries(${target} OpenSSL::SSL nexcache::nexcache_tls)
     endif ()
 
     if (USE_RDMA)
         # Add required libraries needed for RDMA
-        target_link_libraries(${target} valkey::valkey_rdma)
+        target_link_libraries(${target} nexcache::nexcache_rdma)
     endif ()
 
     if (IS_FREEBSD)
@@ -102,8 +102,8 @@ macro (valkey_build_and_install_bin target sources ld_flags libs link_name)
     target_compile_options(${target} PRIVATE -Werror -Wall)
 
     # Install cli tool and create a redis symbolic link
-    valkey_install_bin(${target})
-    valkey_create_symlink(${target} ${link_name})
+    nexcache_install_bin(${target})
+    nexcache_create_symlink(${target} ${link_name})
 endmacro ()
 
 # Determine if we are building in Release or Debug mode
@@ -138,21 +138,21 @@ if (BUILD_MALLOC)
     if ("${BUILD_MALLOC}" STREQUAL "jemalloc")
         set(MALLOC_LIB "jemalloc")
         set(ALLOCATOR_LIB "jemalloc")
-        add_valkey_server_compiler_options("-DUSE_JEMALLOC")
+        add_nexcache_server_compiler_options("-DUSE_JEMALLOC")
         set(USE_JEMALLOC 1)
     elseif ("${BUILD_MALLOC}" STREQUAL "libc")
         set(MALLOC_LIB "libc")
     elseif ("${BUILD_MALLOC}" STREQUAL "tcmalloc")
         set(MALLOC_LIB "tcmalloc")
-        valkey_pkg_config(libtcmalloc ALLOCATOR_LIB)
+        nexcache_pkg_config(libtcmalloc ALLOCATOR_LIB)
 
-        add_valkey_server_compiler_options("-DUSE_TCMALLOC")
+        add_nexcache_server_compiler_options("-DUSE_TCMALLOC")
         set(USE_TCMALLOC 1)
     elseif ("${BUILD_MALLOC}" STREQUAL "tcmalloc_minimal")
         set(MALLOC_LIB "tcmalloc_minimal")
-        valkey_pkg_config(libtcmalloc_minimal ALLOCATOR_LIB)
+        nexcache_pkg_config(libtcmalloc_minimal ALLOCATOR_LIB)
 
-        add_valkey_server_compiler_options("-DUSE_TCMALLOC")
+        add_nexcache_server_compiler_options("-DUSE_TCMALLOC")
         set(USE_TCMALLOC_MINIMAL 1)
     else ()
         message(FATAL_ERROR "BUILD_MALLOC can be one of: jemalloc, libc, tcmalloc or tcmalloc_minimal")
@@ -163,7 +163,7 @@ message(STATUS "Using ${MALLOC_LIB}")
 
 # TLS support
 if (BUILD_TLS)
-    valkey_parse_build_option(${BUILD_TLS} USE_TLS)
+    nexcache_parse_build_option(${BUILD_TLS} USE_TLS)
     if (USE_TLS EQUAL 1)
         # Only search for OpenSSL if needed
         find_package(OpenSSL REQUIRED)
@@ -173,8 +173,8 @@ if (BUILD_TLS)
     endif ()
 
     if (USE_TLS EQUAL 1)
-        add_valkey_server_compiler_options("-DUSE_OPENSSL=1")
-        add_valkey_server_compiler_options("-DBUILD_TLS_MODULE=0")
+        add_nexcache_server_compiler_options("-DUSE_OPENSSL=1")
+        add_nexcache_server_compiler_options("-DBUILD_TLS_MODULE=0")
     else ()
         # Build TLS as a module RDMA can only be built as a module. So disable it
         message(WARNING "BUILD_TLS can be one of: [ON | OFF | 1 | 0], but '${BUILD_TLS}' was provided")
@@ -191,22 +191,22 @@ if (BUILD_RDMA)
     set(BUILD_RDMA_MODULE 0)
     # RDMA support (Linux only)
     if (LINUX AND NOT APPLE)
-        valkey_parse_build_option(${BUILD_RDMA} USE_RDMA)
+        nexcache_parse_build_option(${BUILD_RDMA} USE_RDMA)
         find_package(PkgConfig REQUIRED)
         # Locate librdmacm & libibverbs, fail if we can't find them
-        valkey_pkg_config(librdmacm RDMACM_LIBS)
-        valkey_pkg_config(libibverbs IBVERBS_LIBS)
+        nexcache_pkg_config(librdmacm RDMACM_LIBS)
+        nexcache_pkg_config(libibverbs IBVERBS_LIBS)
         message(STATUS "${RDMACM_LIBS};${IBVERBS_LIBS}")
         list(APPEND RDMA_LIBS "${RDMACM_LIBS};${IBVERBS_LIBS}")
 
         if (USE_RDMA EQUAL 2) # Module
             message(STATUS "Building RDMA as module")
-            add_valkey_server_compiler_options("-DUSE_RDMA=2")
+            add_nexcache_server_compiler_options("-DUSE_RDMA=2")
             set(BUILD_RDMA_MODULE 2)
         elseif (USE_RDMA EQUAL 1) # Builtin
             message(STATUS "Building RDMA as builtin")
-            add_valkey_server_compiler_options("-DUSE_RDMA=1")
-            add_valkey_server_compiler_options("-DBUILD_RDMA_MODULE=0")
+            add_nexcache_server_compiler_options("-DUSE_RDMA=1")
+            add_nexcache_server_compiler_options("-DBUILD_RDMA_MODULE=0")
             list(APPEND SERVER_LIBS "${RDMA_LIBS}")
         endif ()
     else ()
@@ -231,31 +231,31 @@ endif ()
 
 message(STATUS "Building on ${CMAKE_HOST_SYSTEM_NAME}")
 if (BUILDING_ARM64)
-    message(STATUS "Compiling valkey for ARM64")
-    add_valkey_server_linker_option("-funwind-tables")
+    message(STATUS "Compiling nexcache for ARM64")
+    add_nexcache_server_linker_option("-funwind-tables")
 endif ()
 
 if (APPLE)
-    add_valkey_server_linker_option("-rdynamic")
-    add_valkey_server_linker_option("-ldl")
+    add_nexcache_server_linker_option("-rdynamic")
+    add_nexcache_server_linker_option("-ldl")
 elseif (UNIX)
-    add_valkey_server_linker_option("-rdynamic")
-    add_valkey_server_linker_option("-pthread")
-    add_valkey_server_linker_option("-ldl")
-    add_valkey_server_linker_option("-lm")
+    add_nexcache_server_linker_option("-rdynamic")
+    add_nexcache_server_linker_option("-pthread")
+    add_nexcache_server_linker_option("-ldl")
+    add_nexcache_server_linker_option("-lm")
 endif ()
 
 if (VALKEY_DEBUG_BUILD)
     # Debug build, use enable "-fno-omit-frame-pointer"
-    add_valkey_server_compiler_options("-fno-omit-frame-pointer")
+    add_nexcache_server_compiler_options("-fno-omit-frame-pointer")
 endif ()
 
 # Check for Atomic
 check_include_files(stdatomic.h HAVE_C11_ATOMIC)
 if (HAVE_C11_ATOMIC)
-    add_valkey_server_compiler_options("-std=gnu11")
+    add_nexcache_server_compiler_options("-std=gnu11")
 else ()
-    add_valkey_server_compiler_options("-std=c99")
+    add_nexcache_server_compiler_options("-std=c99")
 endif ()
 
 # Sanitizer
@@ -277,7 +277,7 @@ if (BUILD_SANITIZER)
     endif ()
 endif ()
 
-include_directories("${CMAKE_SOURCE_DIR}/deps/libvalkey/include")
+include_directories("${CMAKE_SOURCE_DIR}/deps/libnexcache/include")
 include_directories("${CMAKE_SOURCE_DIR}/src/modules/lua")
 include_directories("${CMAKE_SOURCE_DIR}/deps/linenoise")
 include_directories("${CMAKE_SOURCE_DIR}/deps/hdr_histogram")
@@ -291,7 +291,7 @@ if (USE_JEMALLOC)
 endif ()
 
 # Common compiler flags
-add_valkey_server_compiler_options("-pedantic")
+add_nexcache_server_compiler_options("-pedantic")
 
 if (NOT BUILD_LUA)
     message(STATUS "Lua scripting engine is disabled")

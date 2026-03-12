@@ -13,20 +13,20 @@ if (APPLE)
 endif ()
 
 # Options
-option(BUILD_LUA "Build Valkey Lua scripting engine" ON)
-option(BUILD_UNIT_GTESTS "Build valkey-unit-gtests" OFF)
+option(BUILD_LUA "Build NexCache Lua scripting engine" ON)
+option(BUILD_UNIT_GTESTS "Build nexcache-unit-gtests" OFF)
 option(BUILD_TEST_MODULES "Build all test modules" OFF)
 option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-project("valkey")
+project("nexcache")
 add_compile_options(-Wundef)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-include(ValkeySetup)
+include(NexCacheSetup)
 add_subdirectory(src)
 add_subdirectory(tests)
 
