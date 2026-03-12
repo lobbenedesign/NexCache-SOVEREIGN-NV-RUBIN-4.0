@@ -1,12 +1,12 @@
-# Valkey Makefile
-# Copyright (C) 2009 Redis Ltd.
+# NexCache Makefile
+# Copyright (C) 2009 NexCache Contributors.
 # This file is released under the BSD license, see the COPYING file
 #
 # The Makefile composes the final FINAL_CFLAGS and FINAL_LDFLAGS using
-# what is needed for Valkey plus the standard CFLAGS and LDFLAGS passed.
-# However when building the dependencies (Jemalloc, Lua, libvalkey, ...)
+# what is needed for NexCache plus the standard CFLAGS and LDFLAGS passed.
+# However when building the dependencies (Jemalloc, Lua, libnexcache, ...)
 # CFLAGS and LDFLAGS are propagated to the dependencies, so to pass
-# flags only to be used when compiling / linking Valkey itself SERVER_CFLAGS
+# flags only to be used when compiling / linking NexCache itself SERVER_CFLAGS
 # and SERVER_LDFLAGS are used instead (this is the case of 'make gcov').
 #
 # Dependencies are stored in the Makefile.dep file. To rebuild this file
@@ -31,7 +31,7 @@ endif
 ifneq ($(OPTIMIZATION),-O0)
 	OPTIMIZATION+=-fno-omit-frame-pointer
 endif
-DEPENDENCY_TARGETS=libvalkey linenoise hdr_histogram fpconv
+DEPENDENCY_TARGETS=libnexcache linenoise hdr_histogram fpconv
 NODEPS:=clean distclean
 
 # Default settings
@@ -77,7 +77,7 @@ ifeq ($(uname_S),Linux)
 	MALLOC=jemalloc
 endif
 
-# To get ARM stack traces if Valkey crashes we need a special C flag.
+# To get ARM stack traces if NexCache crashes we need a special C flag.
 ifneq (,$(filter aarch64 armv%,$(uname_M)))
         CFLAGS+=-funwind-tables
 endif
@@ -251,10 +251,10 @@ ifdef OPENSSL_PREFIX
 endif
 
 # Include paths to dependencies
-FINAL_CFLAGS+= -I../deps/libvalkey/include -I../deps/linenoise -I../deps/hdr_histogram -I../deps/fpconv
+FINAL_CFLAGS+= -I../deps/libnexcache/include -I../deps/linenoise -I../deps/hdr_histogram -I../deps/fpconv
 
 # Lua scripting engine module
-LUA_MODULE_NAME:=modules/lua/libvalkeylua.so
+LUA_MODULE_NAME:=modules/lua/libnexcachelua.so
 ifeq ($(BUILD_LUA),no)
 	LUA_MODULE=
 	LUA_MODULE_INSTALL=
@@ -263,7 +263,7 @@ else
 	LUA_MODULE_INSTALL=install-lua-module
 
 	current_dir = $(shell pwd)
-	FINAL_CFLAGS+=-DLUA_ENABLED -DLUA_LIB=libvalkeylua.so
+	FINAL_CFLAGS+=-DLUA_ENABLED -DLUA_LIB=libnexcachelua.so
 ifeq ($(uname_S),Darwin)
 	FINAL_LDFLAGS+= -Wl,-rpath,$(PREFIX)/lib
 	FINAL_LDFLAGS+= -Wl,-rpath,$(current_dir)/modules/lua
@@ -342,15 +342,15 @@ BUILD_MODULE:=2
 ifeq ($(BUILD_TLS),yes)
 	FINAL_CFLAGS+=-DUSE_OPENSSL=$(BUILD_YES) $(OPENSSL_CFLAGS) -DBUILD_TLS_MODULE=$(BUILD_NO)
 	FINAL_LDFLAGS+=$(OPENSSL_LDFLAGS)
-	FINAL_LIBS += ../deps/libvalkey/lib/libvalkey_tls.a $(LIBSSL_LIBS) $(LIBCRYPTO_LIBS)
+	FINAL_LIBS += ../deps/libnexcache/lib/libnexcache_tls.a $(LIBSSL_LIBS) $(LIBCRYPTO_LIBS)
 endif
 
 TLS_MODULE=
-TLS_MODULE_NAME:=valkey-tls$(PROG_SUFFIX).so
+TLS_MODULE_NAME:=nexcache-tls$(PROG_SUFFIX).so
 TLS_MODULE_CFLAGS:=$(FINAL_CFLAGS)
 ifeq ($(BUILD_TLS),module)
 	FINAL_CFLAGS+=-DUSE_OPENSSL=$(BUILD_MODULE) $(OPENSSL_CFLAGS)
-	TLS_CLIENT_LIBS = ../deps/libvalkey/lib/libvalkey_tls.a $(LIBSSL_LIBS) $(LIBCRYPTO_LIBS)
+	TLS_CLIENT_LIBS = ../deps/libnexcache/lib/libnexcache_tls.a $(LIBSSL_LIBS) $(LIBCRYPTO_LIBS)
 	TLS_MODULE=$(TLS_MODULE_NAME)
 	TLS_MODULE_CFLAGS+=-DUSE_OPENSSL=$(BUILD_MODULE) $(OPENSSL_CFLAGS) -DBUILD_TLS_MODULE=$(BUILD_MODULE)
 endif
@@ -365,15 +365,15 @@ endif
 
 ifeq ($(BUILD_RDMA),yes)
 	FINAL_CFLAGS+=-DUSE_RDMA=$(BUILD_YES) -DBUILD_RDMA_MODULE=$(BUILD_NO)
-	FINAL_LIBS += ../deps/libvalkey/lib/libvalkey_rdma.a $(RDMA_LIBS)
+	FINAL_LIBS += ../deps/libnexcache/lib/libnexcache_rdma.a $(RDMA_LIBS)
 endif
 
 RDMA_MODULE=
-RDMA_MODULE_NAME:=valkey-rdma$(PROG_SUFFIX).so
+RDMA_MODULE_NAME:=nexcache-rdma$(PROG_SUFFIX).so
 RDMA_MODULE_CFLAGS:=$(FINAL_CFLAGS)
 ifeq ($(BUILD_RDMA),module)
 	FINAL_CFLAGS+=-DUSE_RDMA=$(BUILD_MODULE)
-	RDMA_CLIENT_LIBS = ../deps/libvalkey/lib/libvalkey_rdma.a
+	RDMA_CLIENT_LIBS = ../deps/libnexcache/lib/libnexcache_rdma.a
 	RDMA_MODULE=$(RDMA_MODULE_NAME)
 	RDMA_MODULE_CFLAGS+=-DUSE_RDMA=$(BUILD_MODULE) -DBUILD_RDMA_MODULE=$(BUILD_MODULE) $(RDMA_LIBS)
 endif
@@ -387,8 +387,8 @@ ifndef V
     define INSTALL_REDIS_SYMLINK
         @printf '    %b %b %b %b %b %b %b\n' \
         $(LINKCOLOR)INSTALL SYMLINK$(ENDCOLOR) \
-        $(BINCOLOR)$(subst $(ENGINE_NAME),redis,$(1))$(ENDCOLOR) -\> $(BINCOLOR)$(1)$(ENDCOLOR) 1>&2
-        @ln -sf $(1) $(2)/$(subst $(ENGINE_NAME),redis,$(1))
+        $(BINCOLOR)$(subst $(ENGINE_NAME),nexcache,$(1))$(ENDCOLOR) -\> $(BINCOLOR)$(1)$(ENDCOLOR) 1>&2
+        @ln -sf $(1) $(2)/$(subst $(ENGINE_NAME),nexcache,$(1))
     endef
 else
     define MAKE_INSTALL
@@ -396,16 +396,16 @@ else
     endef
 
     define INSTALL_REDIS_SYMLINK
-        ln -sf $(1) $(2)/$(subst $(ENGINE_NAME),redis,$(1))
+        ln -sf $(1) $(2)/$(subst $(ENGINE_NAME),nexcache,$(1))
     endef
 endif
 
-# Determine install/uninstall Redis symlinks for compatibility when
-# installing/uninstalling Valkey binaries (defaulting to `yes`)
+# Determine install/uninstall NexCache symlinks for compatibility when
+# installing/uninstalling NexCache binaries (defaulting to `yes`)
 USE_REDIS_SYMLINKS?=yes
 ifeq ($(USE_REDIS_SYMLINKS),yes)
 	MAYBE_INSTALL_REDIS_SYMLINK=$(INSTALL_REDIS_SYMLINK)
-	MAYBE_UNINSTALL_REDIS_SYMLINK=@rm -f $(1)/$(subst $(ENGINE_NAME),redis,$(2))
+	MAYBE_UNINSTALL_REDIS_SYMLINK=@rm -f $(1)/$(subst $(ENGINE_NAME),nexcache,$(2))
 else
 	MAYBE_INSTALL_REDIS_SYMLINK=
 	MAYBE_UNINSTALL_REDIS_SYMLINK=
@@ -640,7 +640,7 @@ ALL_SOURCES=$(sort $(patsubst %.o,%.c,$(ENGINE_SERVER_OBJ) $(ENGINE_CLI_OBJ) $(E
 
 USE_FAST_FLOAT?=no
 ifeq ($(USE_FAST_FLOAT),yes)
-	# valkey_strtod.h uses this flag to switch valkey_strtod function to fast_float_strtod,
+	# nexcache_strtod.h uses this flag to switch nexcache_strtod function to fast_float_strtod,
 	# therefore let's pass it to compiler for preprocessing.
 	FINAL_CFLAGS += -D USE_FAST_FLOAT
 	# next, let's build and add actual library containing fast_float_strtod function for linking.
@@ -717,31 +717,31 @@ ifneq ($(strip $(PREV_FINAL_LDFLAGS)), $(strip $(FINAL_LDFLAGS)))
 .make-prerequisites: persist-settings
 endif
 
-# valkey-server
+# nexcache-server
 $(SERVER_NAME): $(ENGINE_SERVER_OBJ) $(LUA_MODULE)
-	$(SERVER_LD) -o $@ $(ENGINE_SERVER_OBJ) ../deps/libvalkey/lib/libvalkey.a ../deps/hdr_histogram/libhdrhistogram.a ../deps/fpconv/libfpconv.a $(FINAL_LIBS)
+	$(SERVER_LD) -o $@ $(ENGINE_SERVER_OBJ) ../deps/libnexcache/lib/libnexcache.a ../deps/hdr_histogram/libhdrhistogram.a ../deps/fpconv/libfpconv.a $(FINAL_LIBS)
 
-# Valkey static library, used to compile against for unit testing
+# NexCache static library, used to compile against for unit testing
 $(ENGINE_LIB_NAME): $(ENGINE_SERVER_OBJ)
 	$(SERVER_AR) rcs $@ $^
 
-# valkey-sentinel
+# nexcache-sentinel
 $(ENGINE_SENTINEL_NAME): $(SERVER_NAME)
 	$(ENGINE_INSTALL) $(SERVER_NAME) $(ENGINE_SENTINEL_NAME)
 
-# valkey-check-rdb
+# nexcache-check-rdb
 $(ENGINE_CHECK_RDB_NAME): $(SERVER_NAME)
 	$(ENGINE_INSTALL) $(SERVER_NAME) $(ENGINE_CHECK_RDB_NAME)
 
-# valkey-check-aof
+# nexcache-check-aof
 $(ENGINE_CHECK_AOF_NAME): $(SERVER_NAME)
 	$(ENGINE_INSTALL) $(SERVER_NAME) $(ENGINE_CHECK_AOF_NAME)
 
-# valkey-tls.so
+# nexcache-tls.so
 $(TLS_MODULE_NAME): $(SERVER_NAME)
 	$(QUIET_CC)$(CC) -o $@ tls.c -shared -fPIC $(TLS_MODULE_CFLAGS) $(TLS_CLIENT_LIBS)
 
-# valkey-rdma.so
+# nexcache-rdma.so
 $(RDMA_MODULE_NAME): $(SERVER_NAME)
 	$(QUIET_CC)$(CC) -o $@ rdma.c -shared -fPIC $(RDMA_MODULE_CFLAGS)
 
@@ -749,13 +749,13 @@ $(RDMA_MODULE_NAME): $(SERVER_NAME)
 $(LUA_MODULE_NAME): .make-prerequisites
 	cd modules/lua && $(MAKE) OPTIMIZATION="$(OPTIMIZATION)"
 
-# valkey-cli
+# nexcache-cli
 $(ENGINE_CLI_NAME): $(ENGINE_CLI_OBJ)
-	$(SERVER_LD) -o $@ $^ ../deps/libvalkey/lib/libvalkey.a ../deps/linenoise/linenoise.o ../deps/fpconv/libfpconv.a $(FINAL_LIBS) $(TLS_CLIENT_LIBS) $(RDMA_CLIENT_LIBS)
+	$(SERVER_LD) -o $@ $^ ../deps/libnexcache/lib/libnexcache.a ../deps/linenoise/linenoise.o ../deps/fpconv/libfpconv.a $(FINAL_LIBS) $(TLS_CLIENT_LIBS) $(RDMA_CLIENT_LIBS)
 
-# valkey-benchmark
+# nexcache-benchmark
 $(ENGINE_BENCHMARK_NAME): $(ENGINE_BENCHMARK_OBJ)
-	$(SERVER_LD) -o $@ $^ ../deps/libvalkey/lib/libvalkey.a ../deps/hdr_histogram/libhdrhistogram.a ../deps/fpconv/libfpconv.a $(FINAL_LIBS) $(TLS_CLIENT_LIBS) $(RDMA_CLIENT_LIBS)
+	$(SERVER_LD) -o $@ $^ ../deps/libnexcache/lib/libnexcache.a ../deps/hdr_histogram/libhdrhistogram.a ../deps/fpconv/libfpconv.a $(FINAL_LIBS) $(TLS_CLIENT_LIBS) $(RDMA_CLIENT_LIBS)
 
 DEP = $(ENGINE_SERVER_OBJ:%.o=%.d) $(ENGINE_CLI_OBJ:%.o=%.d) $(ENGINE_BENCHMARK_OBJ:%.o=%.d)
 -include $(DEP)
@@ -769,22 +769,22 @@ DEP = $(ENGINE_SERVER_OBJ:%.o=%.d) $(ENGINE_CLI_OBJ:%.o=%.d) $(ENGINE_BENCHMARK_
 trace/%.o: trace/%.c .make-prerequisites
 	$(SERVER_CC) -Itrace -MMD -o $@ -c $<
 
-# The following files are checked in and don't normally need to be rebuilt. They
-# are built only if python is available and their prereqs are modified.
-ifneq (,$(PYTHON))
-$(COMMANDS_DEF_FILENAME).def: commands/*.json ../utils/generate-command-code.py
-	$(QUIET_GEN)$(PYTHON) ../utils/generate-command-code.py $(GEN_COMMANDS_FLAGS)
-
-fmtargs.h: ../utils/generate-fmtargs.py
-	$(QUITE_GEN)sed '/Everything below this line/,$$d' $@ > $@.tmp
-	$(QUITE_GEN)$(PYTHON) ../utils/generate-fmtargs.py >> $@.tmp
-	$(QUITE_GEN)mv $@.tmp $@
-endif
+# The following files are checked in and don't normally need to be rebuilt.
+# We removed the utils/ generation scripts for security reasons.
+# ifneq (,$(PYTHON))
+# $(COMMANDS_DEF_FILENAME).def: commands/*.json ../utils/generate-command-code.py
+# 	$(QUIET_GEN)$(PYTHON) ../utils/generate-command-code.py $(GEN_COMMANDS_FLAGS)
+#
+# fmtargs.h: ../utils/generate-fmtargs.py
+# 	$(QUITE_GEN)sed '/Everything below this line/,$$d' $@ > $@.tmp
+# 	$(QUITE_GEN)$(PYTHON) ../utils/generate-fmtargs.py >> $@.tmp
+# 	$(QUITE_GEN)mv $@.tmp $@
+# endif
 
 commands.c: $(COMMANDS_DEF_FILENAME).def
 
 clean:
-	rm -rf $(SERVER_NAME) $(ENGINE_SENTINEL_NAME) $(ENGINE_CLI_NAME) $(ENGINE_BENCHMARK_NAME) $(ENGINE_CHECK_RDB_NAME) $(ENGINE_CHECK_AOF_NAME) $(ENGINE_UNIT_GTESTS) $(ENGINE_LIB_NAME) trace/*.o trace/*.d *.o *.gcda *.gcno *.gcov valkey.info lcov-html Makefile.dep *.so
+	rm -rf $(SERVER_NAME) $(ENGINE_SENTINEL_NAME) $(ENGINE_CLI_NAME) $(ENGINE_BENCHMARK_NAME) $(ENGINE_CHECK_RDB_NAME) $(ENGINE_CHECK_AOF_NAME) $(ENGINE_UNIT_GTESTS) $(ENGINE_LIB_NAME) trace/*.o trace/*.d *.o *.gcda *.gcno *.gcov nexcache.info lcov-html Makefile.dep *.so
 	rm -f $(DEP)
 	-(cd modules/lua && $(MAKE) clean)
 
@@ -806,7 +806,7 @@ test: $(ALL_BUILD_PREREQUISITES)
 test-unit:
 	@(cd unit && $(MAKE) test-unit)
 
-# valkey-unit-gtests
+# nexcache-unit-gtests
 $(ENGINE_UNIT_GTESTS): $(ENGINE_LIB_NAME)
 	@(cd unit && $(MAKE) $(ENGINE_UNIT_GTESTS))
 
@@ -825,8 +825,8 @@ lcov:
 	@lcov --version
 	$(MAKE) gcov
 	@(set -e; cd ..; ./runtest)
-	@geninfo -o valkey.info .
-	@genhtml --legend -o lcov-html valkey.info
+	@geninfo -o nexcache.info .
+	@genhtml --legend -o lcov-html nexcache.info
 
 .PHONY: lcov
 
