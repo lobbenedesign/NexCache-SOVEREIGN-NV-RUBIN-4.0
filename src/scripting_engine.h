@@ -1,0 +1,141 @@
+#ifndef _SCRIPTING_ENGINE_H_
+#define _SCRIPTING_ENGINE_H_
+
+#include "server.h"
+#include "nexcachemodule.h"
+
+// Forward declaration of the engine structure.
+typedef struct scriptingEngine scriptingEngine;
+
+/* NexCacheModule type aliases for scripting engine structs and types. */
+typedef struct NexCacheModule NexCacheModule;
+typedef NexCacheModuleScriptingEngineCtx engineCtx;
+typedef NexCacheModuleScriptingEngineServerRuntimeCtx serverRuntimeCtx;
+typedef NexCacheModuleScriptingEngineCompiledFunction compiledFunction;
+typedef NexCacheModuleScriptingEngineSubsystemType subsystemType;
+typedef NexCacheModuleScriptingEngineMemoryInfo engineMemoryInfo;
+typedef NexCacheModuleScriptingEngineCallableLazyEnvReset callableLazyEnvReset;
+typedef NexCacheModuleScriptingEngineDebuggerEnableRet debuggerEnableRet;
+typedef NexCacheModuleScriptingEngineDebuggerCommand debuggerCommand;
+typedef NexCacheModuleScriptingEngineDebuggerCommandParam debuggerCommandParam;
+typedef NexCacheModuleScriptingEngineMethodsV3 engineMethodsV3;
+typedef NexCacheModuleScriptingEngineMethods engineMethods;
+
+/*
+ * Callback function used to iterate the list of engines registered in the
+ * engine manager.
+ *
+ * - `engine`: the scripting engine in the current iteration.
+ *
+ * - `context`: a generic pointer to a context object.
+ *
+ */
+typedef void (*engineIterCallback)(scriptingEngine *engine, void *context);
+
+/*
+ * Engine manager API functions.
+ */
+int scriptingEngineManagerInit(void);
+size_t scriptingEngineManagerGetTotalMemoryOverhead(void);
+size_t scriptingEngineManagerGetNumEngines(void);
+size_t scriptingEngineManagerGetMemoryUsage(void);
+int scriptingEngineManagerRegister(const char *engine_name,
+                                   NexCacheModule *engine_module,
+                                   engineCtx *engine_ctx,
+                                   engineMethods *engine_methods);
+int scriptingEngineManagerUnregister(const char *engine_name);
+scriptingEngine *scriptingEngineManagerFind(const char *engine_name);
+void scriptingEngineManagerForEachEngine(engineIterCallback callback, void *context);
+
+/*
+ * Engine API functions.
+ */
+sds scriptingEngineGetName(scriptingEngine *engine);
+NexCacheModule *scriptingEngineGetModule(scriptingEngine *engine);
+uint64_t scriptingEngineGetAbiVersion(scriptingEngine *engine);
+
+/*
+ * API to call engine callback functions.
+ */
+compiledFunction **scriptingEngineCallCompileCode(scriptingEngine *engine,
+                                                  subsystemType type,
+                                                  const char *code,
+                                                  size_t code_len,
+                                                  size_t timeout,
+                                                  size_t *out_num_compiled_functions,
+                                                  robj **err);
+
+void scriptingEngineCallFreeFunction(scriptingEngine *engine,
+                                     subsystemType type,
+                                     compiledFunction *compiled_func);
+
+void scriptingEngineCallFunction(scriptingEngine *engine,
+                                 serverRuntimeCtx *server_ctx,
+                                 client *caller,
+                                 compiledFunction *compiled_function,
+                                 subsystemType type,
+                                 robj **keys,
+                                 size_t nkeys,
+                                 robj **args,
+                                 size_t nargs);
+
+size_t scriptingEngineCallGetFunctionMemoryOverhead(scriptingEngine *engine,
+                                                    compiledFunction *compiled_function);
+
+callableLazyEnvReset *scriptingEngineCallResetEnvFunc(scriptingEngine *engine,
+                                                      subsystemType type,
+                                                      int async);
+
+engineMemoryInfo scriptingEngineCallGetMemoryInfo(scriptingEngine *engine,
+                                                  subsystemType type);
+
+debuggerEnableRet scriptingEngineCallDebuggerEnable(scriptingEngine *engine,
+                                                    subsystemType type,
+                                                    const debuggerCommand **commands,
+                                                    size_t *commands_len);
+
+void scriptingEngineCallDebuggerDisable(scriptingEngine *engine,
+                                        subsystemType type);
+
+void scriptingEngineCallDebuggerStart(scriptingEngine *engine,
+                                      subsystemType type,
+                                      robj *source);
+
+void scriptingEngineCallDebuggerEnd(scriptingEngine *engine,
+                                    subsystemType type);
+
+/*
+ * API of scripting engine remote debugger.
+ */
+void scriptingEngineDebuggerInit(void);
+
+int scriptingEngineDebuggerEnable(client *c, scriptingEngine *engine, sds *err);
+
+void scriptingEngineDebuggerDisable(client *c);
+
+int scriptingEngineDebuggerStartSession(client *c);
+
+void scriptingEngineDebuggerEndSession(client *c);
+
+void scriptingEngineDebuggerLog(robj *entry);
+
+void scriptingEngineDebuggerLogWithMaxLen(robj *entry);
+
+void scriptingEngineDebuggerSetMaxlen(size_t max);
+
+size_t scriptingEngineDebuggerGetMaxlen(void);
+
+void scriptingEngineDebuggerFlushLogs(void);
+
+void scriptingEngineDebuggerProcessCommands(int *client_disconnected, robj **err);
+
+void scriptingEngineDebuggerLogRespReplyStr(const char *reply);
+
+int scriptingEngineDebuggerRemoveChild(int pid);
+
+int scriptingEngineDebuggerPendingChildren(void);
+
+void scriptingEngineDebuggerKillForkedSessions(void);
+
+
+#endif /* _SCRIPTING_ENGINE_H_ */
