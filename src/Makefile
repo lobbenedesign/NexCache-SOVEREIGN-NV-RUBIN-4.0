@@ -571,8 +571,17 @@ ENGINE_SERVER_OBJ = \
     core/vll.o \
     core/planes.o \
     memory/arena.o \
+    memory/arch_probe.o \
     memory/hazard_ptr.o \
     memory/hybrid.o \
+    vector/hnsw.o \
+    vector/router.o \
+    vector/quantization.o \
+    vector/hybrid_search.o \
+    bloom/nexbloom.o \
+    network/protocol_detect.o \
+    network/websocket.o \
+    security/quota.o \
     observability/anomaly.o
 ENGINE_SERVER_OBJ+=$(ENGINE_TRACE_OBJ)
 ENGINE_CLI_NAME=$(ENGINE_NAME)-cli$(PROG_SUFFIX)
