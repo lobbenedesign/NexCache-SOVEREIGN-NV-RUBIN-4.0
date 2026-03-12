@@ -1,15 +1,15 @@
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx,"unsupported_features",1,VALKEYMODULE_APIVER_1)== VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx,"unsupported_features",1,NEXCACHEMODULE_APIVER_1)== NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
     /* This module does not set any options, meaning it will not opt-in to
      * features like Atomic Slot Migration and Async Loading */
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

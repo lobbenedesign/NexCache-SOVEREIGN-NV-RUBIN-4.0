@@ -64,7 +64,7 @@ start_cluster 1 0 {tags {external:skip cluster}} {
 # CLUSTERSCAN Tests - 3-node cluster tests
 start_cluster 3 0 {tags {external:skip cluster}} {
     test "CLUSTERSCAN basic functionality" {
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
 
         # Populate keys
         set num_keys 100
@@ -109,7 +109,7 @@ start_cluster 3 0 {tags {external:skip cluster}} {
     }
 
     test "CLUSTERSCAN with MATCH pattern" {
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
 
         $cluster set "user:100" "val"
         $cluster set "user:200" "val"
@@ -159,7 +159,7 @@ start_cluster 3 0 {tags {external:skip cluster}} {
     }
 
     test "CLUSTERSCAN with COUNT option" {
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
         # COUNT is a hint, not a guarantee, but we can test it doesn't error
         set 0_slot_tag "{06S}"
         set 1_slot_tag "{Qi}"
@@ -203,7 +203,7 @@ start_cluster 3 0 {tags {external:skip cluster}} {
 
     test "CLUSTERSCAN with TYPE filter" {
         # Add different data types
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
         $cluster  set "string:test" "val"
         $cluster lpush "list:test" "a" "b"
         $cluster sadd "set:test" "x" "y"
@@ -248,7 +248,7 @@ start_cluster 3 0 {tags {external:skip cluster}} {
     }
 
     test "CLUSTERSCAN empty result still returns valid cursor" {
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
         set res [$cluster clusterscan 0]
         set cursor [lindex $res 0]
         # Cursor should match format: 0-{hashtag}-number
@@ -270,7 +270,7 @@ start_cluster 3 0 {tags {external:skip cluster}} {
     }
 
     test "CLUSTERSCAN fingerprint validation" {
-        set cluster [valkey_cluster 127.0.0.1:[srv 0 port]]
+        set cluster [nexcache_cluster 127.0.0.1:[srv 0 port]]
         
         set 0_slot_tag "{06S}"
         set 1_slot_tag "{Qi}"

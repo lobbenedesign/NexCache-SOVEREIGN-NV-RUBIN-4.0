@@ -1,0 +1,15 @@
+@PACKAGE_INIT@
+
+set_and_check(nexcache_tls_INCLUDEDIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+
+include(CMakeFindDependencyMacro)
+find_dependency(OpenSSL)
+
+if(NOT TARGET nexcache::nexcache_tls)
+  include(${CMAKE_CURRENT_LIST_DIR}/nexcache_tls-targets.cmake)
+endif()
+
+set(nexcache_tls_LIBRARIES nexcache::nexcache_tls)
+set(nexcache_tls_INCLUDE_DIRS ${nexcache_tls_INCLUDEDIR})
+
+check_required_components(nexcache_tls)

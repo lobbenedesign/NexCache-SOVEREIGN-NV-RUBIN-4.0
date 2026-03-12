@@ -1,0 +1,84 @@
+#define _XOPEN_SOURCE 600 /* Required by libuv (pthread_rwlock_t) */
+#include <nexcache/async.h>
+#include <nexcache/nexcache.h>
+
+#include <nexcache/adapters/libuv.h>
+
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void debugCallback(nexcacheAsyncContext *c, void *r, void *privdata) {
+    (void)privdata; //unused
+    nexcacheReply *reply = r;
+    if (reply == NULL) {
+        /* The DEBUG SLEEP command will almost always fail, because we have set a 1 second timeout */
+        printf("`DEBUG SLEEP` error: %s\n", c->errstr ? c->errstr : "unknown error");
+        return;
+    }
+    /* Disconnect after receiving the reply of DEBUG SLEEP (which will not)*/
+    nexcacheAsyncDisconnect(c);
+}
+
+void getCallback(nexcacheAsyncContext *c, void *r, void *privdata) {
+    nexcacheReply *reply = r;
+    if (reply == NULL) {
+        printf("`GET key` error: %s\n", c->errstr ? c->errstr : "unknown error");
+        return;
+    }
+    printf("`GET key` result: argv[%s]: %s\n", (char *)privdata, reply->str);
+
+    /* start another request that demonstrate timeout */
+    nexcacheAsyncCommand(c, debugCallback, NULL, "DEBUG SLEEP %f", 1.5);
+}
+
+void connectCallback(nexcacheAsyncContext *c, int status) {
+    if (status != NEXCACHE_OK) {
+        printf("connect error: %s\n", c->errstr);
+        return;
+    }
+    printf("Connected...\n");
+}
+
+void disconnectCallback(const nexcacheAsyncContext *c, int status) {
+    if (status != NEXCACHE_OK) {
+        printf("disconnect because of error: %s\n", c->errstr);
+        return;
+    }
+    printf("Disconnected...\n");
+}
+
+int main(int argc, char **argv) {
+#ifndef _WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
+    uv_loop_t *loop = uv_default_loop();
+
+    nexcacheAsyncContext *c = nexcacheAsyncConnect("127.0.0.1", 6379);
+    if (c->err) {
+        /* Let *c leak for now... */
+        printf("Error: %s\n", c->errstr);
+        return 1;
+    }
+
+    nexcacheLibuvAttach(c, loop);
+    nexcacheAsyncSetConnectCallback(c, connectCallback);
+    nexcacheAsyncSetDisconnectCallback(c, disconnectCallback);
+    nexcacheAsyncSetTimeout(c, (struct timeval){.tv_sec = 1, .tv_usec = 0});
+
+    /*
+    In this demo, we first `set key`, then `get key` to demonstrate the basic usage of libuv adapter.
+    Then in `getCallback`, we start a `debug sleep` command to create 1.5 second long request.
+    Because we have set a 1 second timeout to the connection, the command will always fail with a
+    timeout error, which is shown in the `debugCallback`.
+    */
+
+    nexcacheAsyncCommand(
+        c, NULL, NULL, "SET key %b", argv[argc - 1], strlen(argv[argc - 1]));
+    nexcacheAsyncCommand(c, getCallback, (char *)"end-1", "GET key");
+
+    uv_run(loop, UV_RUN_DEFAULT);
+    return 0;
+}

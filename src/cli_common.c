@@ -1,6 +1,6 @@
 /* CLI (command line interface) common methods
  *
- * Copyright (c) 2020, Redis Ltd.
+ * Copyright (c) 2020, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

@@ -1,102 +1,102 @@
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
-static void timer_callback(ValkeyModuleCtx *ctx, void *data)
+static void timer_callback(NexCacheModuleCtx *ctx, void *data)
 {
-    ValkeyModuleString *keyname = data;
-    ValkeyModuleCallReply *reply;
+    NexCacheModuleString *keyname = data;
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx, "INCR", "s", keyname);
+    reply = NexCacheModule_Call(ctx, "INCR", "s", keyname);
     if (reply != NULL)
-        ValkeyModule_FreeCallReply(reply);
-    ValkeyModule_FreeString(ctx, keyname);
+        NexCacheModule_FreeCallReply(reply);
+    NexCacheModule_FreeString(ctx, keyname);
 }
 
-int test_createtimer(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int test_createtimer(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     if (argc != 3) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
 
     long long period;
-    if (ValkeyModule_StringToLongLong(argv[1], &period) == VALKEYMODULE_ERR) {
-        ValkeyModule_ReplyWithError(ctx, "Invalid time specified.");
-        return VALKEYMODULE_OK;
+    if (NexCacheModule_StringToLongLong(argv[1], &period) == NEXCACHEMODULE_ERR) {
+        NexCacheModule_ReplyWithError(ctx, "Invalid time specified.");
+        return NEXCACHEMODULE_OK;
     }
 
-    ValkeyModuleString *keyname = argv[2];
-    ValkeyModule_RetainString(ctx, keyname);
+    NexCacheModuleString *keyname = argv[2];
+    NexCacheModule_RetainString(ctx, keyname);
 
-    ValkeyModuleTimerID id = ValkeyModule_CreateTimer(ctx, period, timer_callback, keyname);
-    ValkeyModule_ReplyWithLongLong(ctx, id);
+    NexCacheModuleTimerID id = NexCacheModule_CreateTimer(ctx, period, timer_callback, keyname);
+    NexCacheModule_ReplyWithLongLong(ctx, id);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int test_gettimer(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int test_gettimer(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     if (argc != 2) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
 
     long long id;
-    if (ValkeyModule_StringToLongLong(argv[1], &id) == VALKEYMODULE_ERR) {
-        ValkeyModule_ReplyWithError(ctx, "Invalid id specified.");
-        return VALKEYMODULE_OK;
+    if (NexCacheModule_StringToLongLong(argv[1], &id) == NEXCACHEMODULE_ERR) {
+        NexCacheModule_ReplyWithError(ctx, "Invalid id specified.");
+        return NEXCACHEMODULE_OK;
     }
 
     uint64_t remaining;
-    ValkeyModuleString *keyname;
-    if (ValkeyModule_GetTimerInfo(ctx, id, &remaining, (void **)&keyname) == VALKEYMODULE_ERR) {
-        ValkeyModule_ReplyWithNull(ctx);
+    NexCacheModuleString *keyname;
+    if (NexCacheModule_GetTimerInfo(ctx, id, &remaining, (void **)&keyname) == NEXCACHEMODULE_ERR) {
+        NexCacheModule_ReplyWithNull(ctx);
     } else {
-        ValkeyModule_ReplyWithArray(ctx, 2);
-        ValkeyModule_ReplyWithString(ctx, keyname);
-        ValkeyModule_ReplyWithLongLong(ctx, remaining);
+        NexCacheModule_ReplyWithArray(ctx, 2);
+        NexCacheModule_ReplyWithString(ctx, keyname);
+        NexCacheModule_ReplyWithLongLong(ctx, remaining);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int test_stoptimer(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int test_stoptimer(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     if (argc != 2) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
 
     long long id;
-    if (ValkeyModule_StringToLongLong(argv[1], &id) == VALKEYMODULE_ERR) {
-        ValkeyModule_ReplyWithError(ctx, "Invalid id specified.");
-        return VALKEYMODULE_OK;
+    if (NexCacheModule_StringToLongLong(argv[1], &id) == NEXCACHEMODULE_ERR) {
+        NexCacheModule_ReplyWithError(ctx, "Invalid id specified.");
+        return NEXCACHEMODULE_OK;
     }
 
     int ret = 0;
-    ValkeyModuleString *keyname;
-    if (ValkeyModule_StopTimer(ctx, id, (void **) &keyname) == VALKEYMODULE_OK) {
-        ValkeyModule_FreeString(ctx, keyname);
+    NexCacheModuleString *keyname;
+    if (NexCacheModule_StopTimer(ctx, id, (void **) &keyname) == NEXCACHEMODULE_OK) {
+        NexCacheModule_FreeString(ctx, keyname);
         ret = 1;
     }
 
-    ValkeyModule_ReplyWithLongLong(ctx, ret);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithLongLong(ctx, ret);
+    return NEXCACHEMODULE_OK;
 }
 
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx,"timer",1,VALKEYMODULE_APIVER_1)== VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx,"timer",1,NEXCACHEMODULE_APIVER_1)== NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.createtimer", test_createtimer,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"test.gettimer", test_gettimer,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"test.stoptimer", test_stoptimer,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.createtimer", test_createtimer,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.gettimer", test_gettimer,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.stoptimer", test_stoptimer,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

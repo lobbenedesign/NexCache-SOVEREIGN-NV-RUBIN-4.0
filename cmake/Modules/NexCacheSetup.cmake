@@ -9,11 +9,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # Generate compile_commands.json file for IDEs code completion support
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
-processorcount(VALKEY_PROCESSOR_COUNT)
-message(STATUS "Processor count: ${VALKEY_PROCESSOR_COUNT}")
+processorcount(NEXCACHE_PROCESSOR_COUNT)
+message(STATUS "Processor count: ${NEXCACHE_PROCESSOR_COUNT}")
 
 # Installed executables will have this permissions
-set(VALKEY_EXE_PERMISSIONS
+set(NEXCACHE_EXE_PERMISSIONS
     OWNER_EXECUTE
     OWNER_WRITE
     OWNER_READ
@@ -22,22 +22,22 @@ set(VALKEY_EXE_PERMISSIONS
     WORLD_EXECUTE
     WORLD_READ)
 
-set(VALKEY_SERVER_CFLAGS "")
-set(VALKEY_SERVER_LDFLAGS "")
+set(NEXCACHE_SERVER_CFLAGS "")
+set(NEXCACHE_SERVER_LDFLAGS "")
 
 # ----------------------------------------------------
 # Helper functions & macros
 # ----------------------------------------------------
 macro (add_nexcache_server_compiler_options value)
-    set(VALKEY_SERVER_CFLAGS "${VALKEY_SERVER_CFLAGS} ${value}")
+    set(NEXCACHE_SERVER_CFLAGS "${NEXCACHE_SERVER_CFLAGS} ${value}")
 endmacro ()
 
 macro (add_nexcache_server_linker_option value)
-    list(APPEND VALKEY_SERVER_LDFLAGS ${value})
+    list(APPEND NEXCACHE_SERVER_LDFLAGS ${value})
 endmacro ()
 
 macro (get_nexcache_server_linker_option return_value)
-    list(JOIN VALKEY_SERVER_LDFLAGS " " ${value} ${return_value})
+    list(JOIN NEXCACHE_SERVER_LDFLAGS " " ${value} ${return_value})
 endmacro ()
 
 set(IS_FREEBSD 0)
@@ -61,11 +61,11 @@ endmacro ()
 
 # Install a binary
 macro (nexcache_install_bin target)
-    # Install cli tool and create a redis symbolic link
+    # Install cli tool and create a nexcache symbolic link
     install(
         TARGETS ${target}
         DESTINATION ${CMAKE_INSTALL_BINDIR}
-        PERMISSIONS ${VALKEY_EXE_PERMISSIONS}
+        PERMISSIONS ${NEXCACHE_EXE_PERMISSIONS}
         COMPONENT "nexcache")
 endmacro ()
 
@@ -101,19 +101,19 @@ macro (nexcache_build_and_install_bin target sources ld_flags libs link_name)
     # Enable all warnings + fail on warning
     target_compile_options(${target} PRIVATE -Werror -Wall)
 
-    # Install cli tool and create a redis symbolic link
+    # Install cli tool and create a nexcache symbolic link
     nexcache_install_bin(${target})
     nexcache_create_symlink(${target} ${link_name})
 endmacro ()
 
 # Determine if we are building in Release or Debug mode
 if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES DebugFull)
-    set(VALKEY_DEBUG_BUILD 1)
-    set(VALKEY_RELEASE_BUILD 0)
+    set(NEXCACHE_DEBUG_BUILD 1)
+    set(NEXCACHE_RELEASE_BUILD 0)
     message(STATUS "Building in debug mode")
 else ()
-    set(VALKEY_DEBUG_BUILD 0)
-    set(VALKEY_RELEASE_BUILD 1)
+    set(NEXCACHE_DEBUG_BUILD 0)
+    set(NEXCACHE_RELEASE_BUILD 1)
     message(STATUS "Building in release mode")
 endif ()
 
@@ -245,7 +245,7 @@ elseif (UNIX)
     add_nexcache_server_linker_option("-lm")
 endif ()
 
-if (VALKEY_DEBUG_BUILD)
+if (NEXCACHE_DEBUG_BUILD)
     # Debug build, use enable "-fno-omit-frame-pointer"
     add_nexcache_server_compiler_options("-fno-omit-frame-pointer")
 endif ()
@@ -261,17 +261,17 @@ endif ()
 # Sanitizer
 if (BUILD_SANITIZER)
     # Common CFLAGS
-    list(APPEND VALKEY_SANITAIZER_CFLAGS "-fno-sanitize-recover=all")
-    list(APPEND VALKEY_SANITAIZER_CFLAGS "-fno-omit-frame-pointer")
+    list(APPEND NEXCACHE_SANITAIZER_CFLAGS "-fno-sanitize-recover=all")
+    list(APPEND NEXCACHE_SANITAIZER_CFLAGS "-fno-omit-frame-pointer")
     if ("${BUILD_SANITIZER}" STREQUAL "address")
-        list(APPEND VALKEY_SANITAIZER_CFLAGS "-fsanitize=address")
-        list(APPEND VALKEY_SANITAIZER_LDFLAGS "-fsanitize=address")
+        list(APPEND NEXCACHE_SANITAIZER_CFLAGS "-fsanitize=address")
+        list(APPEND NEXCACHE_SANITAIZER_LDFLAGS "-fsanitize=address")
     elseif ("${BUILD_SANITIZER}" STREQUAL "thread")
-        list(APPEND VALKEY_SANITAIZER_CFLAGS "-fsanitize=thread")
-        list(APPEND VALKEY_SANITAIZER_LDFLAGS "-fsanitize=thread")
+        list(APPEND NEXCACHE_SANITAIZER_CFLAGS "-fsanitize=thread")
+        list(APPEND NEXCACHE_SANITAIZER_LDFLAGS "-fsanitize=thread")
     elseif ("${BUILD_SANITIZER}" STREQUAL "undefined")
-        list(APPEND VALKEY_SANITAIZER_CFLAGS "-fsanitize=undefined")
-        list(APPEND VALKEY_SANITAIZER_LDFLAGS "-fsanitize=undefined")
+        list(APPEND NEXCACHE_SANITAIZER_CFLAGS "-fsanitize=undefined")
+        list(APPEND NEXCACHE_SANITAIZER_LDFLAGS "-fsanitize=undefined")
     else ()
         message(FATAL_ERROR "Unknown sanitizer: ${BUILD_SANITIZER}")
     endif ()
@@ -353,8 +353,8 @@ include(SourceFiles)
 
 # Clear the below variables from the cache
 unset(CMAKE_C_FLAGS CACHE)
-unset(VALKEY_SERVER_LDFLAGS CACHE)
-unset(VALKEY_SERVER_CFLAGS CACHE)
+unset(NEXCACHE_SERVER_LDFLAGS CACHE)
+unset(NEXCACHE_SERVER_CFLAGS CACHE)
 unset(PYTHON_EXE CACHE)
 unset(HAVE_C11_ATOMIC CACHE)
 unset(USE_TLS CACHE)

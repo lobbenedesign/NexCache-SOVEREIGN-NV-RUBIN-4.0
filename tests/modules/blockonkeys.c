@@ -1,4 +1,4 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
 #include <string.h>
 #include <strings.h>
@@ -19,43 +19,43 @@ typedef struct {
     long long length;
 } fsl_t; /* Fixed-size list */
 
-static ValkeyModuleType *fsltype = NULL;
+static NexCacheModuleType *fsltype = NULL;
 
 fsl_t *fsl_type_create(void) {
     fsl_t *o;
-    o = ValkeyModule_Alloc(sizeof(*o));
+    o = NexCacheModule_Alloc(sizeof(*o));
     o->length = 0;
     return o;
 }
 
 void fsl_type_free(fsl_t *o) {
-    ValkeyModule_Free(o);
+    NexCacheModule_Free(o);
 }
 
 /* ========================== "fsltype" type methods ======================= */
 
-void *fsl_rdb_load(ValkeyModuleIO *rdb, int encver) {
+void *fsl_rdb_load(NexCacheModuleIO *rdb, int encver) {
     if (encver != 0) {
         return NULL;
     }
     fsl_t *fsl = fsl_type_create();
-    fsl->length = ValkeyModule_LoadUnsigned(rdb);
+    fsl->length = NexCacheModule_LoadUnsigned(rdb);
     for (long long i = 0; i < fsl->length; i++)
-        fsl->list[i] = ValkeyModule_LoadSigned(rdb);
+        fsl->list[i] = NexCacheModule_LoadSigned(rdb);
     return fsl;
 }
 
-void fsl_rdb_save(ValkeyModuleIO *rdb, void *value) {
+void fsl_rdb_save(NexCacheModuleIO *rdb, void *value) {
     fsl_t *fsl = value;
-    ValkeyModule_SaveUnsigned(rdb,fsl->length);
+    NexCacheModule_SaveUnsigned(rdb,fsl->length);
     for (long long i = 0; i < fsl->length; i++)
-        ValkeyModule_SaveSigned(rdb, fsl->list[i]);
+        NexCacheModule_SaveSigned(rdb, fsl->list[i]);
 }
 
-void fsl_aofrw(ValkeyModuleIO *aof, ValkeyModuleString *key, void *value) {
+void fsl_aofrw(NexCacheModuleIO *aof, NexCacheModuleString *key, void *value) {
     fsl_t *fsl = value;
     for (long long i = 0; i < fsl->length; i++)
-        ValkeyModule_EmitAOF(aof, "FSL.PUSH","sl", key, fsl->list[i]);
+        NexCacheModule_EmitAOF(aof, "FSL.PUSH","sl", key, fsl->list[i]);
 }
 
 void fsl_free(void *value) {
@@ -66,29 +66,29 @@ void fsl_free(void *value) {
 
 /* Wrapper to the boilerplate code of opening a key, checking its type, etc.
  * Returns 0 if `keyname` exists in the dataset, but it's of the wrong type (i.e. not FSL) */
-int get_fsl(ValkeyModuleCtx *ctx, ValkeyModuleString *keyname, int mode, int create, fsl_t **fsl, int reply_on_failure) {
+int get_fsl(NexCacheModuleCtx *ctx, NexCacheModuleString *keyname, int mode, int create, fsl_t **fsl, int reply_on_failure) {
     *fsl = NULL;
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, keyname, mode);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, keyname, mode);
 
-    if (ValkeyModule_KeyType(key) != VALKEYMODULE_KEYTYPE_EMPTY) {
+    if (NexCacheModule_KeyType(key) != NEXCACHEMODULE_KEYTYPE_EMPTY) {
         /* Key exists */
-        if (ValkeyModule_ModuleTypeGetType(key) != fsltype) {
+        if (NexCacheModule_ModuleTypeGetType(key) != fsltype) {
             /* Key is not FSL */
-            ValkeyModule_CloseKey(key);
+            NexCacheModule_CloseKey(key);
             if (reply_on_failure)
-                ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
-            ValkeyModuleCallReply *reply = ValkeyModule_Call(ctx, "INCR", "c", "fsl_wrong_type");
-            ValkeyModule_FreeCallReply(reply);
+                NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
+            NexCacheModuleCallReply *reply = NexCacheModule_Call(ctx, "INCR", "c", "fsl_wrong_type");
+            NexCacheModule_FreeCallReply(reply);
             return 0;
         }
 
-        *fsl = ValkeyModule_ModuleTypeGetValue(key);
-        if (*fsl && !(*fsl)->length && mode & VALKEYMODULE_WRITE) {
+        *fsl = NexCacheModule_ModuleTypeGetValue(key);
+        if (*fsl && !(*fsl)->length && mode & NEXCACHEMODULE_WRITE) {
             /* Key exists, but it's logically empty */
             if (create) {
                 create = 0; /* No need to create, key exists in its basic state */
             } else {
-                ValkeyModule_DeleteKey(key);
+                NexCacheModule_DeleteKey(key);
                 *fsl = NULL;
             }
         } else {
@@ -99,10 +99,10 @@ int get_fsl(ValkeyModuleCtx *ctx, ValkeyModuleString *keyname, int mode, int cre
 
     if (create) {
         *fsl = fsl_type_create();
-        ValkeyModule_ModuleTypeSetValue(key, fsltype, *fsl);
+        NexCacheModule_ModuleTypeSetValue(key, fsltype, *fsl);
     }
 
-    ValkeyModule_CloseKey(key);
+    NexCacheModule_CloseKey(key);
     return 1;
 }
 
@@ -110,43 +110,43 @@ int get_fsl(ValkeyModuleCtx *ctx, ValkeyModuleString *keyname, int mode, int cre
 
 /* FSL.PUSH <key> <int> - Push an integer to the fixed-size list (to the right).
  * It must be greater than the element in the head of the list. */
-int fsl_push(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int fsl_push(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 3)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     long long ele;
-    if (ValkeyModule_StringToLongLong(argv[2],&ele) != VALKEYMODULE_OK)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid integer");
+    if (NexCacheModule_StringToLongLong(argv[2],&ele) != NEXCACHEMODULE_OK)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid integer");
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_WRITE, 1, &fsl, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_WRITE, 1, &fsl, 1))
+        return NEXCACHEMODULE_OK;
 
     if (fsl->length == LIST_SIZE)
-        return ValkeyModule_ReplyWithError(ctx,"ERR list is full");
+        return NexCacheModule_ReplyWithError(ctx,"ERR list is full");
 
     if (fsl->length != 0 && fsl->list[fsl->length-1] >= ele)
-        return ValkeyModule_ReplyWithError(ctx,"ERR new element has to be greater than the head element");
+        return NexCacheModule_ReplyWithError(ctx,"ERR new element has to be greater than the head element");
 
     fsl->list[fsl->length++] = ele;
-    ValkeyModule_SignalKeyAsReady(ctx, argv[1]);
+    NexCacheModule_SignalKeyAsReady(ctx, argv[1]);
 
-    ValkeyModule_ReplicateVerbatim(ctx);
+    NexCacheModule_ReplicateVerbatim(ctx);
 
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
 typedef struct {
-    ValkeyModuleString *keyname;
+    NexCacheModuleString *keyname;
     long long ele;
 } timer_data_t;
 
-static void timer_callback(ValkeyModuleCtx *ctx, void *data)
+static void timer_callback(NexCacheModuleCtx *ctx, void *data)
 {
     timer_data_t *td = data;
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, td->keyname, VALKEYMODULE_WRITE, 1, &fsl, 1))
+    if (!get_fsl(ctx, td->keyname, NEXCACHEMODULE_WRITE, 1, &fsl, 1))
         return;
 
     if (fsl->length == LIST_SIZE)
@@ -156,290 +156,290 @@ static void timer_callback(ValkeyModuleCtx *ctx, void *data)
         return; /* new element has to be greater than the head element */
 
     fsl->list[fsl->length++] = td->ele;
-    ValkeyModule_SignalKeyAsReady(ctx, td->keyname);
+    NexCacheModule_SignalKeyAsReady(ctx, td->keyname);
 
-    ValkeyModule_Replicate(ctx, "FSL.PUSH", "sl", td->keyname, td->ele);
+    NexCacheModule_Replicate(ctx, "FSL.PUSH", "sl", td->keyname, td->ele);
 
-    ValkeyModule_FreeString(ctx, td->keyname);
-    ValkeyModule_Free(td);
+    NexCacheModule_FreeString(ctx, td->keyname);
+    NexCacheModule_Free(td);
 }
 
 /* FSL.PUSHTIMER <key> <int> <period-in-ms> - Push the number 9000 to the fixed-size list (to the right).
  * It must be greater than the element in the head of the list. */
-int fsl_pushtimer(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int fsl_pushtimer(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     if (argc != 4)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     long long ele;
-    if (ValkeyModule_StringToLongLong(argv[2],&ele) != VALKEYMODULE_OK)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid integer");
+    if (NexCacheModule_StringToLongLong(argv[2],&ele) != NEXCACHEMODULE_OK)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid integer");
 
     long long period;
-    if (ValkeyModule_StringToLongLong(argv[3],&period) != VALKEYMODULE_OK)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid period");
+    if (NexCacheModule_StringToLongLong(argv[3],&period) != NEXCACHEMODULE_OK)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid period");
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_WRITE, 1, &fsl, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_WRITE, 1, &fsl, 1))
+        return NEXCACHEMODULE_OK;
 
     if (fsl->length == LIST_SIZE)
-        return ValkeyModule_ReplyWithError(ctx,"ERR list is full");
+        return NexCacheModule_ReplyWithError(ctx,"ERR list is full");
 
-    timer_data_t *td = ValkeyModule_Alloc(sizeof(*td));
+    timer_data_t *td = NexCacheModule_Alloc(sizeof(*td));
     td->keyname = argv[1];
-    ValkeyModule_RetainString(ctx, td->keyname);
+    NexCacheModule_RetainString(ctx, td->keyname);
     td->ele = ele;
 
-    ValkeyModuleTimerID id = ValkeyModule_CreateTimer(ctx, period, timer_callback, td);
-    ValkeyModule_ReplyWithLongLong(ctx, id);
+    NexCacheModuleTimerID id = NexCacheModule_CreateTimer(ctx, period, timer_callback, td);
+    NexCacheModule_ReplyWithLongLong(ctx, id);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int bpop_reply_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    ValkeyModuleString *keyname = ValkeyModule_GetBlockedClientReadyKey(ctx);
+int bpop_reply_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    NexCacheModuleString *keyname = NexCacheModule_GetBlockedClientReadyKey(ctx);
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, keyname, VALKEYMODULE_WRITE, 0, &fsl, 0) || !fsl)
-        return VALKEYMODULE_ERR;
+    if (!get_fsl(ctx, keyname, NEXCACHEMODULE_WRITE, 0, &fsl, 0) || !fsl)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModule_Assert(fsl->length);
-    ValkeyModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
+    NexCacheModule_Assert(fsl->length);
+    NexCacheModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
 
     /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
-int bpop_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithSimpleString(ctx, "Request timedout");
+int bpop_timeout_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithSimpleString(ctx, "Request timedout");
 }
 
 /* FSL.BPOP <key> <timeout> [NO_TO_CB]- Block clients until list has two or more elements.
  * When that happens, unblock client and pop the last two elements (from the right). */
-int fsl_bpop(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int fsl_bpop(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc < 3)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     long long timeout;
-    if (ValkeyModule_StringToLongLong(argv[2],&timeout) != VALKEYMODULE_OK || timeout < 0)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid timeout");
+    if (NexCacheModule_StringToLongLong(argv[2],&timeout) != NEXCACHEMODULE_OK || timeout < 0)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid timeout");
 
     int to_cb = 1;
     if (argc == 4) {
-        if (strcasecmp("NO_TO_CB", ValkeyModule_StringPtrLen(argv[3], NULL)))
-            return ValkeyModule_ReplyWithError(ctx,"ERR invalid argument");
+        if (strcasecmp("NO_TO_CB", NexCacheModule_StringPtrLen(argv[3], NULL)))
+            return NexCacheModule_ReplyWithError(ctx,"ERR invalid argument");
         to_cb = 0;
     }
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_WRITE, 0, &fsl, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_WRITE, 0, &fsl, 1))
+        return NEXCACHEMODULE_OK;
 
     if (!fsl) {
-        ValkeyModule_BlockClientOnKeys(ctx, bpop_reply_callback, to_cb ? bpop_timeout_callback : NULL,
+        NexCacheModule_BlockClientOnKeys(ctx, bpop_reply_callback, to_cb ? bpop_timeout_callback : NULL,
                                       NULL, timeout, &argv[1], 1, NULL);
     } else {
-        ValkeyModule_Assert(fsl->length);
-        ValkeyModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
+        NexCacheModule_Assert(fsl->length);
+        NexCacheModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
+        NexCacheModule_ReplicateVerbatim(ctx);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int bpopgt_reply_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    ValkeyModuleString *keyname = ValkeyModule_GetBlockedClientReadyKey(ctx);
-    long long *pgt = ValkeyModule_GetBlockedClientPrivateData(ctx);
+int bpopgt_reply_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    NexCacheModuleString *keyname = NexCacheModule_GetBlockedClientReadyKey(ctx);
+    long long *pgt = NexCacheModule_GetBlockedClientPrivateData(ctx);
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, keyname, VALKEYMODULE_WRITE, 0, &fsl, 0) || !fsl)
-        return ValkeyModule_ReplyWithError(ctx,"UNBLOCKED key no longer exists");
+    if (!get_fsl(ctx, keyname, NEXCACHEMODULE_WRITE, 0, &fsl, 0) || !fsl)
+        return NexCacheModule_ReplyWithError(ctx,"UNBLOCKED key no longer exists");
 
     if (fsl->list[fsl->length-1] <= *pgt)
-        return VALKEYMODULE_ERR;
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModule_Assert(fsl->length);
-    ValkeyModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
+    NexCacheModule_Assert(fsl->length);
+    NexCacheModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
     /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
-int bpopgt_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithSimpleString(ctx, "Request timedout");
+int bpopgt_timeout_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithSimpleString(ctx, "Request timedout");
 }
 
-void bpopgt_free_privdata(ValkeyModuleCtx *ctx, void *privdata) {
-    VALKEYMODULE_NOT_USED(ctx);
-    ValkeyModule_Free(privdata);
+void bpopgt_free_privdata(NexCacheModuleCtx *ctx, void *privdata) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NexCacheModule_Free(privdata);
 }
 
 /* FSL.BPOPGT <key> <gt> <timeout> - Block clients until list has an element greater than <gt>.
  * When that happens, unblock client and pop the last element (from the right). */
-int fsl_bpopgt(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int fsl_bpopgt(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 4)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     long long gt;
-    if (ValkeyModule_StringToLongLong(argv[2],&gt) != VALKEYMODULE_OK)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid integer");
+    if (NexCacheModule_StringToLongLong(argv[2],&gt) != NEXCACHEMODULE_OK)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid integer");
 
     long long timeout;
-    if (ValkeyModule_StringToLongLong(argv[3],&timeout) != VALKEYMODULE_OK || timeout < 0)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid timeout");
+    if (NexCacheModule_StringToLongLong(argv[3],&timeout) != NEXCACHEMODULE_OK || timeout < 0)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid timeout");
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_WRITE, 0, &fsl, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_WRITE, 0, &fsl, 1))
+        return NEXCACHEMODULE_OK;
 
     if (!fsl)
-        return ValkeyModule_ReplyWithError(ctx,"ERR key must exist");
+        return NexCacheModule_ReplyWithError(ctx,"ERR key must exist");
 
     if (fsl->list[fsl->length-1] <= gt) {
         /* We use malloc so the tests in blockedonkeys.tcl can check for memory leaks */
-        long long *pgt = ValkeyModule_Alloc(sizeof(long long));
+        long long *pgt = NexCacheModule_Alloc(sizeof(long long));
         *pgt = gt;
-        ValkeyModule_BlockClientOnKeysWithFlags(
+        NexCacheModule_BlockClientOnKeysWithFlags(
             ctx, bpopgt_reply_callback, bpopgt_timeout_callback,
             bpopgt_free_privdata, timeout, &argv[1], 1, pgt,
-            VALKEYMODULE_BLOCK_UNBLOCK_DELETED);
+            NEXCACHEMODULE_BLOCK_UNBLOCK_DELETED);
     } else {
-        ValkeyModule_Assert(fsl->length);
-        ValkeyModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
+        NexCacheModule_Assert(fsl->length);
+        NexCacheModule_ReplyWithLongLong(ctx, fsl->list[--fsl->length]);
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
+        NexCacheModule_ReplicateVerbatim(ctx);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int bpoppush_reply_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    ValkeyModuleString *src_keyname = ValkeyModule_GetBlockedClientReadyKey(ctx);
-    ValkeyModuleString *dst_keyname = ValkeyModule_GetBlockedClientPrivateData(ctx);
+int bpoppush_reply_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    NexCacheModuleString *src_keyname = NexCacheModule_GetBlockedClientReadyKey(ctx);
+    NexCacheModuleString *dst_keyname = NexCacheModule_GetBlockedClientPrivateData(ctx);
 
     fsl_t *src;
-    if (!get_fsl(ctx, src_keyname, VALKEYMODULE_WRITE, 0, &src, 0) || !src)
-        return VALKEYMODULE_ERR;
+    if (!get_fsl(ctx, src_keyname, NEXCACHEMODULE_WRITE, 0, &src, 0) || !src)
+        return NEXCACHEMODULE_ERR;
 
     fsl_t *dst;
-    if (!get_fsl(ctx, dst_keyname, VALKEYMODULE_WRITE, 1, &dst, 0) || !dst)
-        return VALKEYMODULE_ERR;
+    if (!get_fsl(ctx, dst_keyname, NEXCACHEMODULE_WRITE, 1, &dst, 0) || !dst)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModule_Assert(src->length);
+    NexCacheModule_Assert(src->length);
     long long ele = src->list[--src->length];
     dst->list[dst->length++] = ele;
-    ValkeyModule_SignalKeyAsReady(ctx, dst_keyname);
+    NexCacheModule_SignalKeyAsReady(ctx, dst_keyname);
     /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return ValkeyModule_ReplyWithLongLong(ctx, ele);
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NexCacheModule_ReplyWithLongLong(ctx, ele);
 }
 
-int bpoppush_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithSimpleString(ctx, "Request timedout");
+int bpoppush_timeout_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithSimpleString(ctx, "Request timedout");
 }
 
-void bpoppush_free_privdata(ValkeyModuleCtx *ctx, void *privdata) {
-    ValkeyModule_FreeString(ctx, privdata);
+void bpoppush_free_privdata(NexCacheModuleCtx *ctx, void *privdata) {
+    NexCacheModule_FreeString(ctx, privdata);
 }
 
 /* FSL.BPOPPUSH <src> <dst> <timeout> - Block clients until <src> has an element.
  * When that happens, unblock client, pop the last element from <src> and push it to <dst>
  * (from the right). */
-int fsl_bpoppush(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int fsl_bpoppush(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 4)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     long long timeout;
-    if (ValkeyModule_StringToLongLong(argv[3],&timeout) != VALKEYMODULE_OK || timeout < 0)
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid timeout");
+    if (NexCacheModule_StringToLongLong(argv[3],&timeout) != NEXCACHEMODULE_OK || timeout < 0)
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid timeout");
 
     fsl_t *src;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_WRITE, 0, &src, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_WRITE, 0, &src, 1))
+        return NEXCACHEMODULE_OK;
 
     if (!src) {
         /* Retain string for reply callback */
-        ValkeyModule_RetainString(ctx, argv[2]);
+        NexCacheModule_RetainString(ctx, argv[2]);
         /* Key is empty, we must block */
-        ValkeyModule_BlockClientOnKeys(ctx, bpoppush_reply_callback, bpoppush_timeout_callback,
+        NexCacheModule_BlockClientOnKeys(ctx, bpoppush_reply_callback, bpoppush_timeout_callback,
                                       bpoppush_free_privdata, timeout, &argv[1], 1, argv[2]);
     } else {
         fsl_t *dst;
-        if (!get_fsl(ctx, argv[2], VALKEYMODULE_WRITE, 1, &dst, 1))
-            return VALKEYMODULE_OK;
+        if (!get_fsl(ctx, argv[2], NEXCACHEMODULE_WRITE, 1, &dst, 1))
+            return NEXCACHEMODULE_OK;
 
-        ValkeyModule_Assert(src->length);
+        NexCacheModule_Assert(src->length);
         long long ele = src->list[--src->length];
         dst->list[dst->length++] = ele;
-        ValkeyModule_SignalKeyAsReady(ctx, argv[2]);
-        ValkeyModule_ReplyWithLongLong(ctx, ele);
+        NexCacheModule_SignalKeyAsReady(ctx, argv[2]);
+        NexCacheModule_ReplyWithLongLong(ctx, ele);
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
+        NexCacheModule_ReplicateVerbatim(ctx);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 /* FSL.GETALL <key> - Reply with an array containing all elements. */
-int fsl_getall(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int fsl_getall(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
     fsl_t *fsl;
-    if (!get_fsl(ctx, argv[1], VALKEYMODULE_READ, 0, &fsl, 1))
-        return VALKEYMODULE_OK;
+    if (!get_fsl(ctx, argv[1], NEXCACHEMODULE_READ, 0, &fsl, 1))
+        return NEXCACHEMODULE_OK;
 
     if (!fsl)
-        return ValkeyModule_ReplyWithArray(ctx, 0);
+        return NexCacheModule_ReplyWithArray(ctx, 0);
 
-    ValkeyModule_ReplyWithArray(ctx, fsl->length);
+    NexCacheModule_ReplyWithArray(ctx, fsl->length);
     for (int i = 0; i < fsl->length; i++)
-        ValkeyModule_ReplyWithLongLong(ctx, fsl->list[i]);
-    return VALKEYMODULE_OK;
+        NexCacheModule_ReplyWithLongLong(ctx, fsl->list[i]);
+    return NEXCACHEMODULE_OK;
 }
 
 /* Callback for blockonkeys_popall */
-int blockonkeys_popall_reply_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argc);
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_WRITE);
-    if (ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_LIST) {
-        ValkeyModuleString *elem;
+int blockonkeys_popall_reply_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argc);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_WRITE);
+    if (NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_LIST) {
+        NexCacheModuleString *elem;
         long len = 0;
-        ValkeyModule_ReplyWithArray(ctx, VALKEYMODULE_POSTPONED_ARRAY_LEN);
-        while ((elem = ValkeyModule_ListPop(key, VALKEYMODULE_LIST_HEAD)) != NULL) {
+        NexCacheModule_ReplyWithArray(ctx, NEXCACHEMODULE_POSTPONED_ARRAY_LEN);
+        while ((elem = NexCacheModule_ListPop(key, NEXCACHEMODULE_LIST_HEAD)) != NULL) {
             len++;
-            ValkeyModule_ReplyWithString(ctx, elem);
-            ValkeyModule_FreeString(ctx, elem);
+            NexCacheModule_ReplyWithString(ctx, elem);
+            NexCacheModule_FreeString(ctx, elem);
         }
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
-        ValkeyModule_ReplySetArrayLength(ctx, len);
+        NexCacheModule_ReplicateVerbatim(ctx);
+        NexCacheModule_ReplySetArrayLength(ctx, len);
     } else {
-        ValkeyModule_ReplyWithError(ctx, "ERR Not a list");
+        NexCacheModule_ReplyWithError(ctx, "ERR Not a list");
     }
-    ValkeyModule_CloseKey(key);
-    return VALKEYMODULE_OK;
+    NexCacheModule_CloseKey(key);
+    return NEXCACHEMODULE_OK;
 }
 
-int blockonkeys_popall_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithError(ctx, "ERR Timeout");
+int blockonkeys_popall_timeout_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithError(ctx, "ERR Timeout");
 }
 
 /* BLOCKONKEYS.POPALL key
@@ -447,20 +447,20 @@ int blockonkeys_popall_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString
  * Blocks on an empty key for up to 3 seconds. When unblocked by a list
  * operation like LPUSH, all the elements are popped and returned. Fails with an
  * error on timeout. */
-int blockonkeys_popall(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int blockonkeys_popall(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ);
-    if (ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_EMPTY) {
-        ValkeyModule_BlockClientOnKeys(ctx, blockonkeys_popall_reply_callback,
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ);
+    if (NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_EMPTY) {
+        NexCacheModule_BlockClientOnKeys(ctx, blockonkeys_popall_reply_callback,
                                       blockonkeys_popall_timeout_callback,
                                       NULL, 3000, &argv[1], 1, NULL);
     } else {
-        ValkeyModule_ReplyWithError(ctx, "ERR Key not empty");
+        NexCacheModule_ReplyWithError(ctx, "ERR Key not empty");
     }
-    ValkeyModule_CloseKey(key);
-    return VALKEYMODULE_OK;
+    NexCacheModule_CloseKey(key);
+    return NEXCACHEMODULE_OK;
 }
 
 /* BLOCKONKEYS.LPUSH key val [val ..]
@@ -468,130 +468,130 @@ int blockonkeys_popall(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc
  *
  * A module equivalent of LPUSH. If the name LPUSH_UNBLOCK is used,
  * RM_SignalKeyAsReady() is also called. */
-int blockonkeys_lpush(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int blockonkeys_lpush(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc < 3)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_WRITE);
-    if (ValkeyModule_KeyType(key) != VALKEYMODULE_KEYTYPE_EMPTY &&
-        ValkeyModule_KeyType(key) != VALKEYMODULE_KEYTYPE_LIST) {
-        ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_WRITE);
+    if (NexCacheModule_KeyType(key) != NEXCACHEMODULE_KEYTYPE_EMPTY &&
+        NexCacheModule_KeyType(key) != NEXCACHEMODULE_KEYTYPE_LIST) {
+        NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     } else {
         for (int i = 2; i < argc; i++) {
-            if (ValkeyModule_ListPush(key, VALKEYMODULE_LIST_HEAD,
-                                     argv[i]) != VALKEYMODULE_OK) {
-                ValkeyModule_CloseKey(key);
-                return ValkeyModule_ReplyWithError(ctx, "ERR Push failed");
+            if (NexCacheModule_ListPush(key, NEXCACHEMODULE_LIST_HEAD,
+                                     argv[i]) != NEXCACHEMODULE_OK) {
+                NexCacheModule_CloseKey(key);
+                return NexCacheModule_ReplyWithError(ctx, "ERR Push failed");
             }
         }
     }
-    ValkeyModule_CloseKey(key);
+    NexCacheModule_CloseKey(key);
 
     /* signal key as ready if the command is lpush_unblock */
     size_t len;
-    const char *str = ValkeyModule_StringPtrLen(argv[0], &len);
+    const char *str = NexCacheModule_StringPtrLen(argv[0], &len);
     if (!strncasecmp(str, "blockonkeys.lpush_unblock", len)) {
-        ValkeyModule_SignalKeyAsReady(ctx, argv[1]);
+        NexCacheModule_SignalKeyAsReady(ctx, argv[1]);
     }
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
 /* Callback for the BLOCKONKEYS.BLPOPN command */
-int blockonkeys_blpopn_reply_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argc);
+int blockonkeys_blpopn_reply_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argc);
     long long n;
-    ValkeyModule_StringToLongLong(argv[2], &n);
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_WRITE);
+    NexCacheModule_StringToLongLong(argv[2], &n);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_WRITE);
     int result;
-    if (ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_LIST &&
-        ValkeyModule_ValueLength(key) >= (size_t)n) {
-        ValkeyModule_ReplyWithArray(ctx, n);
+    if (NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_LIST &&
+        NexCacheModule_ValueLength(key) >= (size_t)n) {
+        NexCacheModule_ReplyWithArray(ctx, n);
         for (long i = 0; i < n; i++) {
-            ValkeyModuleString *elem = ValkeyModule_ListPop(key, VALKEYMODULE_LIST_HEAD);
-            ValkeyModule_ReplyWithString(ctx, elem);
-            ValkeyModule_FreeString(ctx, elem);
+            NexCacheModuleString *elem = NexCacheModule_ListPop(key, NEXCACHEMODULE_LIST_HEAD);
+            NexCacheModule_ReplyWithString(ctx, elem);
+            NexCacheModule_FreeString(ctx, elem);
         }
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
-        result = VALKEYMODULE_OK;
-    } else if (ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_LIST ||
-               ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_EMPTY) {
-        const char *module_cmd = ValkeyModule_StringPtrLen(argv[0], NULL);
+        NexCacheModule_ReplicateVerbatim(ctx);
+        result = NEXCACHEMODULE_OK;
+    } else if (NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_LIST ||
+               NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_EMPTY) {
+        const char *module_cmd = NexCacheModule_StringPtrLen(argv[0], NULL);
         if (!strcasecmp(module_cmd, "blockonkeys.blpopn_or_unblock"))
-            ValkeyModule_UnblockClient(ValkeyModule_GetBlockedClientHandle(ctx), NULL);
+            NexCacheModule_UnblockClient(NexCacheModule_GetBlockedClientHandle(ctx), NULL);
 
         /* continue blocking */
-        result = VALKEYMODULE_ERR;
+        result = NEXCACHEMODULE_ERR;
     } else {
-        result = ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+        result = NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
-    ValkeyModule_CloseKey(key);
+    NexCacheModule_CloseKey(key);
     return result;
 }
 
-int blockonkeys_blpopn_timeout_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithError(ctx, "ERR Timeout");
+int blockonkeys_blpopn_timeout_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithError(ctx, "ERR Timeout");
 }
 
-int blockonkeys_blpopn_abort_callback(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithSimpleString(ctx, "Action aborted");
+int blockonkeys_blpopn_abort_callback(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithSimpleString(ctx, "Action aborted");
 }
 
 /* BLOCKONKEYS.BLPOPN key N
  *
  * Blocks until key has N elements and then pops them or fails after 3 seconds.
  */
-int blockonkeys_blpopn(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    if (argc < 3) return ValkeyModule_WrongArity(ctx);
+int blockonkeys_blpopn(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    if (argc < 3) return NexCacheModule_WrongArity(ctx);
 
     long long n, timeout = 3000LL;
-    if (ValkeyModule_StringToLongLong(argv[2], &n) != VALKEYMODULE_OK) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR Invalid N");
+    if (NexCacheModule_StringToLongLong(argv[2], &n) != NEXCACHEMODULE_OK) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR Invalid N");
     }
 
     if (argc > 3 ) {
-        if (ValkeyModule_StringToLongLong(argv[3], &timeout) != VALKEYMODULE_OK) {
-            return ValkeyModule_ReplyWithError(ctx, "ERR Invalid timeout value");
+        if (NexCacheModule_StringToLongLong(argv[3], &timeout) != NEXCACHEMODULE_OK) {
+            return NexCacheModule_ReplyWithError(ctx, "ERR Invalid timeout value");
         }
     }
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_WRITE);
-    int keytype = ValkeyModule_KeyType(key);
-    if (keytype != VALKEYMODULE_KEYTYPE_EMPTY &&
-        keytype != VALKEYMODULE_KEYTYPE_LIST) {
-        ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
-    } else if (keytype == VALKEYMODULE_KEYTYPE_LIST &&
-               ValkeyModule_ValueLength(key) >= (size_t)n) {
-        ValkeyModule_ReplyWithArray(ctx, n);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_WRITE);
+    int keytype = NexCacheModule_KeyType(key);
+    if (keytype != NEXCACHEMODULE_KEYTYPE_EMPTY &&
+        keytype != NEXCACHEMODULE_KEYTYPE_LIST) {
+        NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
+    } else if (keytype == NEXCACHEMODULE_KEYTYPE_LIST &&
+               NexCacheModule_ValueLength(key) >= (size_t)n) {
+        NexCacheModule_ReplyWithArray(ctx, n);
         for (long i = 0; i < n; i++) {
-            ValkeyModuleString *elem = ValkeyModule_ListPop(key, VALKEYMODULE_LIST_HEAD);
-            ValkeyModule_ReplyWithString(ctx, elem);
-            ValkeyModule_FreeString(ctx, elem);
+            NexCacheModuleString *elem = NexCacheModule_ListPop(key, NEXCACHEMODULE_LIST_HEAD);
+            NexCacheModule_ReplyWithString(ctx, elem);
+            NexCacheModule_FreeString(ctx, elem);
         }
         /* I'm lazy so i'll replicate a potentially blocking command, it shouldn't block in this flow. */
-        ValkeyModule_ReplicateVerbatim(ctx);
+        NexCacheModule_ReplicateVerbatim(ctx);
     } else {
-        ValkeyModule_BlockClientOnKeys(ctx, blockonkeys_blpopn_reply_callback,
+        NexCacheModule_BlockClientOnKeys(ctx, blockonkeys_blpopn_reply_callback,
                                       timeout ? blockonkeys_blpopn_timeout_callback : blockonkeys_blpopn_abort_callback,
                                       NULL, timeout, &argv[1], 1, NULL);
     }
-    ValkeyModule_CloseKey(key);
-    return VALKEYMODULE_OK;
+    NexCacheModule_CloseKey(key);
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx, "blockonkeys", 1, VALKEYMODULE_APIVER_1)== VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx, "blockonkeys", 1, NEXCACHEMODULE_APIVER_1)== NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModuleTypeMethods tm = {
-        .version = VALKEYMODULE_TYPE_METHOD_VERSION,
+    NexCacheModuleTypeMethods tm = {
+        .version = NEXCACHEMODULE_TYPE_METHOD_VERSION,
         .rdb_load = fsl_rdb_load,
         .rdb_save = fsl_rdb_save,
         .aof_rewrite = fsl_aofrw,
@@ -600,46 +600,46 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
         .digest = NULL,
     };
 
-    fsltype = ValkeyModule_CreateDataType(ctx, "fsltype_t", 0, &tm);
+    fsltype = NexCacheModule_CreateDataType(ctx, "fsltype_t", 0, &tm);
     if (fsltype == NULL)
-        return VALKEYMODULE_ERR;
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.push",fsl_push,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.push",fsl_push,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.pushtimer",fsl_pushtimer,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.pushtimer",fsl_pushtimer,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.bpop",fsl_bpop,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.bpop",fsl_bpop,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.bpopgt",fsl_bpopgt,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.bpopgt",fsl_bpopgt,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.bpoppush",fsl_bpoppush,"write",1,2,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.bpoppush",fsl_bpoppush,"write",1,2,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"fsl.getall",fsl_getall,"",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"fsl.getall",fsl_getall,"",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "blockonkeys.popall", blockonkeys_popall,
-                                  "write", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "blockonkeys.popall", blockonkeys_popall,
+                                  "write", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "blockonkeys.lpush", blockonkeys_lpush,
-                                  "write", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "blockonkeys.lpush", blockonkeys_lpush,
+                                  "write", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "blockonkeys.lpush_unblock", blockonkeys_lpush,
-                                  "write", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "blockonkeys.lpush_unblock", blockonkeys_lpush,
+                                  "write", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "blockonkeys.blpopn", blockonkeys_blpopn,
-                                  "write", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "blockonkeys.blpopn", blockonkeys_blpopn,
+                                  "write", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "blockonkeys.blpopn_or_unblock", blockonkeys_blpopn,
-                                      "write", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    return VALKEYMODULE_OK;
+    if (NexCacheModule_CreateCommand(ctx, "blockonkeys.blpopn_or_unblock", blockonkeys_blpopn,
+                                      "write", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    return NEXCACHEMODULE_OK;
 }

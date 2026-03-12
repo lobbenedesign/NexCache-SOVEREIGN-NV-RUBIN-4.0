@@ -1,119 +1,119 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
 #include <string.h>
 
-void InfoFunc(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
-    ValkeyModule_InfoAddSection(ctx, "");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "global", -2);
-    ValkeyModule_InfoAddFieldULongLong(ctx, "uglobal", (unsigned long long)-2);
+void InfoFunc(NexCacheModuleInfoCtx *ctx, int for_crash_report) {
+    NexCacheModule_InfoAddSection(ctx, "");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "global", -2);
+    NexCacheModule_InfoAddFieldULongLong(ctx, "uglobal", (unsigned long long)-2);
 
-    ValkeyModule_InfoAddSection(ctx, "Spanish");
-    ValkeyModule_InfoAddFieldCString(ctx, "uno", "one");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "dos", 2);
+    NexCacheModule_InfoAddSection(ctx, "Spanish");
+    NexCacheModule_InfoAddFieldCString(ctx, "uno", "one");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "dos", 2);
 
-    ValkeyModule_InfoAddSection(ctx, "Italian");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "due", 2);
-    ValkeyModule_InfoAddFieldDouble(ctx, "tre", 3.3);
+    NexCacheModule_InfoAddSection(ctx, "Italian");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "due", 2);
+    NexCacheModule_InfoAddFieldDouble(ctx, "tre", 3.3);
 
-    ValkeyModule_InfoAddSection(ctx, "keyspace");
-    ValkeyModule_InfoBeginDictField(ctx, "db0");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "keys", 3);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "expires", 1);
-    ValkeyModule_InfoEndDictField(ctx);
+    NexCacheModule_InfoAddSection(ctx, "keyspace");
+    NexCacheModule_InfoBeginDictField(ctx, "db0");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "keys", 3);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "expires", 1);
+    NexCacheModule_InfoEndDictField(ctx);
 
-    ValkeyModule_InfoAddSection(ctx, "unsafe");
-    ValkeyModule_InfoBeginDictField(ctx, "unsafe:field");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "value", 1);
-    ValkeyModule_InfoEndDictField(ctx);
+    NexCacheModule_InfoAddSection(ctx, "unsafe");
+    NexCacheModule_InfoBeginDictField(ctx, "unsafe:field");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "value", 1);
+    NexCacheModule_InfoEndDictField(ctx);
 
     if (for_crash_report) {
-        ValkeyModule_InfoAddSection(ctx, "Klingon");
-        ValkeyModule_InfoAddFieldCString(ctx, "one", "wa'");
-        ValkeyModule_InfoAddFieldCString(ctx, "two", "cha'");
-        ValkeyModule_InfoAddFieldCString(ctx, "three", "wej");
+        NexCacheModule_InfoAddSection(ctx, "Klingon");
+        NexCacheModule_InfoAddFieldCString(ctx, "one", "wa'");
+        NexCacheModule_InfoAddFieldCString(ctx, "two", "cha'");
+        NexCacheModule_InfoAddFieldCString(ctx, "three", "wej");
     }
 
 }
 
-int info_get(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc, char field_type)
+int info_get(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc, char field_type)
 {
     if (argc != 3 && argc != 4) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
-    int err = VALKEYMODULE_OK;
+    int err = NEXCACHEMODULE_OK;
     const char *section, *field;
-    section = ValkeyModule_StringPtrLen(argv[1], NULL);
-    field = ValkeyModule_StringPtrLen(argv[2], NULL);
-    ValkeyModuleServerInfoData *info = ValkeyModule_GetServerInfo(ctx, section);
+    section = NexCacheModule_StringPtrLen(argv[1], NULL);
+    field = NexCacheModule_StringPtrLen(argv[2], NULL);
+    NexCacheModuleServerInfoData *info = NexCacheModule_GetServerInfo(ctx, section);
     if (field_type=='i') {
-        long long ll = ValkeyModule_ServerInfoGetFieldSigned(info, field, &err);
-        if (err==VALKEYMODULE_OK)
-            ValkeyModule_ReplyWithLongLong(ctx, ll);
+        long long ll = NexCacheModule_ServerInfoGetFieldSigned(info, field, &err);
+        if (err==NEXCACHEMODULE_OK)
+            NexCacheModule_ReplyWithLongLong(ctx, ll);
     } else if (field_type=='u') {
-        unsigned long long ll = (unsigned long long)ValkeyModule_ServerInfoGetFieldUnsigned(info, field, &err);
-        if (err==VALKEYMODULE_OK)
-            ValkeyModule_ReplyWithLongLong(ctx, ll);
+        unsigned long long ll = (unsigned long long)NexCacheModule_ServerInfoGetFieldUnsigned(info, field, &err);
+        if (err==NEXCACHEMODULE_OK)
+            NexCacheModule_ReplyWithLongLong(ctx, ll);
     } else if (field_type=='d') {
-        double d = ValkeyModule_ServerInfoGetFieldDouble(info, field, &err);
-        if (err==VALKEYMODULE_OK)
-            ValkeyModule_ReplyWithDouble(ctx, d);
+        double d = NexCacheModule_ServerInfoGetFieldDouble(info, field, &err);
+        if (err==NEXCACHEMODULE_OK)
+            NexCacheModule_ReplyWithDouble(ctx, d);
     } else if (field_type=='c') {
-        const char *str = ValkeyModule_ServerInfoGetFieldC(info, field);
+        const char *str = NexCacheModule_ServerInfoGetFieldC(info, field);
         if (str)
-            ValkeyModule_ReplyWithCString(ctx, str);
+            NexCacheModule_ReplyWithCString(ctx, str);
     } else {
-        ValkeyModuleString *str = ValkeyModule_ServerInfoGetField(ctx, info, field);
+        NexCacheModuleString *str = NexCacheModule_ServerInfoGetField(ctx, info, field);
         if (str) {
-            ValkeyModule_ReplyWithString(ctx, str);
-            ValkeyModule_FreeString(ctx, str);
+            NexCacheModule_ReplyWithString(ctx, str);
+            NexCacheModule_FreeString(ctx, str);
         } else
-            err=VALKEYMODULE_ERR;
+            err=NEXCACHEMODULE_ERR;
     }
-    if (err!=VALKEYMODULE_OK)
-        ValkeyModule_ReplyWithError(ctx, "not found");
-    ValkeyModule_FreeServerInfo(ctx, info);
-    return VALKEYMODULE_OK;
+    if (err!=NEXCACHEMODULE_OK)
+        NexCacheModule_ReplyWithError(ctx, "not found");
+    NexCacheModule_FreeServerInfo(ctx, info);
+    return NEXCACHEMODULE_OK;
 }
 
-int info_gets(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int info_gets(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     return info_get(ctx, argv, argc, 's');
 }
 
-int info_getc(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int info_getc(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     return info_get(ctx, argv, argc, 'c');
 }
 
-int info_geti(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int info_geti(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     return info_get(ctx, argv, argc, 'i');
 }
 
-int info_getu(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int info_getu(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     return info_get(ctx, argv, argc, 'u');
 }
 
-int info_getd(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int info_getd(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     return info_get(ctx, argv, argc, 'd');
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx,"infotest",1,VALKEYMODULE_APIVER_1)
-            == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx,"infotest",1,NEXCACHEMODULE_APIVER_1)
+            == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_RegisterInfoFunc(ctx, InfoFunc) == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterInfoFunc(ctx, InfoFunc) == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"info.gets", info_gets,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"info.getc", info_getc,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"info.geti", info_geti,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"info.getu", info_getu,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
-    if (ValkeyModule_CreateCommand(ctx,"info.getd", info_getd,"",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"info.gets", info_gets,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"info.getc", info_getc,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"info.geti", info_geti,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"info.getu", info_getu,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"info.getd", info_getd,"",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

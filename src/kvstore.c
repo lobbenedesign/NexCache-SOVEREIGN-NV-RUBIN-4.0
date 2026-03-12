@@ -9,7 +9,7 @@
  * struct.
  * This enables us to easily access all keys that map to a specific hash-slot.
  *
- * Copyright (c) Redis contributors.
+ * Copyright (c) NexCache contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

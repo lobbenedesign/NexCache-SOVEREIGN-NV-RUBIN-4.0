@@ -1,7 +1,7 @@
 #!/bin/bash
 # NexCache Continuous Integration — Quality Gate Benchmark
 # Verifica che la nuova architettura C++ non causi regressioni rispetto
-# a Valkey/Redis di riferimento e rispetto alla versione precedente.
+# a NexCache/NexCache di riferimento e rispetto alla versione precedente.
 
 set -e
 
@@ -24,12 +24,12 @@ echo -e "${YELLOW}[1] Avvio istanza NexCache temporanea...${RESET}"
 sleep 2
 
 echo -e "${YELLOW}[2] Esecuzione Benchmark Latenza & Throughput (Mock per CI)...${RESET}"
-# In produzione useremmo redis-benchmark -p 7777 -t set,get -n 1000000
+# In produzione useremmo nexcache-benchmark -p 7777 -t set,get -n 1000000
 # Qui simuliamo lo check CI veloce per il Gate 1
 MOCK_QPS=1850000
 BASELINE_QPS=1500000
 
-echo "   > Target Baseline (Valkey): $BASELINE_QPS QPS"
+echo "   > Target Baseline (NexCache): $BASELINE_QPS QPS"
 echo "   > Risultato Attuale       : $MOCK_QPS QPS"
 
 if [ "$MOCK_QPS" -ge "$BASELINE_QPS" ]; then

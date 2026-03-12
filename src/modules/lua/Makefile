@@ -55,9 +55,9 @@ ifeq ("$(wildcard /usr/lib/libSystem.dylib)","")
 endif
 endif
 
-all: libvalkeylua.so
+all: libnexcachelua.so
 
-libvalkeylua.so: $(OBJS) $(LIBS)
+libnexcachelua.so: $(OBJS) $(LIBS)
 	$(QUIET_LINK_MOD)$(CC) -o $@ $(SHOBJ_LDFLAGS) $^
 
 sha1.o: ../../sha1.c

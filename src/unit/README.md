@@ -1,27 +1,27 @@
-## Valkey GoogleTest Unit Test Framework
+## NexCache GoogleTest Unit Test Framework
 
-To use this framework to write unit tests, we have modified Valkey to build as
+To use this framework to write unit tests, we have modified NexCache to build as
 a library that can link against other test executables. This framework uses the
 GNU linker (ld), which implements 'wrap' functionality to rename function calls
 to foo() to a method __wrap_foo() and renames the real foo() method to
 __real_foo().
 
-Using this trick, we define the Valkey wrappers we wish to mock in 'wrappers.h'.
+Using this trick, we define the NexCache wrappers we wish to mock in 'wrappers.h'.
 Note that these functions can only be mocked if they include calls between
 source files.
 
 Using this set of functions, we run 'generate-wrappers.py' to generate the glue
 code needed to mock functions. Specifically, this generates an interface named
-Valkey containing all the desired methods and two implementations, MockValkey
-and RealValkey.
+NexCache containing all the desired methods and two implementations, MockNexCache
+and RealNexCache.
 
-MockValkey uses gtest definitions to define a mock class. RealValkey uses the
+MockNexCache uses gtest definitions to define a mock class. RealNexCache uses the
 __real_foo() methods to call the renamed methods. The script also implements
-every __wrap_foo() command that delegates to the last MockValkey instance
+every __wrap_foo() command that delegates to the last MockNexCache instance
 initialized.
 
-To extend the Valkey classes for mocking further methods, simply add your method
-to 'wrappers.h' and re-run 'make test-unit' to regenerate the Valkey glue code
+To extend the NexCache classes for mocking further methods, simply add your method
+to 'wrappers.h' and re-run 'make test-unit' to regenerate the NexCache glue code
 and run the tests.
 
 Important: All mocking should occur at software boundaries where interfaces are
@@ -62,8 +62,8 @@ gtest unit tests that you can filter/play with:
    expected test class name
 
    ```bash
-   make valkey-unit-gtests
-   ./src/unit/valkey-unit-gtests --gtest_filter='TEST_CLASS_NAME.*'
+   make nexcache-unit-gtests
+   ./src/unit/nexcache-unit-gtests --gtest_filter='TEST_CLASS_NAME.*'
    ```
 
 4. Running a subset of gtest unit tests in the test class, replace
@@ -71,17 +71,17 @@ gtest unit tests that you can filter/play with:
    with test name
 
    ```bash
-   make valkey-unit-gtests
-   ./src/unit/valkey-unit-gtests --gtest_filter='TEST_CLASS_NAME.TEST_NAME_PREFIX*'
+   make nexcache-unit-gtests
+   ./src/unit/nexcache-unit-gtests --gtest_filter='TEST_CLASS_NAME.TEST_NAME_PREFIX*'
    ```
 
 5. Building and running with CMake
 
    ```bash
    mkdir build-release && cd $_
-   cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/valkey -DBUILD_UNIT_GTESTS=yes
-   make valkey-unit-gtests
-   ./bin/valkey-unit-gtests
+   cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/nexcache -DBUILD_UNIT_GTESTS=yes
+   make nexcache-unit-gtests
+   ./bin/nexcache-unit-gtests
    ```
 
 6. Running disabled tests
@@ -91,8 +91,8 @@ gtest unit tests that you can filter/play with:
    To run a specific disabled test explicitly:
 
    ```bash
-   make valkey-unit-gtests
-   ./src/unit/valkey-unit-gtests --gtest_filter=TEST_CLASS_NAME.DISABLED_TEST_NAME --gtest_also_run_disabled_tests
+   make nexcache-unit-gtests
+   ./src/unit/nexcache-unit-gtests --gtest_filter=TEST_CLASS_NAME.DISABLED_TEST_NAME --gtest_also_run_disabled_tests
    ```
 
 ## Test flags
@@ -107,5 +107,5 @@ The gtest framework supports several command-line flags to control test behavior
 Example usage:
 
 ```bash
-./src/unit/valkey-unit-gtests --accurate --large-memory --seed 12345
+./src/unit/nexcache-unit-gtests --accurate --large-memory --seed 12345
 ```

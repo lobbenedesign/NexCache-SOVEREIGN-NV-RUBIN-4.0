@@ -11,7 +11,7 @@
  * 4- test.oneshot   : Test for oneshot API
  */
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -25,13 +25,13 @@ long long src_offset;
 char *dst;
 long long dst_offset;
 
-ValkeyModuleBlockedClient *bc;
-ValkeyModuleCtx *reply_ctx;
+NexCacheModuleBlockedClient *bc;
+NexCacheModuleCtx *reply_ctx;
 
 void onReadable(int fd, void *user_data, int mask) {
-    VALKEYMODULE_NOT_USED(mask);
+    NEXCACHEMODULE_NOT_USED(mask);
 
-    ValkeyModule_Assert(strcmp(user_data, "userdataread") == 0);
+    NexCacheModule_Assert(strcmp(user_data, "userdataread") == 0);
 
     while (1) {
         int rd = read(fd, dst + dst_offset, buf_size - dst_offset);
@@ -42,29 +42,29 @@ void onReadable(int fd, void *user_data, int mask) {
         /* Received all bytes */
         if (dst_offset == buf_size) {
             if (memcmp(src, dst, buf_size) == 0)
-                ValkeyModule_ReplyWithSimpleString(reply_ctx, "OK");
+                NexCacheModule_ReplyWithSimpleString(reply_ctx, "OK");
             else
-                ValkeyModule_ReplyWithError(reply_ctx, "ERR bytes mismatch");
+                NexCacheModule_ReplyWithError(reply_ctx, "ERR bytes mismatch");
 
-            ValkeyModule_EventLoopDel(fds[0], VALKEYMODULE_EVENTLOOP_READABLE);
-            ValkeyModule_EventLoopDel(fds[1], VALKEYMODULE_EVENTLOOP_WRITABLE);
-            ValkeyModule_Free(src);
-            ValkeyModule_Free(dst);
+            NexCacheModule_EventLoopDel(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE);
+            NexCacheModule_EventLoopDel(fds[1], NEXCACHEMODULE_EVENTLOOP_WRITABLE);
+            NexCacheModule_Free(src);
+            NexCacheModule_Free(dst);
             close(fds[0]);
             close(fds[1]);
 
-            ValkeyModule_FreeThreadSafeContext(reply_ctx);
-            ValkeyModule_UnblockClient(bc, NULL);
+            NexCacheModule_FreeThreadSafeContext(reply_ctx);
+            NexCacheModule_UnblockClient(bc, NULL);
             return;
         }
     };
 }
 
 void onWritable(int fd, void *user_data, int mask) {
-    VALKEYMODULE_NOT_USED(user_data);
-    VALKEYMODULE_NOT_USED(mask);
+    NEXCACHEMODULE_NOT_USED(user_data);
+    NEXCACHEMODULE_NOT_USED(mask);
 
-    ValkeyModule_Assert(strcmp(user_data, "userdatawrite") == 0);
+    NexCacheModule_Assert(strcmp(user_data, "userdatawrite") == 0);
 
     while (1) {
         /* Check if we sent all data */
@@ -81,196 +81,196 @@ void onWritable(int fd, void *user_data, int mask) {
 
 /* Create a pipe(), register pipe fds to the event loop and send/receive data
  * using them. */
-int sendbytes(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int sendbytes(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
 
-    if (ValkeyModule_StringToLongLong(argv[1], &buf_size) != VALKEYMODULE_OK ||
+    if (NexCacheModule_StringToLongLong(argv[1], &buf_size) != NEXCACHEMODULE_OK ||
         buf_size == 0) {
-        ValkeyModule_ReplyWithError(ctx, "Invalid integer value");
-        return VALKEYMODULE_OK;
+        NexCacheModule_ReplyWithError(ctx, "Invalid integer value");
+        return NEXCACHEMODULE_OK;
     }
 
-    bc = ValkeyModule_BlockClient(ctx, NULL, NULL, NULL, 0);
-    reply_ctx = ValkeyModule_GetThreadSafeContext(bc);
+    bc = NexCacheModule_BlockClient(ctx, NULL, NULL, NULL, 0);
+    reply_ctx = NexCacheModule_GetThreadSafeContext(bc);
 
     /* Allocate source buffer and write some random data */
-    src = ValkeyModule_Calloc(1,buf_size);
+    src = NexCacheModule_Calloc(1,buf_size);
     src_offset = 0;
     memset(src, rand() % 0xFF, buf_size);
     memcpy(src, "randomtestdata", strlen("randomtestdata"));
 
-    dst = ValkeyModule_Calloc(1,buf_size);
+    dst = NexCacheModule_Calloc(1,buf_size);
     dst_offset = 0;
 
     /* Create a pipe and register it to the event loop. */
-    if (pipe(fds) < 0) return VALKEYMODULE_ERR;
-    if (fcntl(fds[0], F_SETFL, O_NONBLOCK) < 0) return VALKEYMODULE_ERR;
-    if (fcntl(fds[1], F_SETFL, O_NONBLOCK) < 0) return VALKEYMODULE_ERR;
+    if (pipe(fds) < 0) return NEXCACHEMODULE_ERR;
+    if (fcntl(fds[0], F_SETFL, O_NONBLOCK) < 0) return NEXCACHEMODULE_ERR;
+    if (fcntl(fds[1], F_SETFL, O_NONBLOCK) < 0) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_EventLoopAdd(fds[0], VALKEYMODULE_EVENTLOOP_READABLE,
-        onReadable, "userdataread") != VALKEYMODULE_OK) return VALKEYMODULE_ERR;
-    if (ValkeyModule_EventLoopAdd(fds[1], VALKEYMODULE_EVENTLOOP_WRITABLE,
-        onWritable, "userdatawrite") != VALKEYMODULE_OK) return VALKEYMODULE_ERR;
-    return VALKEYMODULE_OK;
+    if (NexCacheModule_EventLoopAdd(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE,
+        onReadable, "userdataread") != NEXCACHEMODULE_OK) return NEXCACHEMODULE_ERR;
+    if (NexCacheModule_EventLoopAdd(fds[1], NEXCACHEMODULE_EVENTLOOP_WRITABLE,
+        onWritable, "userdatawrite") != NEXCACHEMODULE_OK) return NEXCACHEMODULE_ERR;
+    return NEXCACHEMODULE_OK;
 }
 
-int sanity(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int sanity(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (pipe(fds) < 0) return VALKEYMODULE_ERR;
+    if (pipe(fds) < 0) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_EventLoopAdd(fds[0], 9999999, onReadable, NULL)
-        == VALKEYMODULE_OK || errno != EINVAL) {
-        ValkeyModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
+    if (NexCacheModule_EventLoopAdd(fds[0], 9999999, onReadable, NULL)
+        == NEXCACHEMODULE_OK || errno != EINVAL) {
+        NexCacheModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(-1, VALKEYMODULE_EVENTLOOP_READABLE, onReadable, NULL)
-        == VALKEYMODULE_OK || errno != ERANGE) {
-        ValkeyModule_ReplyWithError(ctx, "ERR out of range fd should fail");
+    if (NexCacheModule_EventLoopAdd(-1, NEXCACHEMODULE_EVENTLOOP_READABLE, onReadable, NULL)
+        == NEXCACHEMODULE_OK || errno != ERANGE) {
+        NexCacheModule_ReplyWithError(ctx, "ERR out of range fd should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(99999999, VALKEYMODULE_EVENTLOOP_READABLE, onReadable, NULL)
-        == VALKEYMODULE_OK || errno != ERANGE) {
-        ValkeyModule_ReplyWithError(ctx, "ERR out of range fd should fail");
+    if (NexCacheModule_EventLoopAdd(99999999, NEXCACHEMODULE_EVENTLOOP_READABLE, onReadable, NULL)
+        == NEXCACHEMODULE_OK || errno != ERANGE) {
+        NexCacheModule_ReplyWithError(ctx, "ERR out of range fd should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(fds[0], VALKEYMODULE_EVENTLOOP_READABLE, NULL, NULL)
-        == VALKEYMODULE_OK || errno != EINVAL) {
-        ValkeyModule_ReplyWithError(ctx, "ERR null callback should fail");
+    if (NexCacheModule_EventLoopAdd(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE, NULL, NULL)
+        == NEXCACHEMODULE_OK || errno != EINVAL) {
+        NexCacheModule_ReplyWithError(ctx, "ERR null callback should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(fds[0], 9999999, onReadable, NULL)
-        == VALKEYMODULE_OK || errno != EINVAL) {
-        ValkeyModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
+    if (NexCacheModule_EventLoopAdd(fds[0], 9999999, onReadable, NULL)
+        == NEXCACHEMODULE_OK || errno != EINVAL) {
+        NexCacheModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopDel(fds[0], VALKEYMODULE_EVENTLOOP_READABLE)
-        != VALKEYMODULE_OK || errno != 0) {
-        ValkeyModule_ReplyWithError(ctx, "ERR del on non-registered fd should not fail");
+    if (NexCacheModule_EventLoopDel(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE)
+        != NEXCACHEMODULE_OK || errno != 0) {
+        NexCacheModule_ReplyWithError(ctx, "ERR del on non-registered fd should not fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopDel(fds[0], 9999999) == VALKEYMODULE_OK ||
+    if (NexCacheModule_EventLoopDel(fds[0], 9999999) == NEXCACHEMODULE_OK ||
         errno != EINVAL) {
-        ValkeyModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
+        NexCacheModule_ReplyWithError(ctx, "ERR non-existing event type should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopDel(-1, VALKEYMODULE_EVENTLOOP_READABLE)
-        == VALKEYMODULE_OK || errno != ERANGE) {
-        ValkeyModule_ReplyWithError(ctx, "ERR out of range fd should fail");
+    if (NexCacheModule_EventLoopDel(-1, NEXCACHEMODULE_EVENTLOOP_READABLE)
+        == NEXCACHEMODULE_OK || errno != ERANGE) {
+        NexCacheModule_ReplyWithError(ctx, "ERR out of range fd should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopDel(99999999, VALKEYMODULE_EVENTLOOP_READABLE)
-        == VALKEYMODULE_OK || errno != ERANGE) {
-        ValkeyModule_ReplyWithError(ctx, "ERR out of range fd should fail");
+    if (NexCacheModule_EventLoopDel(99999999, NEXCACHEMODULE_EVENTLOOP_READABLE)
+        == NEXCACHEMODULE_OK || errno != ERANGE) {
+        NexCacheModule_ReplyWithError(ctx, "ERR out of range fd should fail");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(fds[0], VALKEYMODULE_EVENTLOOP_READABLE, onReadable, NULL)
-        != VALKEYMODULE_OK || errno != 0) {
-        ValkeyModule_ReplyWithError(ctx, "ERR Add failed");
+    if (NexCacheModule_EventLoopAdd(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE, onReadable, NULL)
+        != NEXCACHEMODULE_OK || errno != 0) {
+        NexCacheModule_ReplyWithError(ctx, "ERR Add failed");
         goto out;
     }
-    if (ValkeyModule_EventLoopAdd(fds[0], VALKEYMODULE_EVENTLOOP_READABLE, onReadable, NULL)
-        != VALKEYMODULE_OK || errno != 0) {
-        ValkeyModule_ReplyWithError(ctx, "ERR Adding same fd twice failed");
+    if (NexCacheModule_EventLoopAdd(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE, onReadable, NULL)
+        != NEXCACHEMODULE_OK || errno != 0) {
+        NexCacheModule_ReplyWithError(ctx, "ERR Adding same fd twice failed");
         goto out;
     }
-    if (ValkeyModule_EventLoopDel(fds[0], VALKEYMODULE_EVENTLOOP_READABLE)
-        != VALKEYMODULE_OK || errno != 0) {
-        ValkeyModule_ReplyWithError(ctx, "ERR Del failed");
+    if (NexCacheModule_EventLoopDel(fds[0], NEXCACHEMODULE_EVENTLOOP_READABLE)
+        != NEXCACHEMODULE_OK || errno != 0) {
+        NexCacheModule_ReplyWithError(ctx, "ERR Del failed");
         goto out;
     }
-    if (ValkeyModule_EventLoopAddOneShot(NULL, NULL) == VALKEYMODULE_OK || errno != EINVAL) {
-        ValkeyModule_ReplyWithError(ctx, "ERR null callback should fail");
+    if (NexCacheModule_EventLoopAddOneShot(NULL, NULL) == NEXCACHEMODULE_OK || errno != EINVAL) {
+        NexCacheModule_ReplyWithError(ctx, "ERR null callback should fail");
         goto out;
     }
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 out:
     close(fds[0]);
     close(fds[1]);
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 static long long beforeSleepCount;
 static long long afterSleepCount;
 
-int iteration(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int iteration(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
     /* On each event loop iteration, eventloopCallback() is called. We increment
      * beforeSleepCount and afterSleepCount, so these two should be equal.
      * We reply with iteration count, caller can test if iteration count
      * increments monotonically */
-    ValkeyModule_Assert(beforeSleepCount == afterSleepCount);
-    ValkeyModule_ReplyWithLongLong(ctx, beforeSleepCount);
-    return VALKEYMODULE_OK;
+    NexCacheModule_Assert(beforeSleepCount == afterSleepCount);
+    NexCacheModule_ReplyWithLongLong(ctx, beforeSleepCount);
+    return NEXCACHEMODULE_OK;
 }
 
 void oneshotCallback(void* arg)
 {
-    ValkeyModule_Assert(strcmp(arg, "userdata") == 0);
-    ValkeyModule_ReplyWithSimpleString(reply_ctx, "OK");
-    ValkeyModule_FreeThreadSafeContext(reply_ctx);
-    ValkeyModule_UnblockClient(bc, NULL);
+    NexCacheModule_Assert(strcmp(arg, "userdata") == 0);
+    NexCacheModule_ReplyWithSimpleString(reply_ctx, "OK");
+    NexCacheModule_FreeThreadSafeContext(reply_ctx);
+    NexCacheModule_UnblockClient(bc, NULL);
 }
 
-int oneshot(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int oneshot(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    bc = ValkeyModule_BlockClient(ctx, NULL, NULL, NULL, 0);
-    reply_ctx = ValkeyModule_GetThreadSafeContext(bc);
+    bc = NexCacheModule_BlockClient(ctx, NULL, NULL, NULL, 0);
+    reply_ctx = NexCacheModule_GetThreadSafeContext(bc);
 
-    if (ValkeyModule_EventLoopAddOneShot(oneshotCallback, "userdata") != VALKEYMODULE_OK) {
-        ValkeyModule_ReplyWithError(ctx, "ERR oneshot failed");
-        ValkeyModule_FreeThreadSafeContext(reply_ctx);
-        ValkeyModule_UnblockClient(bc, NULL);
+    if (NexCacheModule_EventLoopAddOneShot(oneshotCallback, "userdata") != NEXCACHEMODULE_OK) {
+        NexCacheModule_ReplyWithError(ctx, "ERR oneshot failed");
+        NexCacheModule_FreeThreadSafeContext(reply_ctx);
+        NexCacheModule_UnblockClient(bc, NULL);
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-void eventloopCallback(struct ValkeyModuleCtx *ctx, ValkeyModuleEvent eid, uint64_t subevent, void *data) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(eid);
-    VALKEYMODULE_NOT_USED(subevent);
-    VALKEYMODULE_NOT_USED(data);
+void eventloopCallback(struct NexCacheModuleCtx *ctx, NexCacheModuleEvent eid, uint64_t subevent, void *data) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(eid);
+    NEXCACHEMODULE_NOT_USED(subevent);
+    NEXCACHEMODULE_NOT_USED(data);
 
-    ValkeyModule_Assert(eid.id == VALKEYMODULE_EVENT_EVENTLOOP);
-    if (subevent == VALKEYMODULE_SUBEVENT_EVENTLOOP_BEFORE_SLEEP)
+    NexCacheModule_Assert(eid.id == NEXCACHEMODULE_EVENT_EVENTLOOP);
+    if (subevent == NEXCACHEMODULE_SUBEVENT_EVENTLOOP_BEFORE_SLEEP)
         beforeSleepCount++;
-    else if (subevent == VALKEYMODULE_SUBEVENT_EVENTLOOP_AFTER_SLEEP)
+    else if (subevent == NEXCACHEMODULE_SUBEVENT_EVENTLOOP_AFTER_SLEEP)
         afterSleepCount++;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx,"eventloop",1,VALKEYMODULE_APIVER_1)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx,"eventloop",1,NEXCACHEMODULE_APIVER_1)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
     /* Test basics. */
-    if (ValkeyModule_CreateCommand(ctx, "test.sanity", sanity, "", 0, 0, 0)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "test.sanity", sanity, "", 0, 0, 0)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
     /* Register a command to create a pipe() and send data through it by using
      * event loop API. */
-    if (ValkeyModule_CreateCommand(ctx, "test.sendbytes", sendbytes, "", 0, 0, 0)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "test.sendbytes", sendbytes, "", 0, 0, 0)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
     /* Register a command to return event loop iteration count. */
-    if (ValkeyModule_CreateCommand(ctx, "test.iteration", iteration, "", 0, 0, 0)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "test.iteration", iteration, "", 0, 0, 0)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "test.oneshot", oneshot, "", 0, 0, 0)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "test.oneshot", oneshot, "", 0, 0, 0)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_SubscribeToServerEvent(ctx, ValkeyModuleEvent_EventLoop,
-        eventloopCallback) != VALKEYMODULE_OK) return VALKEYMODULE_ERR;
+    if (NexCacheModule_SubscribeToServerEvent(ctx, NexCacheModuleEvent_EventLoop,
+        eventloopCallback) != NEXCACHEMODULE_OK) return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

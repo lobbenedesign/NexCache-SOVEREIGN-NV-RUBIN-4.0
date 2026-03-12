@@ -1,9 +1,9 @@
 start_server {tags {"info and its relative command"}} {
     test "Extract version and sha1 details from info command and print" {
         set i [r info]
-        regexp {redis_version:(.*?)\r\n} $i - version
-        regexp {redis_git_sha1:(.*?)\r\n} $i - sha1
-        puts "Testing Valkey version $version ($sha1)"
+        regexp {nexcache_version:(.*?)\r\n} $i - version
+        regexp {nexcache_git_sha1:(.*?)\r\n} $i - sha1
+        puts "Testing NexCache version $version ($sha1)"
     }
 
     test "info command with at most one sub command" {
@@ -14,7 +14,7 @@ start_server {tags {"info and its relative command"}} {
                 set info [r 0 info $arg]
             }
 
-            assert { [string match "*redis_version*" $info] }
+            assert { [string match "*nexcache_version*" $info] }
             assert { [string match "*used_cpu_user*" $info] }
             assert { ![string match "*sentinel_tilt*" $info] }
             assert { [string match "*used_memory*" $info] }

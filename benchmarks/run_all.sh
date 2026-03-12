@@ -1,19 +1,19 @@
 #!/bin/bash
 # benchmarks/run_all.sh
-# NexCache vs Redis vs Valkey vs Dragonfly — Benchmark Suite
+# NexCache vs NexCache vs NexCache vs Dragonfly — Benchmark Suite
 # Riproducibile: qualsiasi cosa nel report può essere verificata rieseguendo questo script
 
 set -e
 
 NEXCACHE_PORT=6379
-REDIS_PORT=6380
-VALKEY_PORT=6381
+NEXCACHE_PORT=6380
+NEXCACHE_PORT=6381
 DRAGONFLY_PORT=6382
 
 DURATION=60      # secondi per test
 THREADS=16       # thread memtier
 CLIENTS=50       # client per thread
-REQUESTS=2000000 # per test redis-benchmark
+REQUESTS=2000000 # per test nexcache-benchmark
 
 echo "======================================================"
 echo " NEXCACHE BENCHMARK SUITE"
@@ -33,7 +33,7 @@ benchmark_system() {
   echo "--- $name (porta $port) ---"
 
   # Verifica che il sistema sia raggiungibile
-  if ! redis-cli -p $port ping > /dev/null 2>&1; then
+  if ! nexcache-cli -p $port ping > /dev/null 2>&1; then
     echo "SKIP: $name non raggiungibile su porta $port"
     return
   fi
@@ -49,7 +49,7 @@ benchmark_system() {
     --print-percentiles=50,99,99.9 --hide-histogram 2>/dev/null
 
   echo "Memoria (50M chiavi 100 bytes):"
-  redis-cli -p $port info memory | grep used_memory_human
+  nexcache-cli -p $port info memory | grep used_memory_human
 }
 
 # Prepara sistema
@@ -63,28 +63,28 @@ echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled > /dev/null 2>
 # Latenza intrinseca
 echo ""
 echo "=== Latenza intrinseca sistema (deve essere < 500μs) ==="
-redis-cli -p $NEXCACHE_PORT --intrinsic-latency 10 || echo "Redis-cli intrinsic latency test skipped"
+nexcache-cli -p $NEXCACHE_PORT --intrinsic-latency 10 || echo "NexCache-cli intrinsic latency test skipped"
 
 # Benchmark tutti i sistemi
 echo ""
 echo "=== TEST 1: THROUGHPUT MASSIMO ==="
 benchmark_system "NexCache" $NEXCACHE_PORT
-benchmark_system "Redis 8.6" $REDIS_PORT
-benchmark_system "Valkey 9.0" $VALKEY_PORT
+benchmark_system "NexCache 8.6" $NEXCACHE_PORT
+benchmark_system "NexCache 9.0" $NEXCACHE_PORT
 benchmark_system "Dragonfly" $DRAGONFLY_PORT
 
 # Test scaling multi-core
 echo ""
 echo "=== TEST 2: SCALING MULTI-CORE ==="
-echo "Connessioni | NexCache QPS | Redis QPS | Valkey QPS"
+echo "Connessioni | NexCache QPS | NexCache QPS | NexCache QPS"
 for c in 1 10 50 100 200 500; do
   nc=$(memtier_benchmark -p $NEXCACHE_PORT -t 4 -c $c \
     --ratio=1:9 --test-time=10 -q 2>/dev/null | \
     grep Totals | awk '{print $2}' || echo "N/A")
-  rc=$(memtier_benchmark -p $REDIS_PORT -t 4 -c $c \
+  rc=$(memtier_benchmark -p $NEXCACHE_PORT -t 4 -c $c \
     --ratio=1:9 --test-time=10 -q 2>/dev/null | \
     grep Totals | awk '{print $2}' || echo "N/A")
-  echo "$c connessioni: NexCache=$nc | Redis=$rc"
+  echo "$c connessioni: NexCache=$nc | NexCache=$rc"
 done
 
 # Test workload TTL-Heavy (Segcache)

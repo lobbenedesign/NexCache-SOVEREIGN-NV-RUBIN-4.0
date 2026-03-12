@@ -12,9 +12,9 @@ start_server {tags {"modules"}} {
     # This tests verify that, apart from the above differences, the output of
     # COMMAND INFO and COMMAND DOCS are identical for the two commands.
     test "Module command introspection via COMMAND INFO" {
-        set redis_reply [lindex [r command info xadd] 0]
+        set nexcache_reply [lindex [r command info xadd] 0]
         set module_reply [lindex [r command info cmdintrospection.xadd] 0]
-        for {set i 1} {$i < [llength $redis_reply]} {incr i} {
+        for {set i 1} {$i < [llength $nexcache_reply]} {incr i} {
             if {$i == 2} {
                 # Remove the "module" flag
                 set mylist [lindex $module_reply $i]
@@ -26,22 +26,22 @@ start_server {tags {"modules"}} {
                 # Skip ACL categories
                 continue
             }
-            assert_equal [lindex $redis_reply $i] [lindex $module_reply $i]
+            assert_equal [lindex $nexcache_reply $i] [lindex $module_reply $i]
         }
     }
 
     test "Module command introspection via COMMAND DOCS" {
-        set redis_reply [dict create {*}[lindex [r command docs xadd] 1]]
+        set nexcache_reply [dict create {*}[lindex [r command docs xadd] 1]]
         set module_reply [dict create {*}[lindex [r command docs cmdintrospection.xadd] 1]]
         # Compare the maps. We need to pop "group" first.
-        dict unset redis_reply group
+        dict unset nexcache_reply group
         dict unset module_reply group
         dict unset module_reply module
         if {$::log_req_res} {
-            dict unset redis_reply reply_schema
+            dict unset nexcache_reply reply_schema
         }
 
-        assert_equal $redis_reply $module_reply
+        assert_equal $nexcache_reply $module_reply
     }
 
     test "Unload the module - cmdintrospection" {

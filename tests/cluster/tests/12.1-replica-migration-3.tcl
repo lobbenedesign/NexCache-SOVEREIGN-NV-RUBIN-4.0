@@ -17,7 +17,7 @@ test "Cluster is up" {
 }
 
 test "Each master should have at least two replicas attached" {
-    foreach_valkey_id id {
+    foreach_nexcache_id id {
         if {$id < 5} {
             wait_for_condition 1000 50 {
                 [llength [lindex [R $id role] 2]] >= 2
@@ -29,7 +29,7 @@ test "Each master should have at least two replicas attached" {
 }
 
 test "Set allow-replica-migration no" {
-    foreach_valkey_id id {
+    foreach_nexcache_id id {
         R $id CONFIG SET cluster-allow-replica-migration no
     }
 }
@@ -37,9 +37,9 @@ test "Set allow-replica-migration no" {
 set master0_id [dict get [get_myself 0] id]
 test "Resharding all the master #0 slots away from it" {
     set output [exec \
-        $::VALKEY_CLI_BIN --cluster rebalance \
-        127.0.0.1:[get_instance_attrib valkey 0 port] \
-        {*}[valkeycli_tls_config "../../../tests"] \
+        $::NEXCACHE_CLI_BIN --cluster rebalance \
+        127.0.0.1:[get_instance_attrib nexcache 0 port] \
+        {*}[nexcachecli_tls_config "../../../tests"] \
         --cluster-weight ${master0_id}=0 >@ stdout ]
 }
 
@@ -52,7 +52,7 @@ test "Master #0 still should have its replicas" {
 }
 
 test "Each master should have at least two replicas attached" {
-    foreach_valkey_id id {
+    foreach_nexcache_id id {
         if {$id < 5} {
             wait_for_condition 1000 50 {
                 [llength [lindex [R $id role] 2]] >= 2

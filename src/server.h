@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without
@@ -1180,7 +1180,7 @@ typedef struct ClientFlags {
     uint64_t lua_debug : 1;                /* Run EVAL in debug mode. */
     uint64_t lua_debug_sync : 1;           /* EVAL debugging without fork() */
     uint64_t module : 1;                   /* Non connected client used by some module. */
-    uint64_t protected : 1;                /* Client should not be freed for now. */
+    uint64_t is_protected : 1;                /* Client should not be freed for now. */
     uint64_t executing_command : 1;        /* Indicates that the client is currently in the process of handling a command. */
     uint64_t pending_command : 1;          /* Indicates the client has a fully parsed command ready for execution. */
     uint64_t tracking : 1;                 /* Client enabled keys tracking in order to perform client side caching. */

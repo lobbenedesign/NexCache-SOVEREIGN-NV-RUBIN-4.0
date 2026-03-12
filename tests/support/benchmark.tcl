@@ -1,4 +1,4 @@
-proc valkeybenchmark_tls_config {testsdir} {
+proc nexcachebenchmark_tls_config {testsdir} {
     set tlsdir [file join $testsdir tls]
     set cert [file join $tlsdir client.crt]
     set key [file join $tlsdir client.key]
@@ -11,23 +11,23 @@ proc valkeybenchmark_tls_config {testsdir} {
     }
 }
 
-proc valkeybenchmark {host port {opts {}}} {
-    set cmd [list $::VALKEY_BENCHMARK_BIN -h $host -p $port]
-    lappend cmd {*}[valkeybenchmark_tls_config "tests"]
+proc nexcachebenchmark {host port {opts {}}} {
+    set cmd [list $::NEXCACHE_BENCHMARK_BIN -h $host -p $port]
+    lappend cmd {*}[nexcachebenchmark_tls_config "tests"]
     lappend cmd {*}$opts
     return $cmd
 }
 
-proc valkeybenchmarkuri {host port {opts {}}} {
-    set cmd [list $::VALKEY_BENCHMARK_BIN -u valkey://$host:$port]
-    lappend cmd {*}[valkeybenchmark_tls_config "tests"]
+proc nexcachebenchmarkuri {host port {opts {}}} {
+    set cmd [list $::NEXCACHE_BENCHMARK_BIN -u nexcache://$host:$port]
+    lappend cmd {*}[nexcachebenchmark_tls_config "tests"]
     lappend cmd {*}$opts
     return $cmd
 }
 
-proc valkeybenchmarkuriuserpass {host port user pass {opts {}}} {
-    set cmd [list $::VALKEY_BENCHMARK_BIN -u valkey://$user:$pass@$host:$port]
-    lappend cmd {*}[valkeybenchmark_tls_config "tests"]
+proc nexcachebenchmarkuriuserpass {host port user pass {opts {}}} {
+    set cmd [list $::NEXCACHE_BENCHMARK_BIN -u nexcache://$user:$pass@$host:$port]
+    lappend cmd {*}[nexcachebenchmark_tls_config "tests"]
     lappend cmd {*}$opts
     return $cmd
 }

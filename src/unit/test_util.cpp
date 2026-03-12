@@ -303,7 +303,7 @@ TEST_F(UtilTest, TestReclaimFilePageCache) {
         }
     }
 
-    const char *tmpfile = "/tmp/redis-reclaim-cache-test";
+    const char *tmpfile = "/tmp/nexcache-reclaim-cache-test";
     int fd = open(tmpfile, O_RDWR | O_CREAT, 0644);
     ASSERT_GE(fd, 0);
 

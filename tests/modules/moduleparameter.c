@@ -1,28 +1,28 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
-int test_module_update_parameter(ValkeyModuleCtx *ctx,
-                                 ValkeyModuleString **argv, int argc) {
+int test_module_update_parameter(NexCacheModuleCtx *ctx,
+                                 NexCacheModuleString **argv, int argc) {
 
-  ValkeyModule_UpdateRuntimeArgs(ctx, argv, argc);
-  return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+  NexCacheModule_UpdateRuntimeArgs(ctx, argv, argc);
+  return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx, "moduleparameter", 1, VALKEYMODULE_APIVER_1) ==
-        VALKEYMODULE_ERR)
-      return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx, "moduleparameter", 1, NEXCACHEMODULE_APIVER_1) ==
+        NEXCACHEMODULE_ERR)
+      return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "testmoduleparameter.update.parameter",
+    if (NexCacheModule_CreateCommand(ctx, "testmoduleparameter.update.parameter",
                                    test_module_update_parameter, "fast", 0, 0,
-                                   0) == VALKEYMODULE_ERR)
-      return VALKEYMODULE_ERR;
+                                   0) == NEXCACHEMODULE_ERR)
+      return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

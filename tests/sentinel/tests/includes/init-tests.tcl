@@ -11,9 +11,9 @@ test "(init) Remove old primary entry from sentinels" {
     }
 }
 
-set redis_slaves [expr $::instances_count - 1]
-test "(init) Create a primary-replicas cluster of [expr $redis_slaves+1] instances" {
-    create_valkey_master_slave_cluster [expr {$redis_slaves+1}]
+set nexcache_slaves [expr $::instances_count - 1]
+test "(init) Create a primary-replicas cluster of [expr $nexcache_slaves+1] instances" {
+    create_nexcache_master_slave_cluster [expr {$nexcache_slaves+1}]
 }
 set master_id 0
 
@@ -22,8 +22,8 @@ test "(init) Sentinels can start monitoring a primary" {
     set quorum [expr {$sentinels/2+1}]
     foreach_sentinel_id id {
         S $id SENTINEL MONITOR mymaster \
-              [get_instance_attrib valkey $master_id host] \
-              [get_instance_attrib valkey $master_id port] $quorum
+              [get_instance_attrib nexcache $master_id host] \
+              [get_instance_attrib nexcache $master_id port] $quorum
     }
     foreach_sentinel_id id {
         assert {[S $id sentinel primary mymaster] ne {}}
@@ -55,7 +55,7 @@ test "(init) Sentinels are able to auto-discover other sentinels" {
 test "(init) Sentinels are able to auto-discover replicas" {
     foreach_sentinel_id id {
         wait_for_condition 1000 50 {
-            [dict get [S $id SENTINEL PRIMARY mymaster] num-slaves] == $redis_slaves
+            [dict get [S $id SENTINEL PRIMARY mymaster] num-slaves] == $nexcache_slaves
         } else {
             fail "At least some sentinels can't detect some replicas"
         }

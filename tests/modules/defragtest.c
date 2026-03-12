@@ -1,10 +1,10 @@
 /* A module that implements defrag callback mechanisms.
  */
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdlib.h>
 
-static ValkeyModuleType *FragType;
+static NexCacheModuleType *FragType;
 
 struct FragObject {
     unsigned long len;
@@ -23,22 +23,22 @@ unsigned long int global_attempts = 0;
 unsigned long int global_defragged = 0;
 
 int global_strings_len = 0;
-ValkeyModuleString **global_strings = NULL;
+NexCacheModuleString **global_strings = NULL;
 
-static void createGlobalStrings(ValkeyModuleCtx *ctx, int count)
+static void createGlobalStrings(NexCacheModuleCtx *ctx, int count)
 {
     global_strings_len = count;
-    global_strings = ValkeyModule_Alloc(sizeof(ValkeyModuleString *) * count);
+    global_strings = NexCacheModule_Alloc(sizeof(NexCacheModuleString *) * count);
 
     for (int i = 0; i < count; i++) {
-        global_strings[i] = ValkeyModule_CreateStringFromLongLong(ctx, i);
+        global_strings[i] = NexCacheModule_CreateStringFromLongLong(ctx, i);
     }
 }
 
-static void defragGlobalStrings(ValkeyModuleDefragCtx *ctx)
+static void defragGlobalStrings(NexCacheModuleDefragCtx *ctx)
 {
     for (int i = 0; i < global_strings_len; i++) {
-        ValkeyModuleString *new = ValkeyModule_DefragValkeyModuleString(ctx, global_strings[i]);
+        NexCacheModuleString *new = NexCacheModule_DefragNexCacheModuleString(ctx, global_strings[i]);
         global_attempts++;
         if (new != NULL) {
             global_strings[i] = new;
@@ -47,35 +47,35 @@ static void defragGlobalStrings(ValkeyModuleDefragCtx *ctx)
     }
 }
 
-static void FragInfo(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
-    VALKEYMODULE_NOT_USED(for_crash_report);
+static void FragInfo(NexCacheModuleInfoCtx *ctx, int for_crash_report) {
+    NEXCACHEMODULE_NOT_USED(for_crash_report);
 
-    ValkeyModule_InfoAddSection(ctx, "stats");
-    ValkeyModule_InfoAddFieldLongLong(ctx, "datatype_attempts", datatype_attempts);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "datatype_defragged", datatype_defragged);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "datatype_resumes", datatype_resumes);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "datatype_wrong_cursor", datatype_wrong_cursor);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "global_attempts", global_attempts);
-    ValkeyModule_InfoAddFieldLongLong(ctx, "global_defragged", global_defragged);
+    NexCacheModule_InfoAddSection(ctx, "stats");
+    NexCacheModule_InfoAddFieldLongLong(ctx, "datatype_attempts", datatype_attempts);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "datatype_defragged", datatype_defragged);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "datatype_resumes", datatype_resumes);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "datatype_wrong_cursor", datatype_wrong_cursor);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "global_attempts", global_attempts);
+    NexCacheModule_InfoAddFieldLongLong(ctx, "global_defragged", global_defragged);
 }
 
 struct FragObject *createFragObject(unsigned long len, unsigned long size, int maxstep) {
-    struct FragObject *o = ValkeyModule_Alloc(sizeof(*o));
+    struct FragObject *o = NexCacheModule_Alloc(sizeof(*o));
     o->len = len;
-    o->values = ValkeyModule_Alloc(sizeof(ValkeyModuleString*) * len);
+    o->values = NexCacheModule_Alloc(sizeof(NexCacheModuleString*) * len);
     o->maxstep = maxstep;
 
     for (unsigned long i = 0; i < len; i++) {
-        o->values[i] = ValkeyModule_Calloc(1, size);
+        o->values[i] = NexCacheModule_Calloc(1, size);
     }
 
     return o;
 }
 
 /* FRAG.RESETSTATS */
-static int fragResetStatsCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+static int fragResetStatsCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
     datatype_attempts = 0;
     datatype_defragged = 0;
@@ -84,72 +84,72 @@ static int fragResetStatsCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv
     global_attempts = 0;
     global_defragged = 0;
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    return NEXCACHEMODULE_OK;
 }
 
 /* FRAG.CREATE key len size maxstep */
-static int fragCreateCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+static int fragCreateCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 5)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx,argv[1],
-                                              VALKEYMODULE_READ|VALKEYMODULE_WRITE);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY)
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx,argv[1],
+                                              NEXCACHEMODULE_READ|NEXCACHEMODULE_WRITE);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY)
     {
-        return ValkeyModule_ReplyWithError(ctx, "ERR key exists");
+        return NexCacheModule_ReplyWithError(ctx, "ERR key exists");
     }
 
     long long len;
-    if ((ValkeyModule_StringToLongLong(argv[2], &len) != VALKEYMODULE_OK)) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid len");
+    if ((NexCacheModule_StringToLongLong(argv[2], &len) != NEXCACHEMODULE_OK)) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid len");
     }
 
     long long size;
-    if ((ValkeyModule_StringToLongLong(argv[3], &size) != VALKEYMODULE_OK)) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid size");
+    if ((NexCacheModule_StringToLongLong(argv[3], &size) != NEXCACHEMODULE_OK)) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid size");
     }
 
     long long maxstep;
-    if ((ValkeyModule_StringToLongLong(argv[4], &maxstep) != VALKEYMODULE_OK)) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid maxstep");
+    if ((NexCacheModule_StringToLongLong(argv[4], &maxstep) != NEXCACHEMODULE_OK)) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid maxstep");
     }
 
     struct FragObject *o = createFragObject(len, size, maxstep);
-    ValkeyModule_ModuleTypeSetValue(key, FragType, o);
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    ValkeyModule_CloseKey(key);
+    NexCacheModule_ModuleTypeSetValue(key, FragType, o);
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_CloseKey(key);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 void FragFree(void *value) {
     struct FragObject *o = value;
 
     for (unsigned long i = 0; i < o->len; i++)
-        ValkeyModule_Free(o->values[i]);
-    ValkeyModule_Free(o->values);
-    ValkeyModule_Free(o);
+        NexCacheModule_Free(o->values[i]);
+    NexCacheModule_Free(o->values);
+    NexCacheModule_Free(o);
 }
 
-size_t FragFreeEffort(ValkeyModuleString *key, const void *value) {
-    VALKEYMODULE_NOT_USED(key);
+size_t FragFreeEffort(NexCacheModuleString *key, const void *value) {
+    NEXCACHEMODULE_NOT_USED(key);
 
     const struct FragObject *o = value;
     return o->len;
 }
 
-int FragDefrag(ValkeyModuleDefragCtx *ctx, ValkeyModuleString *key, void **value) {
-    VALKEYMODULE_NOT_USED(key);
+int FragDefrag(NexCacheModuleDefragCtx *ctx, NexCacheModuleString *key, void **value) {
+    NEXCACHEMODULE_NOT_USED(key);
     unsigned long i = 0;
     int steps = 0;
 
-    int dbid = ValkeyModule_GetDbIdFromDefragCtx(ctx);
-    ValkeyModule_Assert(dbid != -1);
+    int dbid = NexCacheModule_GetDbIdFromDefragCtx(ctx);
+    NexCacheModule_Assert(dbid != -1);
 
     /* Attempt to get cursor, validate it's what we're exepcting */
-    if (ValkeyModule_DefragCursorGet(ctx, &i) == VALKEYMODULE_OK) {
+    if (NexCacheModule_DefragCursorGet(ctx, &i) == NEXCACHEMODULE_OK) {
         if (i > 0) datatype_resumes++;
 
         /* Validate we're expecting this cursor */
@@ -160,7 +160,7 @@ int FragDefrag(ValkeyModuleDefragCtx *ctx, ValkeyModuleString *key, void **value
 
     /* Attempt to defrag the object itself */
     datatype_attempts++;
-    struct FragObject *o = ValkeyModule_DefragAlloc(ctx, *value);
+    struct FragObject *o = NexCacheModule_DefragAlloc(ctx, *value);
     if (o == NULL) {
         /* Not defragged */
         o = *value;
@@ -173,16 +173,16 @@ int FragDefrag(ValkeyModuleDefragCtx *ctx, ValkeyModuleString *key, void **value
     /* Deep defrag now */
     for (; i < o->len; i++) {
         datatype_attempts++;
-        void *new = ValkeyModule_DefragAlloc(ctx, o->values[i]);
+        void *new = NexCacheModule_DefragAlloc(ctx, o->values[i]);
         if (new) {
             o->values[i] = new;
             datatype_defragged++;
         }
 
         if ((o->maxstep && ++steps > o->maxstep) ||
-            ((i % 64 == 0) && ValkeyModule_DefragShouldStop(ctx)))
+            ((i % 64 == 0) && NexCacheModule_DefragShouldStop(ctx)))
         {
-            ValkeyModule_DefragCursorSet(ctx, i);
+            NexCacheModule_DefragCursorSet(ctx, i);
             last_set_cursor = i;
             return 1;
         }
@@ -192,44 +192,44 @@ int FragDefrag(ValkeyModuleDefragCtx *ctx, ValkeyModuleString *key, void **value
     return 0;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx, "defragtest", 1, VALKEYMODULE_APIVER_1)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx, "defragtest", 1, NEXCACHEMODULE_APIVER_1)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_GetTypeMethodVersion() < VALKEYMODULE_TYPE_METHOD_VERSION) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_GetTypeMethodVersion() < NEXCACHEMODULE_TYPE_METHOD_VERSION) {
+        return NEXCACHEMODULE_ERR;
     }
 
     long long glen;
-    if (argc != 1 || ValkeyModule_StringToLongLong(argv[0], &glen) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (argc != 1 || NexCacheModule_StringToLongLong(argv[0], &glen) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
     createGlobalStrings(ctx, glen);
 
-    ValkeyModuleTypeMethods tm = {
-            .version = VALKEYMODULE_TYPE_METHOD_VERSION,
+    NexCacheModuleTypeMethods tm = {
+            .version = NEXCACHEMODULE_TYPE_METHOD_VERSION,
             .free = FragFree,
             .free_effort = FragFreeEffort,
             .defrag = FragDefrag
     };
 
-    FragType = ValkeyModule_CreateDataType(ctx, "frag_type", 0, &tm);
-    if (FragType == NULL) return VALKEYMODULE_ERR;
+    FragType = NexCacheModule_CreateDataType(ctx, "frag_type", 0, &tm);
+    if (FragType == NULL) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "frag.create",
-                                  fragCreateCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "frag.create",
+                                  fragCreateCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "frag.resetstats",
-                                  fragResetStatsCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "frag.resetstats",
+                                  fragResetStatsCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModule_RegisterInfoFunc(ctx, FragInfo);
-    ValkeyModule_RegisterDefragFunc(ctx, defragGlobalStrings);
+    NexCacheModule_RegisterInfoFunc(ctx, FragInfo);
+    NexCacheModule_RegisterDefragFunc(ctx, defragGlobalStrings);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

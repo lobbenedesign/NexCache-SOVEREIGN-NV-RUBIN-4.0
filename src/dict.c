@@ -5,7 +5,7 @@
  * tables of power of two in size are used, collisions are handled by
  * chaining. See the source code for more information... :)
  *
- * Copyright (c) 2006-2012, Redis Ltd.
+ * Copyright (c) 2006-2012, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

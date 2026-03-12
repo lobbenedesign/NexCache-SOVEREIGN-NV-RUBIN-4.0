@@ -37,13 +37,13 @@ start_server {tags {"modules"}} {
         # cause a problem.
         # e.g. the server won't try to process next message of the current client
         # while it is in the command callback for that client   .
-        set rd1 [valkey_deferring_client]
+        set rd1 [nexcache_deferring_client]
         $rd1 test.rdbload blabla.rdb
 
         wait_for_condition 50 100 {
             [s loading] eq 1
         } else {
-            fail "Redis did not start loading or loaded RDB too fast"
+            fail "NexCache did not start loading or loaded RDB too fast"
         }
 
         $rd1 get x

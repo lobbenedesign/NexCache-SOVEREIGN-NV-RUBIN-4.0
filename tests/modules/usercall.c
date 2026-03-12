@@ -1,240 +1,240 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <pthread.h>
 #include <assert.h>
 
 #define UNUSED(V) ((void) V)
 
-ValkeyModuleUser *user = NULL;
+NexCacheModuleUser *user = NULL;
 
-int call_without_user(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int call_without_user(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc < 2) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    const char *cmd = ValkeyModule_StringPtrLen(argv[1], NULL);
+    const char *cmd = NexCacheModule_StringPtrLen(argv[1], NULL);
 
-    ValkeyModuleCallReply *rep = ValkeyModule_Call(ctx, cmd, "Ev", argv + 2, (size_t)argc - 2);
+    NexCacheModuleCallReply *rep = NexCacheModule_Call(ctx, cmd, "Ev", argv + 2, (size_t)argc - 2);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int call_with_user_flag(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int call_with_user_flag(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc < 3) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    ValkeyModule_SetContextUser(ctx, user);
+    NexCacheModule_SetContextUser(ctx, user);
 
     /* Append Ev to the provided flags. */
-    ValkeyModuleString *flags = ValkeyModule_CreateStringFromString(ctx, argv[1]);
-    ValkeyModule_StringAppendBuffer(ctx, flags, "Ev", 2);
+    NexCacheModuleString *flags = NexCacheModule_CreateStringFromString(ctx, argv[1]);
+    NexCacheModule_StringAppendBuffer(ctx, flags, "Ev", 2);
 
-    const char* flg = ValkeyModule_StringPtrLen(flags, NULL);
-    const char* cmd = ValkeyModule_StringPtrLen(argv[2], NULL);
+    const char* flg = NexCacheModule_StringPtrLen(flags, NULL);
+    const char* cmd = NexCacheModule_StringPtrLen(argv[2], NULL);
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, cmd, flg, argv + 3, (size_t)argc - 3);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, cmd, flg, argv + 3, (size_t)argc - 3);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
-    ValkeyModule_FreeString(ctx, flags);
+    NexCacheModule_FreeString(ctx, flags);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int add_to_acl(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int add_to_acl(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     size_t acl_len;
-    const char *acl = ValkeyModule_StringPtrLen(argv[1], &acl_len);
+    const char *acl = NexCacheModule_StringPtrLen(argv[1], &acl_len);
 
-    ValkeyModuleString *error;
-    int ret = ValkeyModule_SetModuleUserACLString(ctx, user, acl, &error);
+    NexCacheModuleString *error;
+    int ret = NexCacheModule_SetModuleUserACLString(ctx, user, acl, &error);
     if (ret) {
         size_t len;
-        const char * e = ValkeyModule_StringPtrLen(error, &len);
-        ValkeyModule_ReplyWithError(ctx, e);
-        return VALKEYMODULE_OK;
+        const char * e = NexCacheModule_StringPtrLen(error, &len);
+        NexCacheModule_ReplyWithError(ctx, e);
+        return NEXCACHEMODULE_OK;
     }
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int get_acl(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
+int get_acl(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
 
     if (argc != 1) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    ValkeyModule_Assert(user != NULL);
+    NexCacheModule_Assert(user != NULL);
 
-    ValkeyModuleString *acl = ValkeyModule_GetModuleUserACLString(user);
+    NexCacheModuleString *acl = NexCacheModule_GetModuleUserACLString(user);
 
-    ValkeyModule_ReplyWithString(ctx, acl);
+    NexCacheModule_ReplyWithString(ctx, acl);
 
-    ValkeyModule_FreeString(NULL, acl);
+    NexCacheModule_FreeString(NULL, acl);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int reset_user(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
+int reset_user(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
 
     if (argc != 1) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     if (user != NULL) {
-        ValkeyModule_FreeModuleUser(user);
+        NexCacheModule_FreeModuleUser(user);
     }
 
-    user = ValkeyModule_CreateModuleUser("module_user");
+    user = NexCacheModule_CreateModuleUser("module_user");
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 typedef struct {
-    ValkeyModuleString **argv;
+    NexCacheModuleString **argv;
     int argc;
-    ValkeyModuleBlockedClient *bc;
+    NexCacheModuleBlockedClient *bc;
 } bg_call_data;
 
 void *bg_call_worker(void *arg) {
     bg_call_data *bg = arg;
-    ValkeyModuleBlockedClient *bc = bg->bc;
+    NexCacheModuleBlockedClient *bc = bg->bc;
 
     // Get module context
-    ValkeyModuleCtx *ctx = ValkeyModule_GetThreadSafeContext(bg->bc);
+    NexCacheModuleCtx *ctx = NexCacheModule_GetThreadSafeContext(bg->bc);
 
     // Acquire GIL
-    ValkeyModule_ThreadSafeContextLock(ctx);
+    NexCacheModule_ThreadSafeContextLock(ctx);
 
     // Set user
-    ValkeyModule_SetContextUser(ctx, user);
+    NexCacheModule_SetContextUser(ctx, user);
 
     // Call the command
     size_t format_len;
-    ValkeyModuleString *format_valkey_str = ValkeyModule_CreateString(NULL, "v", 1);
-    const char *format = ValkeyModule_StringPtrLen(bg->argv[1], &format_len);
-    ValkeyModule_StringAppendBuffer(NULL, format_valkey_str, format, format_len);
-    ValkeyModule_StringAppendBuffer(NULL, format_valkey_str, "E", 1);
-    format = ValkeyModule_StringPtrLen(format_valkey_str, NULL);
-    const char *cmd = ValkeyModule_StringPtrLen(bg->argv[2], NULL);
-    ValkeyModuleCallReply *rep = ValkeyModule_Call(ctx, cmd, format, bg->argv + 3, (size_t)bg->argc - 3);
-    ValkeyModule_FreeString(NULL, format_valkey_str);
+    NexCacheModuleString *format_nexcache_str = NexCacheModule_CreateString(NULL, "v", 1);
+    const char *format = NexCacheModule_StringPtrLen(bg->argv[1], &format_len);
+    NexCacheModule_StringAppendBuffer(NULL, format_nexcache_str, format, format_len);
+    NexCacheModule_StringAppendBuffer(NULL, format_nexcache_str, "E", 1);
+    format = NexCacheModule_StringPtrLen(format_nexcache_str, NULL);
+    const char *cmd = NexCacheModule_StringPtrLen(bg->argv[2], NULL);
+    NexCacheModuleCallReply *rep = NexCacheModule_Call(ctx, cmd, format, bg->argv + 3, (size_t)bg->argc - 3);
+    NexCacheModule_FreeString(NULL, format_nexcache_str);
 
     /* Free the arguments within GIL to prevent simultaneous freeing in main thread. */
     for (int i=0; i<bg->argc; i++)
-        ValkeyModule_FreeString(ctx, bg->argv[i]);
-    ValkeyModule_Free(bg->argv);
-    ValkeyModule_Free(bg);
+        NexCacheModule_FreeString(ctx, bg->argv[i]);
+    NexCacheModule_Free(bg->argv);
+    NexCacheModule_Free(bg);
 
     // Release GIL
-    ValkeyModule_ThreadSafeContextUnlock(ctx);
+    NexCacheModule_ThreadSafeContextUnlock(ctx);
 
     // Reply to client
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
 
     // Unblock client
-    ValkeyModule_UnblockClient(bc, NULL);
+    NexCacheModule_UnblockClient(bc, NULL);
 
     // Free the module context
-    ValkeyModule_FreeThreadSafeContext(ctx);
+    NexCacheModule_FreeThreadSafeContext(ctx);
 
     return NULL;
 }
 
-int call_with_user_bg(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int call_with_user_bg(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     UNUSED(argv);
     UNUSED(argc);
 
     /* Make sure we're not trying to block a client when we shouldn't */
-    int flags = ValkeyModule_GetContextFlags(ctx);
-    int allFlags = ValkeyModule_GetContextFlagsAll();
-    if ((allFlags & VALKEYMODULE_CTX_FLAGS_MULTI) &&
-        (flags & VALKEYMODULE_CTX_FLAGS_MULTI)) {
-        ValkeyModule_ReplyWithSimpleString(ctx, "Blocked client is not supported inside multi");
-        return VALKEYMODULE_OK;
+    int flags = NexCacheModule_GetContextFlags(ctx);
+    int allFlags = NexCacheModule_GetContextFlagsAll();
+    if ((allFlags & NEXCACHEMODULE_CTX_FLAGS_MULTI) &&
+        (flags & NEXCACHEMODULE_CTX_FLAGS_MULTI)) {
+        NexCacheModule_ReplyWithSimpleString(ctx, "Blocked client is not supported inside multi");
+        return NEXCACHEMODULE_OK;
     }
-    if ((allFlags & VALKEYMODULE_CTX_FLAGS_DENY_BLOCKING) &&
-        (flags & VALKEYMODULE_CTX_FLAGS_DENY_BLOCKING)) {
-        ValkeyModule_ReplyWithSimpleString(ctx, "Blocked client is not allowed");
-        return VALKEYMODULE_OK;
+    if ((allFlags & NEXCACHEMODULE_CTX_FLAGS_DENY_BLOCKING) &&
+        (flags & NEXCACHEMODULE_CTX_FLAGS_DENY_BLOCKING)) {
+        NexCacheModule_ReplyWithSimpleString(ctx, "Blocked client is not allowed");
+        return NEXCACHEMODULE_OK;
     }
 
     /* Make a copy of the arguments and pass them to the thread. */
-    bg_call_data *bg = ValkeyModule_Alloc(sizeof(bg_call_data));
-    bg->argv = ValkeyModule_Alloc(sizeof(ValkeyModuleString*)*argc);
+    bg_call_data *bg = NexCacheModule_Alloc(sizeof(bg_call_data));
+    bg->argv = NexCacheModule_Alloc(sizeof(NexCacheModuleString*)*argc);
     bg->argc = argc;
     for (int i=0; i<argc; i++)
-        bg->argv[i] = ValkeyModule_HoldString(ctx, argv[i]);
+        bg->argv[i] = NexCacheModule_HoldString(ctx, argv[i]);
 
     /* Block the client */
-    bg->bc = ValkeyModule_BlockClient(ctx, NULL, NULL, NULL, 0);
+    bg->bc = NexCacheModule_BlockClient(ctx, NULL, NULL, NULL, 0);
 
     /* Start a thread to handle the request */
     pthread_t tid;
     int res = pthread_create(&tid, NULL, bg_call_worker, bg);
     assert(res == 0);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx,"usercall",1,VALKEYMODULE_APIVER_1)== VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx,"usercall",1,NEXCACHEMODULE_APIVER_1)== NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"usercall.call_without_user", call_without_user,"write",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"usercall.call_without_user", call_without_user,"write",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"usercall.call_with_user_flag", call_with_user_flag,"write",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"usercall.call_with_user_flag", call_with_user_flag,"write",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "usercall.call_with_user_bg", call_with_user_bg, "write", 0, 0, 0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "usercall.call_with_user_bg", call_with_user_bg, "write", 0, 0, 0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "usercall.add_to_acl", add_to_acl, "write",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "usercall.add_to_acl", add_to_acl, "write",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"usercall.reset_user", reset_user,"write",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"usercall.reset_user", reset_user,"write",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"usercall.get_acl", get_acl,"write",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"usercall.get_acl", get_acl,"write",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnUnload(ValkeyModuleCtx *ctx) {
-    VALKEYMODULE_NOT_USED(ctx);
+int NexCacheModule_OnUnload(NexCacheModuleCtx *ctx) {
+    NEXCACHEMODULE_NOT_USED(ctx);
 
     if (user != NULL) {
-        ValkeyModule_FreeModuleUser(user);
+        NexCacheModule_FreeModuleUser(user);
         user = NULL;
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

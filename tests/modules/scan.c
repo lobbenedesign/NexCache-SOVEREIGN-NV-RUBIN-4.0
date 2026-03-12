@@ -1,4 +1,4 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
 #include <string.h>
 #include <assert.h>
@@ -8,114 +8,114 @@ typedef struct {
     size_t nkeys;
 } scan_strings_pd;
 
-void scan_strings_callback(ValkeyModuleCtx *ctx, ValkeyModuleString* keyname, ValkeyModuleKey* key, void *privdata) {
+void scan_strings_callback(NexCacheModuleCtx *ctx, NexCacheModuleString* keyname, NexCacheModuleKey* key, void *privdata) {
     scan_strings_pd* pd = privdata;
     int was_opened = 0;
     if (!key) {
-        key = ValkeyModule_OpenKey(ctx, keyname, VALKEYMODULE_READ);
+        key = NexCacheModule_OpenKey(ctx, keyname, NEXCACHEMODULE_READ);
         was_opened = 1;
     }
 
-    if (ValkeyModule_KeyType(key) == VALKEYMODULE_KEYTYPE_STRING) {
+    if (NexCacheModule_KeyType(key) == NEXCACHEMODULE_KEYTYPE_STRING) {
         size_t len;
-        char * data = ValkeyModule_StringDMA(key, &len, VALKEYMODULE_READ);
-        ValkeyModule_ReplyWithArray(ctx, 2);
-        ValkeyModule_ReplyWithString(ctx, keyname);
-        ValkeyModule_ReplyWithStringBuffer(ctx, data, len);
+        char * data = NexCacheModule_StringDMA(key, &len, NEXCACHEMODULE_READ);
+        NexCacheModule_ReplyWithArray(ctx, 2);
+        NexCacheModule_ReplyWithString(ctx, keyname);
+        NexCacheModule_ReplyWithStringBuffer(ctx, data, len);
         pd->nkeys++;
     }
     if (was_opened)
-        ValkeyModule_CloseKey(key);
+        NexCacheModule_CloseKey(key);
 }
 
-int scan_strings(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int scan_strings(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
     scan_strings_pd pd = {
         .nkeys = 0,
     };
 
-    ValkeyModule_ReplyWithArray(ctx, VALKEYMODULE_POSTPONED_LEN);
+    NexCacheModule_ReplyWithArray(ctx, NEXCACHEMODULE_POSTPONED_LEN);
 
-    ValkeyModuleScanCursor* cursor = ValkeyModule_ScanCursorCreate();
-    while(ValkeyModule_Scan(ctx, cursor, scan_strings_callback, &pd));
-    ValkeyModule_ScanCursorDestroy(cursor);
+    NexCacheModuleScanCursor* cursor = NexCacheModule_ScanCursorCreate();
+    while(NexCacheModule_Scan(ctx, cursor, scan_strings_callback, &pd));
+    NexCacheModule_ScanCursorDestroy(cursor);
 
-    ValkeyModule_ReplySetArrayLength(ctx, pd.nkeys);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplySetArrayLength(ctx, pd.nkeys);
+    return NEXCACHEMODULE_OK;
 }
 
 typedef struct {
-    ValkeyModuleCtx *ctx;
+    NexCacheModuleCtx *ctx;
     size_t nreplies;
 } scan_key_pd;
 
-void scan_key_callback(ValkeyModuleKey *key, ValkeyModuleString* field, ValkeyModuleString* value, void *privdata) {
-    VALKEYMODULE_NOT_USED(key);
+void scan_key_callback(NexCacheModuleKey *key, NexCacheModuleString* field, NexCacheModuleString* value, void *privdata) {
+    NEXCACHEMODULE_NOT_USED(key);
     scan_key_pd* pd = privdata;
-    ValkeyModule_ReplyWithArray(pd->ctx, 2);
+    NexCacheModule_ReplyWithArray(pd->ctx, 2);
     size_t fieldCStrLen;
 
-    // The implementation of ValkeyModuleString is robj with lots of encodings.
+    // The implementation of NexCacheModuleString is robj with lots of encodings.
     // We want to make sure the robj that passes to this callback in
-    // String encoded, this is why we use ValkeyModule_StringPtrLen and
-    // ValkeyModule_ReplyWithStringBuffer instead of directly use
-    // ValkeyModule_ReplyWithString.
-    const char* fieldCStr = ValkeyModule_StringPtrLen(field, &fieldCStrLen);
-    ValkeyModule_ReplyWithStringBuffer(pd->ctx, fieldCStr, fieldCStrLen);
+    // String encoded, this is why we use NexCacheModule_StringPtrLen and
+    // NexCacheModule_ReplyWithStringBuffer instead of directly use
+    // NexCacheModule_ReplyWithString.
+    const char* fieldCStr = NexCacheModule_StringPtrLen(field, &fieldCStrLen);
+    NexCacheModule_ReplyWithStringBuffer(pd->ctx, fieldCStr, fieldCStrLen);
     if(value){
         size_t valueCStrLen;
-        const char* valueCStr = ValkeyModule_StringPtrLen(value, &valueCStrLen);
-        ValkeyModule_ReplyWithStringBuffer(pd->ctx, valueCStr, valueCStrLen);
+        const char* valueCStr = NexCacheModule_StringPtrLen(value, &valueCStrLen);
+        NexCacheModule_ReplyWithStringBuffer(pd->ctx, valueCStr, valueCStrLen);
     } else {
-        ValkeyModule_ReplyWithNull(pd->ctx);
+        NexCacheModule_ReplyWithNull(pd->ctx);
     }
 
     pd->nreplies++;
 }
 
-int scan_key(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc)
+int scan_key(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc)
 {
     if (argc != 2) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
     scan_key_pd pd = {
         .ctx = ctx,
         .nreplies = 0,
     };
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ);
     if (!key) {
-        ValkeyModule_ReplyWithError(ctx, "not found");
-        return VALKEYMODULE_OK;
+        NexCacheModule_ReplyWithError(ctx, "not found");
+        return NEXCACHEMODULE_OK;
     }
 
-    ValkeyModule_ReplyWithArray(ctx, VALKEYMODULE_POSTPONED_ARRAY_LEN);
+    NexCacheModule_ReplyWithArray(ctx, NEXCACHEMODULE_POSTPONED_ARRAY_LEN);
 
-    ValkeyModuleScanCursor* cursor = ValkeyModule_ScanCursorCreate();
-    while(ValkeyModule_ScanKey(key, cursor, scan_key_callback, &pd));
-    ValkeyModule_ScanCursorDestroy(cursor);
+    NexCacheModuleScanCursor* cursor = NexCacheModule_ScanCursorCreate();
+    while(NexCacheModule_ScanKey(key, cursor, scan_key_callback, &pd));
+    NexCacheModule_ScanCursorDestroy(cursor);
 
-    ValkeyModule_ReplySetArrayLength(ctx, pd.nreplies);
-    ValkeyModule_CloseKey(key);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplySetArrayLength(ctx, pd.nreplies);
+    NexCacheModule_CloseKey(key);
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx, "scan", 1, VALKEYMODULE_APIVER_1)== VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx, "scan", 1, NEXCACHEMODULE_APIVER_1)== NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "scan.scan_strings", scan_strings, "", 0, 0, 0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "scan.scan_strings", scan_strings, "", 0, 0, 0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "scan.scan_key", scan_key, "", 0, 0, 0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "scan.scan_key", scan_key, "", 0, 0, 0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 

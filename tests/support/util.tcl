@@ -594,7 +594,7 @@ proc start_write_load {host port seconds} {
 }
 
 # Execute a background process writing only one key for the specified number
-# of seconds to the specified Redis instance. This load handler is useful for
+# of seconds to the specified NexCache instance. This load handler is useful for
 # tests which requires heavy replication stream but no memory load. 
 proc start_one_key_write_load {host port seconds key} {
     set tclsh [info nameofexecutable]
@@ -1025,7 +1025,7 @@ proc read_from_aof {fp} {
     set res {}
     for {set j 0} {$j < $count} {incr j} {
         read $fp 1
-        set arg [::valkey::valkey_bulk_read $fp]
+        set arg [::nexcache::nexcache_bulk_read $fp]
         if {$j == 0} {set arg [string tolower $arg]}
         lappend res $arg
     }
@@ -1092,7 +1092,7 @@ proc get_nonloopback_addr {} {
 }
 
 proc get_nonloopback_client {} {
-    return [valkey [get_nonloopback_addr] [srv 0 "port"] 0 $::tls]
+    return [nexcache [get_nonloopback_addr] [srv 0 "port"] 0 $::tls]
 }
 
 # The following functions and variables are used only when running large-memory
@@ -1226,7 +1226,7 @@ proc system_backtrace_supported {} {
     # libmusl does not support backtrace. Also return 0 on
     # static binaries (ldd exit code 1) where we can't detect libmusl
     catch {
-        set ldd [exec ldd $::VALKEY_SERVER_BIN]
+        set ldd [exec ldd $::NEXCACHE_SERVER_BIN]
         if {![string match {*libc.*musl*} $ldd]} {
             return 1
         }

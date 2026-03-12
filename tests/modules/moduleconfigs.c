@@ -1,10 +1,10 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <strings.h>
 int mutable_bool_val;
 int immutable_bool_val;
 long long longval;
 long long memval;
-ValkeyModuleString *strval = NULL;
+NexCacheModuleString *strval = NULL;
 int enumval;
 int flagsval;
 
@@ -12,184 +12,184 @@ int flagsval;
  * to point to the config, and they register the configs as such. Note that one could also just
  * use names if they wanted, and store anything in privdata. */
 int getBoolConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(name);
     return (*(int *)privdata);
 }
 
-int setBoolConfigCommand(const char *name, int new, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(err);
+int setBoolConfigCommand(const char *name, int new, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(err);
     *(int *)privdata = new;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 long long getNumericConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(name);
     return (*(long long *) privdata);
 }
 
-int setNumericConfigCommand(const char *name, long long new, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(err);
+int setNumericConfigCommand(const char *name, long long new, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(err);
     *(long long *)privdata = new;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-ValkeyModuleString *getStringConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(privdata);
+NexCacheModuleString *getStringConfigCommand(const char *name, void *privdata) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(privdata);
     return strval;
 }
-int setStringConfigCommand(const char *name, ValkeyModuleString *new, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(err);
-    VALKEYMODULE_NOT_USED(privdata);
+int setStringConfigCommand(const char *name, NexCacheModuleString *new, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(err);
+    NEXCACHEMODULE_NOT_USED(privdata);
     size_t len;
-    if (!strcasecmp(ValkeyModule_StringPtrLen(new, &len), "rejectisfreed")) {
-        *err = ValkeyModule_CreateString(NULL, "Cannot set string to 'rejectisfreed'", 36);
-        return VALKEYMODULE_ERR;
+    if (!strcasecmp(NexCacheModule_StringPtrLen(new, &len), "rejectisfreed")) {
+        *err = NexCacheModule_CreateString(NULL, "Cannot set string to 'rejectisfreed'", 36);
+        return NEXCACHEMODULE_ERR;
     }
-    if (strval) ValkeyModule_FreeString(NULL, strval);
-    ValkeyModule_RetainString(NULL, new);
+    if (strval) NexCacheModule_FreeString(NULL, strval);
+    NexCacheModule_RetainString(NULL, new);
     strval = new;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 int getEnumConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(privdata);
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(privdata);
     return enumval;
 }
 
-int setEnumConfigCommand(const char *name, int val, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(err);
-    VALKEYMODULE_NOT_USED(privdata);
+int setEnumConfigCommand(const char *name, int val, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(err);
+    NEXCACHEMODULE_NOT_USED(privdata);
     enumval = val;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 int getFlagsConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(privdata);
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(privdata);
     return flagsval;
 }
 
-int setFlagsConfigCommand(const char *name, int val, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(name);
-    VALKEYMODULE_NOT_USED(err);
-    VALKEYMODULE_NOT_USED(privdata);
+int setFlagsConfigCommand(const char *name, int val, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(name);
+    NEXCACHEMODULE_NOT_USED(err);
+    NEXCACHEMODULE_NOT_USED(privdata);
     flagsval = val;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int boolApplyFunc(ValkeyModuleCtx *ctx, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(privdata);
+int boolApplyFunc(NexCacheModuleCtx *ctx, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(privdata);
     if (mutable_bool_val && immutable_bool_val) {
-        *err = ValkeyModule_CreateString(NULL, "Bool configs cannot both be yes.", 32);
-        return VALKEYMODULE_ERR;
+        *err = NexCacheModule_CreateString(NULL, "Bool configs cannot both be yes.", 32);
+        return NEXCACHEMODULE_ERR;
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int longlongApplyFunc(ValkeyModuleCtx *ctx, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(privdata);
+int longlongApplyFunc(NexCacheModuleCtx *ctx, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(privdata);
     if (longval == memval) {
-        *err = ValkeyModule_CreateString(NULL, "These configs cannot equal each other.", 38);
-        return VALKEYMODULE_ERR;
+        *err = NexCacheModule_CreateString(NULL, "These configs cannot equal each other.", 38);
+        return NEXCACHEMODULE_ERR;
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int registerBlockCheck(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int registerBlockCheck(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
     int response_ok = 0;
-    int result = ValkeyModule_RegisterBoolConfig(ctx, "mutable_bool", 1, VALKEYMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &mutable_bool_val);
-    response_ok |= (result == VALKEYMODULE_OK);
+    int result = NexCacheModule_RegisterBoolConfig(ctx, "mutable_bool", 1, NEXCACHEMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &mutable_bool_val);
+    response_ok |= (result == NEXCACHEMODULE_OK);
 
-    result = ValkeyModule_RegisterStringConfig(ctx, "string", "secret password", VALKEYMODULE_CONFIG_DEFAULT, getStringConfigCommand, setStringConfigCommand, NULL, NULL);
-    response_ok |= (result == VALKEYMODULE_OK);
+    result = NexCacheModule_RegisterStringConfig(ctx, "string", "secret password", NEXCACHEMODULE_CONFIG_DEFAULT, getStringConfigCommand, setStringConfigCommand, NULL, NULL);
+    response_ok |= (result == NEXCACHEMODULE_OK);
 
     const char *enum_vals[] = {"none", "five", "one", "two", "four"};
     const int int_vals[] = {0, 5, 1, 2, 4};
-    result = ValkeyModule_RegisterEnumConfig(ctx, "enum", 1, VALKEYMODULE_CONFIG_DEFAULT, enum_vals, int_vals, 5, getEnumConfigCommand, setEnumConfigCommand, NULL, NULL);
-    response_ok |= (result == VALKEYMODULE_OK);
+    result = NexCacheModule_RegisterEnumConfig(ctx, "enum", 1, NEXCACHEMODULE_CONFIG_DEFAULT, enum_vals, int_vals, 5, getEnumConfigCommand, setEnumConfigCommand, NULL, NULL);
+    response_ok |= (result == NEXCACHEMODULE_OK);
 
-    result = ValkeyModule_RegisterNumericConfig(ctx, "numeric", -1, VALKEYMODULE_CONFIG_DEFAULT, -5, 2000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &longval);
-    response_ok |= (result == VALKEYMODULE_OK);
+    result = NexCacheModule_RegisterNumericConfig(ctx, "numeric", -1, NEXCACHEMODULE_CONFIG_DEFAULT, -5, 2000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &longval);
+    response_ok |= (result == NEXCACHEMODULE_OK);
 
-    result = ValkeyModule_LoadConfigs(ctx);
-    response_ok |= (result == VALKEYMODULE_OK);
+    result = NexCacheModule_LoadConfigs(ctx);
+    response_ok |= (result == NEXCACHEMODULE_OK);
     
     /* This validates that it's not possible to register/load configs outside OnLoad,
      * thus returns an error if they succeed. */
     if (response_ok) {
-        ValkeyModule_ReplyWithError(ctx, "UNEXPECTEDOK");
+        NexCacheModule_ReplyWithError(ctx, "UNEXPECTEDOK");
     } else {
-        ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+        NexCacheModule_ReplyWithSimpleString(ctx, "OK");
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx, "moduleconfigs", 1, VALKEYMODULE_APIVER_1) == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx, "moduleconfigs", 1, NEXCACHEMODULE_APIVER_1) == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_RegisterBoolConfig(ctx, "mutable_bool", 1, VALKEYMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &mutable_bool_val) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterBoolConfig(ctx, "mutable_bool", 1, NEXCACHEMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &mutable_bool_val) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
     /* Immutable config here. */
-    if (ValkeyModule_RegisterBoolConfig(ctx, "immutable_bool", 0, VALKEYMODULE_CONFIG_IMMUTABLE, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &immutable_bool_val) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterBoolConfig(ctx, "immutable_bool", 0, NEXCACHEMODULE_CONFIG_IMMUTABLE, getBoolConfigCommand, setBoolConfigCommand, boolApplyFunc, &immutable_bool_val) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
-    if (ValkeyModule_RegisterStringConfig(ctx, "string", "secret password", VALKEYMODULE_CONFIG_DEFAULT, getStringConfigCommand, setStringConfigCommand, NULL, NULL) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterStringConfig(ctx, "string", "secret password", NEXCACHEMODULE_CONFIG_DEFAULT, getStringConfigCommand, setStringConfigCommand, NULL, NULL) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
     /* On the stack to make sure we're copying them. */
     const char *enum_vals[] = {"none", "five", "one", "two", "four"};
     const int int_vals[] = {0, 5, 1, 2, 4};
 
-    if (ValkeyModule_RegisterEnumConfig(ctx, "enum", 1, VALKEYMODULE_CONFIG_DEFAULT, enum_vals, int_vals, 5, getEnumConfigCommand, setEnumConfigCommand, NULL, NULL) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterEnumConfig(ctx, "enum", 1, NEXCACHEMODULE_CONFIG_DEFAULT, enum_vals, int_vals, 5, getEnumConfigCommand, setEnumConfigCommand, NULL, NULL) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
-    if (ValkeyModule_RegisterEnumConfig(ctx, "flags", 3, VALKEYMODULE_CONFIG_DEFAULT | VALKEYMODULE_CONFIG_BITFLAGS, enum_vals, int_vals, 5, getFlagsConfigCommand, setFlagsConfigCommand, NULL, NULL) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterEnumConfig(ctx, "flags", 3, NEXCACHEMODULE_CONFIG_DEFAULT | NEXCACHEMODULE_CONFIG_BITFLAGS, enum_vals, int_vals, 5, getFlagsConfigCommand, setFlagsConfigCommand, NULL, NULL) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
     /* Memory config here. */
-    if (ValkeyModule_RegisterNumericConfig(ctx, "memory_numeric", 1024, VALKEYMODULE_CONFIG_DEFAULT | VALKEYMODULE_CONFIG_MEMORY, 0, 3000000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &memval) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterNumericConfig(ctx, "memory_numeric", 1024, NEXCACHEMODULE_CONFIG_DEFAULT | NEXCACHEMODULE_CONFIG_MEMORY, 0, 3000000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &memval) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
-    if (ValkeyModule_RegisterNumericConfig(ctx, "numeric", -1, VALKEYMODULE_CONFIG_DEFAULT, -5, 2000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &longval) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterNumericConfig(ctx, "numeric", -1, NEXCACHEMODULE_CONFIG_DEFAULT, -5, 2000, getNumericConfigCommand, setNumericConfigCommand, longlongApplyFunc, &longval) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
     size_t len;
-    if (argc && !strcasecmp(ValkeyModule_StringPtrLen(argv[0], &len), "noload")) {
-        return VALKEYMODULE_OK;
-    } else if (ValkeyModule_LoadConfigs(ctx) == VALKEYMODULE_ERR) {
+    if (argc && !strcasecmp(NexCacheModule_StringPtrLen(argv[0], &len), "noload")) {
+        return NEXCACHEMODULE_OK;
+    } else if (NexCacheModule_LoadConfigs(ctx) == NEXCACHEMODULE_ERR) {
         if (strval) {
-            ValkeyModule_FreeString(ctx, strval);
+            NexCacheModule_FreeString(ctx, strval);
             strval = NULL;
         }
-        return VALKEYMODULE_ERR;
+        return NEXCACHEMODULE_ERR;
     }
     /* Creates a command which registers configs outside OnLoad() function. */
-    if (ValkeyModule_CreateCommand(ctx,"block.register.configs.outside.onload", registerBlockCheck, "write", 0, 0, 0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"block.register.configs.outside.onload", registerBlockCheck, "write", 0, 0, 0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
   
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnUnload(ValkeyModuleCtx *ctx) {
-    VALKEYMODULE_NOT_USED(ctx);
+int NexCacheModule_OnUnload(NexCacheModuleCtx *ctx) {
+    NEXCACHEMODULE_NOT_USED(ctx);
     if (strval) {
-        ValkeyModule_FreeString(ctx, strval);
+        NexCacheModule_FreeString(ctx, strval);
         strval = NULL;
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

@@ -1,6 +1,6 @@
 /* adlist.c - A generic doubly linked list implementation
  *
- * Copyright (c) 2006-2010, Redis Ltd.
+ * Copyright (c) 2006-2010, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

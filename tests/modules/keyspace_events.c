@@ -2,18 +2,18 @@
  *
  * -----------------------------------------------------------------------------
  *
- * Copyright (c) 2020, Meir Shpilraien <meir at redislabs dot com>
+ * Copyright (c) 2020, Meir Shpilraien <meir at nexcachelabs dot com>
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
+ * NexCachetribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- *   * Redistributions of source code must retain the above copyright notice,
+ *   * NexCachetributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
+ *   * NexCachetributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
+ *   * Neither the name of NexCache nor the names of its contributors may be used
  *     to endorse or promote products derived from this software without
  *     specific prior written permission.
  *
@@ -33,7 +33,7 @@
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE /* For usleep */
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -42,399 +42,399 @@
 ustime_t cached_time = 0;
 
 /** stores all the keys on which we got 'loaded' keyspace notification **/
-ValkeyModuleDict *loaded_event_log = NULL;
+NexCacheModuleDict *loaded_event_log = NULL;
 /** stores all the keys on which we got 'module' keyspace notification **/
-ValkeyModuleDict *module_event_log = NULL;
+NexCacheModuleDict *module_event_log = NULL;
 
 /** Counts how many deleted KSN we got on keys with a prefix of "count_dels_" **/
 static size_t dels = 0;
 
-static int KeySpace_NotificationLoaded(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key){
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(type);
+static int KeySpace_NotificationLoaded(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key){
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(type);
 
     if(strcmp(event, "loaded") == 0){
-        const char* keyName = ValkeyModule_StringPtrLen(key, NULL);
+        const char* keyName = NexCacheModule_StringPtrLen(key, NULL);
         int nokey;
-        ValkeyModule_DictGetC(loaded_event_log, (void*)keyName, strlen(keyName), &nokey);
+        NexCacheModule_DictGetC(loaded_event_log, (void*)keyName, strlen(keyName), &nokey);
         if(nokey){
-            ValkeyModule_DictSetC(loaded_event_log, (void*)keyName, strlen(keyName), ValkeyModule_HoldString(ctx, key));
+            NexCacheModule_DictSetC(loaded_event_log, (void*)keyName, strlen(keyName), NexCacheModule_HoldString(ctx, key));
         }
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int KeySpace_NotificationGeneric(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(type);
-    const char *key_str = ValkeyModule_StringPtrLen(key, NULL);
+static int KeySpace_NotificationGeneric(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(type);
+    const char *key_str = NexCacheModule_StringPtrLen(key, NULL);
     if (strncmp(key_str, "count_dels_", 11) == 0 && strcmp(event, "del") == 0) {
-        if (ValkeyModule_GetContextFlags(ctx) & VALKEYMODULE_CTX_FLAGS_PRIMARY) {
+        if (NexCacheModule_GetContextFlags(ctx) & NEXCACHEMODULE_CTX_FLAGS_PRIMARY) {
             dels++;
-            ValkeyModule_Replicate(ctx, "keyspace.incr_dels", "");
+            NexCacheModule_Replicate(ctx, "keyspace.incr_dels", "");
         }
-        return VALKEYMODULE_OK;
+        return NEXCACHEMODULE_OK;
     }
     if (cached_time) {
-        ValkeyModule_Assert(cached_time == ValkeyModule_CachedMicroseconds());
+        NexCacheModule_Assert(cached_time == NexCacheModule_CachedMicroseconds());
         usleep(1);
-        ValkeyModule_Assert(cached_time != ValkeyModule_Microseconds());
+        NexCacheModule_Assert(cached_time != NexCacheModule_Microseconds());
     }
 
     if (strcmp(event, "del") == 0) {
-        ValkeyModuleString *copykey = ValkeyModule_CreateStringPrintf(ctx, "%s_copy", ValkeyModule_StringPtrLen(key, NULL));
-        ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "DEL", "s!", copykey);
-        ValkeyModule_FreeString(ctx, copykey);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModuleString *copykey = NexCacheModule_CreateStringPrintf(ctx, "%s_copy", NexCacheModule_StringPtrLen(key, NULL));
+        NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "DEL", "s!", copykey);
+        NexCacheModule_FreeString(ctx, copykey);
+        NexCacheModule_FreeCallReply(rep);
 
-        int ctx_flags = ValkeyModule_GetContextFlags(ctx);
-        if (ctx_flags & VALKEYMODULE_CTX_FLAGS_LUA) {
-            ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "c", "lua");
-            ValkeyModule_FreeCallReply(rep);
+        int ctx_flags = NexCacheModule_GetContextFlags(ctx);
+        if (ctx_flags & NEXCACHEMODULE_CTX_FLAGS_LUA) {
+            NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "c", "lua");
+            NexCacheModule_FreeCallReply(rep);
         }
-        if (ctx_flags & VALKEYMODULE_CTX_FLAGS_MULTI) {
-            ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "c", "multi");
-            ValkeyModule_FreeCallReply(rep);
+        if (ctx_flags & NEXCACHEMODULE_CTX_FLAGS_MULTI) {
+            NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "c", "multi");
+            NexCacheModule_FreeCallReply(rep);
         }
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int KeySpace_NotificationExpired(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(type);
-    VALKEYMODULE_NOT_USED(event);
-    VALKEYMODULE_NOT_USED(key);
+static int KeySpace_NotificationExpired(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(type);
+    NEXCACHEMODULE_NOT_USED(event);
+    NEXCACHEMODULE_NOT_USED(key);
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "c!", "testkeyspace:expired");
-    ValkeyModule_FreeCallReply(rep);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "c!", "testkeyspace:expired");
+    NexCacheModule_FreeCallReply(rep);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 /* This key miss notification handler is performing a write command inside the notification callback.
  * Notice, it is discourage and currently wrong to perform a write command inside key miss event.
  * It can cause read commands to be replicated to the replica/aof. This test is here temporary (for coverage and
  * verification that it's not crashing). */
-static int KeySpace_NotificationModuleKeyMiss(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(type);
-    VALKEYMODULE_NOT_USED(event);
-    VALKEYMODULE_NOT_USED(key);
+static int KeySpace_NotificationModuleKeyMiss(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(type);
+    NEXCACHEMODULE_NOT_USED(event);
+    NEXCACHEMODULE_NOT_USED(key);
 
-    int flags = ValkeyModule_GetContextFlags(ctx);
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_PRIMARY)) {
-        return VALKEYMODULE_OK; // ignore the event on replica
+    int flags = NexCacheModule_GetContextFlags(ctx);
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_PRIMARY)) {
+        return NEXCACHEMODULE_OK; // ignore the event on replica
     }
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "incr", "!c", "missed");
-    ValkeyModule_FreeCallReply(rep);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "incr", "!c", "missed");
+    NexCacheModule_FreeCallReply(rep);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int KeySpace_NotificationModuleString(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(type);
-    VALKEYMODULE_NOT_USED(event);
-    ValkeyModuleKey *valkey_key = ValkeyModule_OpenKey(ctx, key, VALKEYMODULE_READ);
+static int KeySpace_NotificationModuleString(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(type);
+    NEXCACHEMODULE_NOT_USED(event);
+    NexCacheModuleKey *nexcache_key = NexCacheModule_OpenKey(ctx, key, NEXCACHEMODULE_READ);
 
     size_t len = 0;
-    /* ValkeyModule_StringDMA could change the data format and cause the old robj to be freed.
+    /* NexCacheModule_StringDMA could change the data format and cause the old robj to be freed.
      * This code verifies that such format change will not cause any crashes.*/
-    char *data = ValkeyModule_StringDMA(valkey_key, &len, VALKEYMODULE_READ);
+    char *data = NexCacheModule_StringDMA(nexcache_key, &len, NEXCACHEMODULE_READ);
     int res = strncmp(data, "dummy", 5);
-    VALKEYMODULE_NOT_USED(res);
+    NEXCACHEMODULE_NOT_USED(res);
 
-    ValkeyModule_CloseKey(valkey_key);
+    NexCacheModule_CloseKey(nexcache_key);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 static void KeySpace_PostNotificationStringFreePD(void *pd) {
-    ValkeyModule_FreeString(NULL, pd);
+    NexCacheModule_FreeString(NULL, pd);
 }
 
-static void KeySpace_PostNotificationString(ValkeyModuleCtx *ctx, void *pd) {
-    VALKEYMODULE_NOT_USED(ctx);
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "incr", "!s", pd);
-    ValkeyModule_FreeCallReply(rep);
+static void KeySpace_PostNotificationString(NexCacheModuleCtx *ctx, void *pd) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "incr", "!s", pd);
+    NexCacheModule_FreeCallReply(rep);
 }
 
-static int KeySpace_NotificationModuleStringPostNotificationJob(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(type);
-    VALKEYMODULE_NOT_USED(event);
+static int KeySpace_NotificationModuleStringPostNotificationJob(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(type);
+    NEXCACHEMODULE_NOT_USED(event);
 
-    const char *key_str = ValkeyModule_StringPtrLen(key, NULL);
+    const char *key_str = NexCacheModule_StringPtrLen(key, NULL);
 
     if (strncmp(key_str, "string1_", 8) != 0) {
-        return VALKEYMODULE_OK;
+        return NEXCACHEMODULE_OK;
     }
 
-    ValkeyModuleString *new_key = ValkeyModule_CreateStringPrintf(NULL, "string_changed{%s}", key_str);
-    ValkeyModule_AddPostNotificationJob(ctx, KeySpace_PostNotificationString, new_key, KeySpace_PostNotificationStringFreePD);
-    return VALKEYMODULE_OK;
+    NexCacheModuleString *new_key = NexCacheModule_CreateStringPrintf(NULL, "string_changed{%s}", key_str);
+    NexCacheModule_AddPostNotificationJob(ctx, KeySpace_PostNotificationString, new_key, KeySpace_PostNotificationStringFreePD);
+    return NEXCACHEMODULE_OK;
 }
 
-static int KeySpace_NotificationModule(ValkeyModuleCtx *ctx, int type, const char *event, ValkeyModuleString *key) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(type);
-    VALKEYMODULE_NOT_USED(event);
+static int KeySpace_NotificationModule(NexCacheModuleCtx *ctx, int type, const char *event, NexCacheModuleString *key) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(type);
+    NEXCACHEMODULE_NOT_USED(event);
 
-    const char* keyName = ValkeyModule_StringPtrLen(key, NULL);
+    const char* keyName = NexCacheModule_StringPtrLen(key, NULL);
     int nokey;
-    ValkeyModule_DictGetC(module_event_log, (void*)keyName, strlen(keyName), &nokey);
+    NexCacheModule_DictGetC(module_event_log, (void*)keyName, strlen(keyName), &nokey);
     if(nokey){
-        ValkeyModule_DictSetC(module_event_log, (void*)keyName, strlen(keyName), ValkeyModule_HoldString(ctx, key));
+        NexCacheModule_DictSetC(module_event_log, (void*)keyName, strlen(keyName), NexCacheModule_HoldString(ctx, key));
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int cmdNotify(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc){
+static int cmdNotify(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc){
     if(argc != 2){
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    ValkeyModule_NotifyKeyspaceEvent(ctx, VALKEYMODULE_NOTIFY_MODULE, "notify", argv[1]);
-    ValkeyModule_ReplyWithNull(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_NotifyKeyspaceEvent(ctx, NEXCACHEMODULE_NOTIFY_MODULE, "notify", argv[1]);
+    NexCacheModule_ReplyWithNull(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
-static int cmdIsModuleKeyNotified(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc){
+static int cmdIsModuleKeyNotified(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc){
     if(argc != 2){
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    const char* key  = ValkeyModule_StringPtrLen(argv[1], NULL);
+    const char* key  = NexCacheModule_StringPtrLen(argv[1], NULL);
 
     int nokey;
-    ValkeyModuleString* keyStr = ValkeyModule_DictGetC(module_event_log, (void*)key, strlen(key), &nokey);
+    NexCacheModuleString* keyStr = NexCacheModule_DictGetC(module_event_log, (void*)key, strlen(key), &nokey);
 
-    ValkeyModule_ReplyWithArray(ctx, 2);
-    ValkeyModule_ReplyWithLongLong(ctx, !nokey);
+    NexCacheModule_ReplyWithArray(ctx, 2);
+    NexCacheModule_ReplyWithLongLong(ctx, !nokey);
     if(nokey){
-        ValkeyModule_ReplyWithNull(ctx);
+        NexCacheModule_ReplyWithNull(ctx);
     }else{
-        ValkeyModule_ReplyWithString(ctx, keyStr);
+        NexCacheModule_ReplyWithString(ctx, keyStr);
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int cmdIsKeyLoaded(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc){
+static int cmdIsKeyLoaded(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc){
     if(argc != 2){
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    const char* key  = ValkeyModule_StringPtrLen(argv[1], NULL);
+    const char* key  = NexCacheModule_StringPtrLen(argv[1], NULL);
 
     int nokey;
-    ValkeyModuleString* keyStr = ValkeyModule_DictGetC(loaded_event_log, (void*)key, strlen(key), &nokey);
+    NexCacheModuleString* keyStr = NexCacheModule_DictGetC(loaded_event_log, (void*)key, strlen(key), &nokey);
 
-    ValkeyModule_ReplyWithArray(ctx, 2);
-    ValkeyModule_ReplyWithLongLong(ctx, !nokey);
+    NexCacheModule_ReplyWithArray(ctx, 2);
+    NexCacheModule_ReplyWithLongLong(ctx, !nokey);
     if(nokey){
-        ValkeyModule_ReplyWithNull(ctx);
+        NexCacheModule_ReplyWithNull(ctx);
     }else{
-        ValkeyModule_ReplyWithString(ctx, keyStr);
+        NexCacheModule_ReplyWithString(ctx, keyStr);
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-static int cmdDelKeyCopy(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+static int cmdDelKeyCopy(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    cached_time = ValkeyModule_CachedMicroseconds();
+    cached_time = NexCacheModule_CachedMicroseconds();
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "DEL", "s!", argv[1]);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "DEL", "s!", argv[1]);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
     cached_time = 0;
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 /* Call INCR and propagate using RM_Call with `!`. */
-static int cmdIncrCase1(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+static int cmdIncrCase1(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "s!", argv[1]);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "s!", argv[1]);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
 /* Call INCR and propagate using RM_Replicate. */
-static int cmdIncrCase2(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+static int cmdIncrCase2(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "s", argv[1]);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "s", argv[1]);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
-    ValkeyModule_Replicate(ctx, "INCR", "s", argv[1]);
-    return VALKEYMODULE_OK;
+    NexCacheModule_Replicate(ctx, "INCR", "s", argv[1]);
+    return NEXCACHEMODULE_OK;
 }
 
 /* Call INCR and propagate using RM_ReplicateVerbatim. */
-static int cmdIncrCase3(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+static int cmdIncrCase3(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2)
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
 
-    ValkeyModuleCallReply* rep = ValkeyModule_Call(ctx, "INCR", "s", argv[1]);
+    NexCacheModuleCallReply* rep = NexCacheModule_Call(ctx, "INCR", "s", argv[1]);
     if (!rep) {
-        ValkeyModule_ReplyWithError(ctx, "NULL reply returned");
+        NexCacheModule_ReplyWithError(ctx, "NULL reply returned");
     } else {
-        ValkeyModule_ReplyWithCallReply(ctx, rep);
-        ValkeyModule_FreeCallReply(rep);
+        NexCacheModule_ReplyWithCallReply(ctx, rep);
+        NexCacheModule_FreeCallReply(rep);
     }
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
-static int cmdIncrDels(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+static int cmdIncrDels(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
     dels++;
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-static int cmdGetDels(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    return ValkeyModule_ReplyWithLongLong(ctx, dels);
+static int cmdGetDels(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    return NexCacheModule_ReplyWithLongLong(ctx, dels);
 }
 
 /* This function must be present on each module. It is used in order to
  * register the commands into the server. */
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    if (ValkeyModule_Init(ctx,"testkeyspace",1,VALKEYMODULE_APIVER_1) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    if (NexCacheModule_Init(ctx,"testkeyspace",1,NEXCACHEMODULE_APIVER_1) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    loaded_event_log = ValkeyModule_CreateDict(ctx);
-    module_event_log = ValkeyModule_CreateDict(ctx);
+    loaded_event_log = NexCacheModule_CreateDict(ctx);
+    module_event_log = NexCacheModule_CreateDict(ctx);
 
-    int keySpaceAll = ValkeyModule_GetKeyspaceNotificationFlagsAll();
+    int keySpaceAll = NexCacheModule_GetKeyspaceNotificationFlagsAll();
 
-    if (!(keySpaceAll & VALKEYMODULE_NOTIFY_LOADED)) {
-        // VALKEYMODULE_NOTIFY_LOADED event are not supported we can not start
-        return VALKEYMODULE_ERR;
+    if (!(keySpaceAll & NEXCACHEMODULE_NOTIFY_LOADED)) {
+        // NEXCACHEMODULE_NOTIFY_LOADED event are not supported we can not start
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_LOADED, KeySpace_NotificationLoaded) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_LOADED, KeySpace_NotificationLoaded) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_GENERIC, KeySpace_NotificationGeneric) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_GENERIC, KeySpace_NotificationGeneric) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_EXPIRED, KeySpace_NotificationExpired) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_EXPIRED, KeySpace_NotificationExpired) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_MODULE, KeySpace_NotificationModule) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_MODULE, KeySpace_NotificationModule) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_KEY_MISS, KeySpace_NotificationModuleKeyMiss) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_KEY_MISS, KeySpace_NotificationModuleKeyMiss) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_STRING, KeySpace_NotificationModuleString) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_STRING, KeySpace_NotificationModuleString) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if(ValkeyModule_SubscribeToKeyspaceEvents(ctx, VALKEYMODULE_NOTIFY_STRING, KeySpace_NotificationModuleStringPostNotificationJob) != VALKEYMODULE_OK){
-        return VALKEYMODULE_ERR;
+    if(NexCacheModule_SubscribeToKeyspaceEvents(ctx, NEXCACHEMODULE_NOTIFY_STRING, KeySpace_NotificationModuleStringPostNotificationJob) != NEXCACHEMODULE_OK){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx,"keyspace.notify", cmdNotify,"",0,0,0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"keyspace.notify", cmdNotify,"",0,0,0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx,"keyspace.is_module_key_notified", cmdIsModuleKeyNotified,"",0,0,0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"keyspace.is_module_key_notified", cmdIsModuleKeyNotified,"",0,0,0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx,"keyspace.is_key_loaded", cmdIsKeyLoaded,"",0,0,0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"keyspace.is_key_loaded", cmdIsKeyLoaded,"",0,0,0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.del_key_copy", cmdDelKeyCopy,
-                                  "write", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.del_key_copy", cmdDelKeyCopy,
+                                  "write", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
     
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.incr_case1", cmdIncrCase1,
-                                  "write", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.incr_case1", cmdIncrCase1,
+                                  "write", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
     
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.incr_case2", cmdIncrCase2,
-                                  "write", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.incr_case2", cmdIncrCase2,
+                                  "write", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
     
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.incr_case3", cmdIncrCase3,
-                                  "write", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.incr_case3", cmdIncrCase3,
+                                  "write", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.incr_dels", cmdIncrDels,
-                                  "write", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.incr_dels", cmdIncrDels,
+                                  "write", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "keyspace.get_dels", cmdGetDels,
-                                  "readonly", 0, 0, 0) == VALKEYMODULE_ERR){
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "keyspace.get_dels", cmdGetDels,
+                                  "readonly", 0, 0, 0) == NEXCACHEMODULE_ERR){
+        return NEXCACHEMODULE_ERR;
     }
 
     if (argc == 1) {
-        const char *ptr = ValkeyModule_StringPtrLen(argv[0], NULL);
+        const char *ptr = NexCacheModule_StringPtrLen(argv[0], NULL);
         if (!strcasecmp(ptr, "noload")) {
             /* This is a hint that we return ERR at the last moment of OnLoad. */
-            ValkeyModule_FreeDict(ctx, loaded_event_log);
-            ValkeyModule_FreeDict(ctx, module_event_log);
-            return VALKEYMODULE_ERR;
+            NexCacheModule_FreeDict(ctx, loaded_event_log);
+            NexCacheModule_FreeDict(ctx, module_event_log);
+            return NEXCACHEMODULE_ERR;
         }
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnUnload(ValkeyModuleCtx *ctx) {
-    ValkeyModuleDictIter *iter = ValkeyModule_DictIteratorStartC(loaded_event_log, "^", NULL, 0);
+int NexCacheModule_OnUnload(NexCacheModuleCtx *ctx) {
+    NexCacheModuleDictIter *iter = NexCacheModule_DictIteratorStartC(loaded_event_log, "^", NULL, 0);
     char* key;
     size_t keyLen;
-    ValkeyModuleString* val;
-    while((key = ValkeyModule_DictNextC(iter, &keyLen, (void**)&val))){
-        ValkeyModule_FreeString(ctx, val);
+    NexCacheModuleString* val;
+    while((key = NexCacheModule_DictNextC(iter, &keyLen, (void**)&val))){
+        NexCacheModule_FreeString(ctx, val);
     }
-    ValkeyModule_FreeDict(ctx, loaded_event_log);
-    ValkeyModule_DictIteratorStop(iter);
+    NexCacheModule_FreeDict(ctx, loaded_event_log);
+    NexCacheModule_DictIteratorStop(iter);
     loaded_event_log = NULL;
 
-    iter = ValkeyModule_DictIteratorStartC(module_event_log, "^", NULL, 0);
-    while((key = ValkeyModule_DictNextC(iter, &keyLen, (void**)&val))){
-        ValkeyModule_FreeString(ctx, val);
+    iter = NexCacheModule_DictIteratorStartC(module_event_log, "^", NULL, 0);
+    while((key = NexCacheModule_DictNextC(iter, &keyLen, (void**)&val))){
+        NexCacheModule_FreeString(ctx, val);
     }
-    ValkeyModule_FreeDict(ctx, module_event_log);
-    ValkeyModule_DictIteratorStop(iter);
+    NexCacheModule_FreeDict(ctx, module_event_log);
+    NexCacheModule_DictIteratorStop(iter);
     module_event_log = NULL;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

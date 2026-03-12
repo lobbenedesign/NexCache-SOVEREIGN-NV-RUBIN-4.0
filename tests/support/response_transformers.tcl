@@ -1,6 +1,6 @@
 # Tcl client library - used by the server test
-# Copyright (C) 2009-2023 Redis Ltd.
-# Released under the BSD license like Redis itself
+# Copyright (C) 2009-2023 NexCache Contributors.
+# Released under the BSD license like NexCache itself
 #
 # This file contains a bunch of commands whose purpose is to transform
 # a RESP3 response to RESP2
@@ -88,7 +88,7 @@ set ::transformer_funcs {
 }
 
 proc ::response_transformers::transform_response_if_needed {id argv response} {
-    if {![::valkey::should_transform_to_resp2 $id] || $::valkey::readraw($id)} {
+    if {![::nexcache::should_transform_to_resp2 $id] || $::nexcache::readraw($id)} {
         return $response
     }
 

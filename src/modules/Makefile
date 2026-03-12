@@ -25,42 +25,42 @@ all: helloworld.so hellotype.so helloblock.so hellocluster.so hellotimer.so hell
 .c.xo:
 	$(CC) -I. $(CFLAGS) $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
 
-helloworld.xo: ../valkeymodule.h
+helloworld.xo: ../nexcachemodule.h
 
 helloworld.so: helloworld.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-hellotype.xo: ../valkeymodule.h
+hellotype.xo: ../nexcachemodule.h
 
 hellotype.so: hellotype.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-helloblock.xo: ../valkeymodule.h
+helloblock.xo: ../nexcachemodule.h
 
 helloblock.so: helloblock.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lpthread -lc
 
-hellocluster.xo: ../valkeymodule.h
+hellocluster.xo: ../nexcachemodule.h
 
 hellocluster.so: hellocluster.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-hellotimer.xo: ../valkeymodule.h
+hellotimer.xo: ../nexcachemodule.h
 
 hellotimer.so: hellotimer.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-hellodict.xo: ../valkeymodule.h
+hellodict.xo: ../nexcachemodule.h
 
 hellodict.so: hellodict.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-hellohook.xo: ../valkeymodule.h
+hellohook.xo: ../nexcachemodule.h
 
 hellohook.so: hellohook.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc
 
-helloacl.xo: ../valkeymodule.h
+helloacl.xo: ../nexcachemodule.h
 
 helloacl.so: helloacl.xo
 	$(LD) -o $@ $^ $(SHOBJ_LDFLAGS) $(LIBS) -lc

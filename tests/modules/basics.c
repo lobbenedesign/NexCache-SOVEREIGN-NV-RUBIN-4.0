@@ -2,18 +2,18 @@
  *
  * -----------------------------------------------------------------------------
  *
- * Copyright (c) 2016, Redis Ltd.
+ * Copyright (c) 2016, NexCache Contributors.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
+ * NexCachetribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- *   * Redistributions of source code must retain the above copyright notice,
+ *   * NexCachetributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
+ *   * NexCachetributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
+ *   * Neither the name of NexCache nor the names of its contributors may be used
  *     to endorse or promote products derived from this software without
  *     specific prior written permission.
  *
@@ -30,340 +30,340 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <string.h>
 #include <stdlib.h>
 
 /* --------------------------------- Helpers -------------------------------- */
 
 /* Return true if the reply and the C null term string matches. */
-int TestMatchReply(ValkeyModuleCallReply *reply, char *str) {
-    ValkeyModuleString *mystr;
-    mystr = ValkeyModule_CreateStringFromCallReply(reply);
+int TestMatchReply(NexCacheModuleCallReply *reply, char *str) {
+    NexCacheModuleString *mystr;
+    mystr = NexCacheModule_CreateStringFromCallReply(reply);
     if (!mystr) return 0;
-    const char *ptr = ValkeyModule_StringPtrLen(mystr,NULL);
+    const char *ptr = NexCacheModule_StringPtrLen(mystr,NULL);
     return strcmp(ptr,str) == 0;
 }
 
 /* ------------------------------- Test units ------------------------------- */
 
 /* TEST.CALL -- Test Call() API. */
-int TestCall(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCall(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    ValkeyModule_Call(ctx,"DEL","c","mylist");
-    ValkeyModuleString *mystr = ValkeyModule_CreateString(ctx,"foo",3);
-    ValkeyModule_Call(ctx,"RPUSH","csl","mylist",mystr,(long long)1234);
-    reply = ValkeyModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
-    long long items = ValkeyModule_CallReplyLength(reply);
+    NexCacheModule_Call(ctx,"DEL","c","mylist");
+    NexCacheModuleString *mystr = NexCacheModule_CreateString(ctx,"foo",3);
+    NexCacheModule_Call(ctx,"RPUSH","csl","mylist",mystr,(long long)1234);
+    reply = NexCacheModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
+    long long items = NexCacheModule_CallReplyLength(reply);
     if (items != 2) goto fail;
 
-    ValkeyModuleCallReply *item0, *item1;
+    NexCacheModuleCallReply *item0, *item1;
 
-    item0 = ValkeyModule_CallReplyArrayElement(reply,0);
-    item1 = ValkeyModule_CallReplyArrayElement(reply,1);
+    item0 = NexCacheModule_CallReplyArrayElement(reply,0);
+    item1 = NexCacheModule_CallReplyArrayElement(reply,1);
     if (!TestMatchReply(item0,"foo")) goto fail;
     if (!TestMatchReply(item1,"1234")) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Attribute(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Attribute(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "attrib"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_STRING) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "attrib"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_STRING) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 (it might be a string but it contains attribute) */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
     if (!TestMatchReply(reply,"Some real reply following the attribute")) goto fail;
 
-    reply = ValkeyModule_CallReplyAttribute(reply);
-    if (!reply || ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_ATTRIBUTE) goto fail;
+    reply = NexCacheModule_CallReplyAttribute(reply);
+    if (!reply || NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_ATTRIBUTE) goto fail;
     /* make sure we can not reply to resp2 client with resp3 attribute */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
-    if (ValkeyModule_CallReplyLength(reply) != 1) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
+    if (NexCacheModule_CallReplyLength(reply) != 1) goto fail;
 
-    ValkeyModuleCallReply *key, *val;
-    if (ValkeyModule_CallReplyAttributeElement(reply,0,&key,&val) != VALKEYMODULE_OK) goto fail;
+    NexCacheModuleCallReply *key, *val;
+    if (NexCacheModule_CallReplyAttributeElement(reply,0,&key,&val) != NEXCACHEMODULE_OK) goto fail;
     if (!TestMatchReply(key,"key-popularity")) goto fail;
-    if (ValkeyModule_CallReplyType(val) != VALKEYMODULE_REPLY_ARRAY) goto fail;
-    if (ValkeyModule_CallReplyLength(val) != 2) goto fail;
-    if (!TestMatchReply(ValkeyModule_CallReplyArrayElement(val, 0),"key:123")) goto fail;
-    if (!TestMatchReply(ValkeyModule_CallReplyArrayElement(val, 1),"90")) goto fail;
+    if (NexCacheModule_CallReplyType(val) != NEXCACHEMODULE_REPLY_ARRAY) goto fail;
+    if (NexCacheModule_CallReplyLength(val) != 2) goto fail;
+    if (!TestMatchReply(NexCacheModule_CallReplyArrayElement(val, 0),"key:123")) goto fail;
+    if (!TestMatchReply(NexCacheModule_CallReplyArrayElement(val, 1),"90")) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestGetResp(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestGetResp(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    int flags = ValkeyModule_GetContextFlags(ctx);
+    int flags = NexCacheModule_GetContextFlags(ctx);
 
-    if (flags & VALKEYMODULE_CTX_FLAGS_RESP3) {
-        ValkeyModule_ReplyWithLongLong(ctx, 3);
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_RESP3) {
+        NexCacheModule_ReplyWithLongLong(ctx, 3);
     } else {
-        ValkeyModule_ReplyWithLongLong(ctx, 2);
+        NexCacheModule_ReplyWithLongLong(ctx, 2);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallRespAutoMode(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallRespAutoMode(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    ValkeyModule_Call(ctx,"DEL","c","myhash");
-    ValkeyModule_Call(ctx,"HSET","ccccc","myhash", "f1", "v1", "f2", "v2");
+    NexCacheModule_Call(ctx,"DEL","c","myhash");
+    NexCacheModule_Call(ctx,"HSET","ccccc","myhash", "f1", "v1", "f2", "v2");
     /* 0 stands for auto mode, we will get the reply in the same format as the client */
-    reply = ValkeyModule_Call(ctx,"HGETALL","0c" ,"myhash");
-    ValkeyModule_ReplyWithCallReply(ctx, reply);
-    return VALKEYMODULE_OK;
+    reply = NexCacheModule_Call(ctx,"HGETALL","0c" ,"myhash");
+    NexCacheModule_ReplyWithCallReply(ctx, reply);
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Map(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Map(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    ValkeyModule_Call(ctx,"DEL","c","myhash");
-    ValkeyModule_Call(ctx,"HSET","ccccc","myhash", "f1", "v1", "f2", "v2");
-    reply = ValkeyModule_Call(ctx,"HGETALL","3c" ,"myhash"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_MAP) goto fail;
+    NexCacheModule_Call(ctx,"DEL","c","myhash");
+    NexCacheModule_Call(ctx,"HSET","ccccc","myhash", "f1", "v1", "f2", "v2");
+    reply = NexCacheModule_Call(ctx,"HGETALL","3c" ,"myhash"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_MAP) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 map */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
-    long long items = ValkeyModule_CallReplyLength(reply);
+    long long items = NexCacheModule_CallReplyLength(reply);
     if (items != 2) goto fail;
 
-    ValkeyModuleCallReply *key0, *key1;
-    ValkeyModuleCallReply *val0, *val1;
-    if (ValkeyModule_CallReplyMapElement(reply,0,&key0,&val0) != VALKEYMODULE_OK) goto fail;
-    if (ValkeyModule_CallReplyMapElement(reply,1,&key1,&val1) != VALKEYMODULE_OK) goto fail;
+    NexCacheModuleCallReply *key0, *key1;
+    NexCacheModuleCallReply *val0, *val1;
+    if (NexCacheModule_CallReplyMapElement(reply,0,&key0,&val0) != NEXCACHEMODULE_OK) goto fail;
+    if (NexCacheModule_CallReplyMapElement(reply,1,&key1,&val1) != NEXCACHEMODULE_OK) goto fail;
     if (!TestMatchReply(key0,"f1")) goto fail;
     if (!TestMatchReply(key1,"f2")) goto fail;
     if (!TestMatchReply(val0,"v1")) goto fail;
     if (!TestMatchReply(val1,"v2")) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Bool(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Bool(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "true"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_BOOL) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "true"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_BOOL) goto fail;
     /* make sure we can not reply to resp2 client with resp3 bool */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
-    if (!ValkeyModule_CallReplyBool(reply)) goto fail;
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "false"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_BOOL) goto fail;
-    if (ValkeyModule_CallReplyBool(reply)) goto fail;
+    if (!NexCacheModule_CallReplyBool(reply)) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "false"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_BOOL) goto fail;
+    if (NexCacheModule_CallReplyBool(reply)) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Null(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Null(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "null"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_NULL) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "null"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_NULL) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 null */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
-
-fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
-}
-
-int TestCallReplyWithNestedReply(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
-
-    ValkeyModule_Call(ctx,"DEL","c","mylist");
-    ValkeyModule_Call(ctx,"RPUSH","ccl","mylist","test",(long long)1234);
-    reply = ValkeyModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_ARRAY) goto fail;
-    if (ValkeyModule_CallReplyLength(reply) < 1) goto fail;
-    ValkeyModuleCallReply *nestedReply = ValkeyModule_CallReplyArrayElement(reply, 0);
-
-    ValkeyModule_ReplyWithCallReply(ctx,nestedReply);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallReplyWithArrayReply(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallReplyWithNestedReply(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    ValkeyModule_Call(ctx,"DEL","c","mylist");
-    ValkeyModule_Call(ctx,"RPUSH","ccl","mylist","test",(long long)1234);
-    reply = ValkeyModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_ARRAY) goto fail;
+    NexCacheModule_Call(ctx,"DEL","c","mylist");
+    NexCacheModule_Call(ctx,"RPUSH","ccl","mylist","test",(long long)1234);
+    reply = NexCacheModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_ARRAY) goto fail;
+    if (NexCacheModule_CallReplyLength(reply) < 1) goto fail;
+    NexCacheModuleCallReply *nestedReply = NexCacheModule_CallReplyArrayElement(reply, 0);
 
-    ValkeyModule_ReplyWithCallReply(ctx,reply);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithCallReply(ctx,nestedReply);
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Double(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallReplyWithArrayReply(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "double"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_DOUBLE) goto fail;
+    NexCacheModule_Call(ctx,"DEL","c","mylist");
+    NexCacheModule_Call(ctx,"RPUSH","ccl","mylist","test",(long long)1234);
+    reply = NexCacheModule_Call(ctx,"LRANGE","ccc","mylist","0","-1");
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_ARRAY) goto fail;
+
+    NexCacheModule_ReplyWithCallReply(ctx,reply);
+    return NEXCACHEMODULE_OK;
+
+fail:
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
+}
+
+int TestCallResp3Double(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
+
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "double"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_DOUBLE) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 double*/
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
-    double d = ValkeyModule_CallReplyDouble(reply);
+    double d = NexCacheModule_CallReplyDouble(reply);
     /* we compare strings, since comparing doubles directly can fail in various architectures, e.g. 32bit */
     char got[30], expected[30];
     snprintf(got, sizeof(got), "%.17g", d);
     snprintf(expected, sizeof(expected), "%.17g", 3.141);
     if (strcmp(got, expected) != 0) goto fail;
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3BigNumber(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3BigNumber(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "bignum"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_BIG_NUMBER) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "bignum"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_BIG_NUMBER) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 big number */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
     size_t len;
-    const char* big_num = ValkeyModule_CallReplyBigNumber(reply, &len);
-    ValkeyModule_ReplyWithStringBuffer(ctx,big_num,len);
-    return VALKEYMODULE_OK;
+    const char* big_num = NexCacheModule_CallReplyBigNumber(reply, &len);
+    NexCacheModule_ReplyWithStringBuffer(ctx,big_num,len);
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Verbatim(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Verbatim(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    reply = ValkeyModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "verbatim"); /* 3 stands for resp 3 reply */
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_VERBATIM_STRING) goto fail;
+    reply = NexCacheModule_Call(ctx,"DEBUG","3cc" ,"PROTOCOL", "verbatim"); /* 3 stands for resp 3 reply */
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_VERBATIM_STRING) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 verbatim string */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
     const char* format;
     size_t len;
-    const char* str = ValkeyModule_CallReplyVerbatim(reply, &len, &format);
-    ValkeyModuleString *s = ValkeyModule_CreateStringPrintf(ctx, "%.*s:%.*s", 3, format, (int)len, str);
-    ValkeyModule_ReplyWithString(ctx,s);
-    return VALKEYMODULE_OK;
+    const char* str = NexCacheModule_CallReplyVerbatim(reply, &len, &format);
+    NexCacheModuleString *s = NexCacheModule_CreateStringPrintf(ctx, "%.*s:%.*s", 3, format, (int)len, str);
+    NexCacheModule_ReplyWithString(ctx,s);
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
-int TestCallResp3Set(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestCallResp3Set(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
-    ValkeyModule_Call(ctx,"DEL","c","myset");
-    ValkeyModule_Call(ctx,"sadd","ccc","myset", "v1", "v2");
-    reply = ValkeyModule_Call(ctx,"smembers","3c" ,"myset"); // N stands for resp 3 reply
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_SET) goto fail;
+    NexCacheModule_Call(ctx,"DEL","c","myset");
+    NexCacheModule_Call(ctx,"sadd","ccc","myset", "v1", "v2");
+    reply = NexCacheModule_Call(ctx,"smembers","3c" ,"myset"); // N stands for resp 3 reply
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_SET) goto fail;
 
     /* make sure we can not reply to resp2 client with resp3 set */
-    if (ValkeyModule_ReplyWithCallReply(ctx, reply) != VALKEYMODULE_ERR) goto fail;
+    if (NexCacheModule_ReplyWithCallReply(ctx, reply) != NEXCACHEMODULE_ERR) goto fail;
 
-    long long items = ValkeyModule_CallReplyLength(reply);
+    long long items = NexCacheModule_CallReplyLength(reply);
     if (items != 2) goto fail;
 
-    ValkeyModuleCallReply *val0, *val1;
+    NexCacheModuleCallReply *val0, *val1;
 
-    val0 = ValkeyModule_CallReplySetElement(reply,0);
-    val1 = ValkeyModule_CallReplySetElement(reply,1);
+    val0 = NexCacheModule_CallReplySetElement(reply,0);
+    val1 = NexCacheModule_CallReplySetElement(reply,1);
 
     /*
      * The order of elements on sets are not promised so we just
@@ -372,173 +372,173 @@ int TestCallResp3Set(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) 
     if (!TestMatchReply(val0,"v1") && !TestMatchReply(val0,"v2")) goto fail;
     if (!TestMatchReply(val1,"v1") && !TestMatchReply(val1,"v2")) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"OK");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,"ERR");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ERR");
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.STRING.APPEND -- Test appending to an existing string object. */
-int TestStringAppend(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestStringAppend(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModuleString *s = ValkeyModule_CreateString(ctx,"foo",3);
-    ValkeyModule_StringAppendBuffer(ctx,s,"bar",3);
-    ValkeyModule_ReplyWithString(ctx,s);
-    ValkeyModule_FreeString(ctx,s);
-    return VALKEYMODULE_OK;
+    NexCacheModuleString *s = NexCacheModule_CreateString(ctx,"foo",3);
+    NexCacheModule_StringAppendBuffer(ctx,s,"bar",3);
+    NexCacheModule_ReplyWithString(ctx,s);
+    NexCacheModule_FreeString(ctx,s);
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.STRING.APPEND.AM -- Test append with retain when auto memory is on. */
-int TestStringAppendAM(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestStringAppendAM(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleString *s = ValkeyModule_CreateString(ctx,"foo",3);
-    ValkeyModule_RetainString(ctx,s);
-    ValkeyModule_TrimStringAllocation(s);    /* Mostly NOP, but exercises the API function */
-    ValkeyModule_StringAppendBuffer(ctx,s,"bar",3);
-    ValkeyModule_ReplyWithString(ctx,s);
-    ValkeyModule_FreeString(ctx,s);
-    return VALKEYMODULE_OK;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleString *s = NexCacheModule_CreateString(ctx,"foo",3);
+    NexCacheModule_RetainString(ctx,s);
+    NexCacheModule_TrimStringAllocation(s);    /* Mostly NOP, but exercises the API function */
+    NexCacheModule_StringAppendBuffer(ctx,s,"bar",3);
+    NexCacheModule_ReplyWithString(ctx,s);
+    NexCacheModule_FreeString(ctx,s);
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.STRING.TRIM -- Test we trim a string with free space. */
-int TestTrimString(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    ValkeyModuleString *s = ValkeyModule_CreateString(ctx,"foo",3);
-    char *tmp = ValkeyModule_Alloc(1024);
-    ValkeyModule_StringAppendBuffer(ctx,s,tmp,1024);
-    size_t string_len = ValkeyModule_MallocSizeString(s);
-    ValkeyModule_TrimStringAllocation(s);
-    size_t len_after_trim = ValkeyModule_MallocSizeString(s);
+int TestTrimString(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    NexCacheModuleString *s = NexCacheModule_CreateString(ctx,"foo",3);
+    char *tmp = NexCacheModule_Alloc(1024);
+    NexCacheModule_StringAppendBuffer(ctx,s,tmp,1024);
+    size_t string_len = NexCacheModule_MallocSizeString(s);
+    NexCacheModule_TrimStringAllocation(s);
+    size_t len_after_trim = NexCacheModule_MallocSizeString(s);
 
     /* Determine if using jemalloc memory allocator. */
-    ValkeyModuleServerInfoData *info = ValkeyModule_GetServerInfo(ctx, "memory");
-    const char *field = ValkeyModule_ServerInfoGetFieldC(info, "mem_allocator");
+    NexCacheModuleServerInfoData *info = NexCacheModule_GetServerInfo(ctx, "memory");
+    const char *field = NexCacheModule_ServerInfoGetFieldC(info, "mem_allocator");
     int use_jemalloc = !strncmp(field, "jemalloc", 8);
 
-    /* Jemalloc will reallocate `s` from 2k to 1k after ValkeyModule_TrimStringAllocation(),
+    /* Jemalloc will reallocate `s` from 2k to 1k after NexCacheModule_TrimStringAllocation(),
      * but non-jemalloc memory allocators may keep the old size. */
     if ((use_jemalloc && len_after_trim < string_len) ||
         (!use_jemalloc && len_after_trim <= string_len))
     {
-        ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+        NexCacheModule_ReplyWithSimpleString(ctx, "OK");
     } else {
-        ValkeyModule_ReplyWithError(ctx, "String was not trimmed as expected.");
+        NexCacheModule_ReplyWithError(ctx, "String was not trimmed as expected.");
     }
-    ValkeyModule_FreeServerInfo(ctx, info);
-    ValkeyModule_Free(tmp);
-    ValkeyModule_FreeString(ctx,s);
-    return VALKEYMODULE_OK;
+    NexCacheModule_FreeServerInfo(ctx, info);
+    NexCacheModule_Free(tmp);
+    NexCacheModule_FreeString(ctx,s);
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.STRING.PRINTF -- Test string formatting. */
-int TestStringPrintf(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);
+int TestStringPrintf(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);
     if (argc < 3) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
-    ValkeyModuleString *s = ValkeyModule_CreateStringPrintf(ctx,
+    NexCacheModuleString *s = NexCacheModule_CreateStringPrintf(ctx,
         "Got %d args. argv[1]: %s, argv[2]: %s",
         argc,
-        ValkeyModule_StringPtrLen(argv[1], NULL),
-        ValkeyModule_StringPtrLen(argv[2], NULL)
+        NexCacheModule_StringPtrLen(argv[1], NULL),
+        NexCacheModule_StringPtrLen(argv[2], NULL)
     );
 
-    ValkeyModule_ReplyWithString(ctx,s);
+    NexCacheModule_ReplyWithString(ctx,s);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int failTest(ValkeyModuleCtx *ctx, const char *msg) {
-    ValkeyModule_ReplyWithError(ctx, msg);
-    return VALKEYMODULE_ERR;
+int failTest(NexCacheModuleCtx *ctx, const char *msg) {
+    NexCacheModule_ReplyWithError(ctx, msg);
+    return NEXCACHEMODULE_ERR;
 }
 
-int TestUnlink(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestUnlink(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModuleKey *k = ValkeyModule_OpenKey(ctx, ValkeyModule_CreateStringPrintf(ctx, "unlinked"), VALKEYMODULE_WRITE | VALKEYMODULE_READ);
+    NexCacheModuleKey *k = NexCacheModule_OpenKey(ctx, NexCacheModule_CreateStringPrintf(ctx, "unlinked"), NEXCACHEMODULE_WRITE | NEXCACHEMODULE_READ);
     if (!k) return failTest(ctx, "Could not create key");
 
-    if (VALKEYMODULE_ERR == ValkeyModule_StringSet(k, ValkeyModule_CreateStringPrintf(ctx, "Foobar"))) {
+    if (NEXCACHEMODULE_ERR == NexCacheModule_StringSet(k, NexCacheModule_CreateStringPrintf(ctx, "Foobar"))) {
         return failTest(ctx, "Could not set string value");
     }
 
-    ValkeyModuleCallReply *rep = ValkeyModule_Call(ctx, "EXISTS", "c", "unlinked");
-    if (!rep || ValkeyModule_CallReplyInteger(rep) != 1) {
+    NexCacheModuleCallReply *rep = NexCacheModule_Call(ctx, "EXISTS", "c", "unlinked");
+    if (!rep || NexCacheModule_CallReplyInteger(rep) != 1) {
         return failTest(ctx, "Key does not exist before unlink");
     }
 
-    if (VALKEYMODULE_ERR == ValkeyModule_UnlinkKey(k)) {
+    if (NEXCACHEMODULE_ERR == NexCacheModule_UnlinkKey(k)) {
         return failTest(ctx, "Could not unlink key");
     }
 
-    rep = ValkeyModule_Call(ctx, "EXISTS", "c", "unlinked");
-    if (!rep || ValkeyModule_CallReplyInteger(rep) != 0) {
+    rep = NexCacheModule_Call(ctx, "EXISTS", "c", "unlinked");
+    if (!rep || NexCacheModule_CallReplyInteger(rep) != 0) {
         return failTest(ctx, "Could not verify key to be unlinked");
     }
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-int TestNestedCallReplyArrayElement(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestNestedCallReplyArrayElement(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModuleString *expect_key = ValkeyModule_CreateString(ctx, "mykey", strlen("mykey"));
-    ValkeyModule_SelectDb(ctx, 1);
-    ValkeyModule_Call(ctx, "LPUSH", "sc", expect_key, "myvalue");
+    NexCacheModuleString *expect_key = NexCacheModule_CreateString(ctx, "mykey", strlen("mykey"));
+    NexCacheModule_SelectDb(ctx, 1);
+    NexCacheModule_Call(ctx, "LPUSH", "sc", expect_key, "myvalue");
 
-    ValkeyModuleCallReply *scan_reply = ValkeyModule_Call(ctx, "SCAN", "l", (long long)0);
-    ValkeyModule_Assert(scan_reply != NULL && ValkeyModule_CallReplyType(scan_reply) == VALKEYMODULE_REPLY_ARRAY);
-    ValkeyModule_Assert(ValkeyModule_CallReplyLength(scan_reply) == 2);
+    NexCacheModuleCallReply *scan_reply = NexCacheModule_Call(ctx, "SCAN", "l", (long long)0);
+    NexCacheModule_Assert(scan_reply != NULL && NexCacheModule_CallReplyType(scan_reply) == NEXCACHEMODULE_REPLY_ARRAY);
+    NexCacheModule_Assert(NexCacheModule_CallReplyLength(scan_reply) == 2);
 
     long long scan_cursor;
-    ValkeyModuleCallReply *cursor_reply = ValkeyModule_CallReplyArrayElement(scan_reply, 0);
-    ValkeyModule_Assert(ValkeyModule_CallReplyType(cursor_reply) == VALKEYMODULE_REPLY_STRING);
-    ValkeyModule_Assert(ValkeyModule_StringToLongLong(ValkeyModule_CreateStringFromCallReply(cursor_reply), &scan_cursor) == VALKEYMODULE_OK);
-    ValkeyModule_Assert(scan_cursor == 0);
+    NexCacheModuleCallReply *cursor_reply = NexCacheModule_CallReplyArrayElement(scan_reply, 0);
+    NexCacheModule_Assert(NexCacheModule_CallReplyType(cursor_reply) == NEXCACHEMODULE_REPLY_STRING);
+    NexCacheModule_Assert(NexCacheModule_StringToLongLong(NexCacheModule_CreateStringFromCallReply(cursor_reply), &scan_cursor) == NEXCACHEMODULE_OK);
+    NexCacheModule_Assert(scan_cursor == 0);
 
-    ValkeyModuleCallReply *keys_reply = ValkeyModule_CallReplyArrayElement(scan_reply, 1);
-    ValkeyModule_Assert(ValkeyModule_CallReplyType(keys_reply) == VALKEYMODULE_REPLY_ARRAY);
-    ValkeyModule_Assert( ValkeyModule_CallReplyLength(keys_reply) == 1);
+    NexCacheModuleCallReply *keys_reply = NexCacheModule_CallReplyArrayElement(scan_reply, 1);
+    NexCacheModule_Assert(NexCacheModule_CallReplyType(keys_reply) == NEXCACHEMODULE_REPLY_ARRAY);
+    NexCacheModule_Assert( NexCacheModule_CallReplyLength(keys_reply) == 1);
  
-    ValkeyModuleCallReply *key_reply = ValkeyModule_CallReplyArrayElement(keys_reply, 0);
-    ValkeyModule_Assert(ValkeyModule_CallReplyType(key_reply) == VALKEYMODULE_REPLY_STRING);
-    ValkeyModuleString *key = ValkeyModule_CreateStringFromCallReply(key_reply);
-    ValkeyModule_Assert(ValkeyModule_StringCompare(key, expect_key) == 0);
+    NexCacheModuleCallReply *key_reply = NexCacheModule_CallReplyArrayElement(keys_reply, 0);
+    NexCacheModule_Assert(NexCacheModule_CallReplyType(key_reply) == NEXCACHEMODULE_REPLY_STRING);
+    NexCacheModuleString *key = NexCacheModule_CreateStringFromCallReply(key_reply);
+    NexCacheModule_Assert(NexCacheModule_StringCompare(key, expect_key) == 0);
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.STRING.TRUNCATE -- Test truncating an existing string object. */
-int TestStringTruncate(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestStringTruncate(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_Call(ctx, "SET", "cc", "foo", "abcde");
-    ValkeyModuleKey *k = ValkeyModule_OpenKey(ctx, ValkeyModule_CreateStringPrintf(ctx, "foo"), VALKEYMODULE_READ | VALKEYMODULE_WRITE);
+    NexCacheModule_Call(ctx, "SET", "cc", "foo", "abcde");
+    NexCacheModuleKey *k = NexCacheModule_OpenKey(ctx, NexCacheModule_CreateStringPrintf(ctx, "foo"), NEXCACHEMODULE_READ | NEXCACHEMODULE_WRITE);
     if (!k) return failTest(ctx, "Could not create key");
 
     size_t len = 0;
     char* s;
 
     /* expand from 5 to 8 and check null pad */
-    if (VALKEYMODULE_ERR == ValkeyModule_StringTruncate(k, 8)) {
+    if (NEXCACHEMODULE_ERR == NexCacheModule_StringTruncate(k, 8)) {
         return failTest(ctx, "Could not truncate string value (8)");
     }
-    s = ValkeyModule_StringDMA(k, &len, VALKEYMODULE_READ);
+    s = NexCacheModule_StringDMA(k, &len, NEXCACHEMODULE_READ);
     if (!s) {
         return failTest(ctx, "Failed to read truncated string (8)");
     } else if (len != 8) {
@@ -548,10 +548,10 @@ int TestStringTruncate(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc
     }
 
     /* shrink from 8 to 4 */
-    if (VALKEYMODULE_ERR == ValkeyModule_StringTruncate(k, 4)) {
+    if (NEXCACHEMODULE_ERR == NexCacheModule_StringTruncate(k, 4)) {
         return failTest(ctx, "Could not truncate string value (4)");
     }
-    s = ValkeyModule_StringDMA(k, &len, VALKEYMODULE_READ);
+    s = NexCacheModule_StringDMA(k, &len, NEXCACHEMODULE_READ);
     if (!s) {
         return failTest(ctx, "Failed to read truncated string (4)");
     } else if (len != 4) {
@@ -561,138 +561,138 @@ int TestStringTruncate(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc
     }
 
     /* shrink to 0 */
-    if (VALKEYMODULE_ERR == ValkeyModule_StringTruncate(k, 0)) {
+    if (NEXCACHEMODULE_ERR == NexCacheModule_StringTruncate(k, 0)) {
         return failTest(ctx, "Could not truncate string value (0)");
     }
-    s = ValkeyModule_StringDMA(k, &len, VALKEYMODULE_READ);
+    s = NexCacheModule_StringDMA(k, &len, NEXCACHEMODULE_READ);
     if (!s) {
         return failTest(ctx, "Failed to read truncated string (0)");
     } else if (len != 0) {
         return failTest(ctx, "Failed to shrink string value to (0)");
     }
 
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-int NotifyCallback(ValkeyModuleCtx *ctx, int type, const char *event,
-                   ValkeyModuleString *key) {
-  ValkeyModule_AutoMemory(ctx);
+int NotifyCallback(NexCacheModuleCtx *ctx, int type, const char *event,
+                   NexCacheModuleString *key) {
+  NexCacheModule_AutoMemory(ctx);
   /* Increment a counter on the notifications: for each key notified we
    * increment a counter */
-  ValkeyModule_Log(ctx, "notice", "Got event type %d, event %s, key %s", type,
-                  event, ValkeyModule_StringPtrLen(key, NULL));
+  NexCacheModule_Log(ctx, "notice", "Got event type %d, event %s, key %s", type,
+                  event, NexCacheModule_StringPtrLen(key, NULL));
 
-  ValkeyModule_Call(ctx, "HINCRBY", "csc", "notifications", key, "1");
-  return VALKEYMODULE_OK;
+  NexCacheModule_Call(ctx, "HINCRBY", "csc", "notifications", key, "1");
+  return NEXCACHEMODULE_OK;
 }
 
 /* TEST.NOTIFICATIONS -- Test Keyspace Notifications. */
-int TestNotifications(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestNotifications(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
 #define FAIL(msg, ...)                                                                       \
     {                                                                                        \
-        ValkeyModule_Log(ctx, "warning", "Failed NOTIFY Test. Reason: " #msg, ##__VA_ARGS__); \
+        NexCacheModule_Log(ctx, "warning", "Failed NOTIFY Test. Reason: " #msg, ##__VA_ARGS__); \
         goto err;                                                                            \
     }
-    ValkeyModule_Call(ctx, "FLUSHDB", "");
+    NexCacheModule_Call(ctx, "FLUSHDB", "");
 
-    ValkeyModule_Call(ctx, "SET", "cc", "foo", "bar");
-    ValkeyModule_Call(ctx, "SET", "cc", "foo", "baz");
-    ValkeyModule_Call(ctx, "SADD", "cc", "bar", "x");
-    ValkeyModule_Call(ctx, "SADD", "cc", "bar", "y");
+    NexCacheModule_Call(ctx, "SET", "cc", "foo", "bar");
+    NexCacheModule_Call(ctx, "SET", "cc", "foo", "baz");
+    NexCacheModule_Call(ctx, "SADD", "cc", "bar", "x");
+    NexCacheModule_Call(ctx, "SADD", "cc", "bar", "y");
 
-    ValkeyModule_Call(ctx, "HSET", "ccc", "baz", "x", "y");
+    NexCacheModule_Call(ctx, "HSET", "ccc", "baz", "x", "y");
     /* LPUSH should be ignored and not increment any counters */
-    ValkeyModule_Call(ctx, "LPUSH", "cc", "l", "y");
-    ValkeyModule_Call(ctx, "LPUSH", "cc", "l", "y");
+    NexCacheModule_Call(ctx, "LPUSH", "cc", "l", "y");
+    NexCacheModule_Call(ctx, "LPUSH", "cc", "l", "y");
 
     /* Miss some keys intentionally so we will get a "keymiss" notification. */
-    ValkeyModule_Call(ctx, "GET", "c", "nosuchkey");
-    ValkeyModule_Call(ctx, "SMEMBERS", "c", "nosuchkey");
+    NexCacheModule_Call(ctx, "GET", "c", "nosuchkey");
+    NexCacheModule_Call(ctx, "SMEMBERS", "c", "nosuchkey");
 
     size_t sz;
     const char *rep;
-    ValkeyModuleCallReply *r = ValkeyModule_Call(ctx, "HGET", "cc", "notifications", "foo");
-    if (r == NULL || ValkeyModule_CallReplyType(r) != VALKEYMODULE_REPLY_STRING) {
+    NexCacheModuleCallReply *r = NexCacheModule_Call(ctx, "HGET", "cc", "notifications", "foo");
+    if (r == NULL || NexCacheModule_CallReplyType(r) != NEXCACHEMODULE_REPLY_STRING) {
         FAIL("Wrong or no reply for foo");
     } else {
-        rep = ValkeyModule_CallReplyStringPtr(r, &sz);
+        rep = NexCacheModule_CallReplyStringPtr(r, &sz);
         if (sz != 1 || *rep != '2') {
-            FAIL("Got reply '%s'. expected '2'", ValkeyModule_CallReplyStringPtr(r, NULL));
+            FAIL("Got reply '%s'. expected '2'", NexCacheModule_CallReplyStringPtr(r, NULL));
         }
     }
 
-    r = ValkeyModule_Call(ctx, "HGET", "cc", "notifications", "bar");
-    if (r == NULL || ValkeyModule_CallReplyType(r) != VALKEYMODULE_REPLY_STRING) {
+    r = NexCacheModule_Call(ctx, "HGET", "cc", "notifications", "bar");
+    if (r == NULL || NexCacheModule_CallReplyType(r) != NEXCACHEMODULE_REPLY_STRING) {
         FAIL("Wrong or no reply for bar");
     } else {
-        rep = ValkeyModule_CallReplyStringPtr(r, &sz);
+        rep = NexCacheModule_CallReplyStringPtr(r, &sz);
         if (sz != 1 || *rep != '2') {
             FAIL("Got reply '%s'. expected '2'", rep);
         }
     }
 
-    r = ValkeyModule_Call(ctx, "HGET", "cc", "notifications", "baz");
-    if (r == NULL || ValkeyModule_CallReplyType(r) != VALKEYMODULE_REPLY_STRING) {
+    r = NexCacheModule_Call(ctx, "HGET", "cc", "notifications", "baz");
+    if (r == NULL || NexCacheModule_CallReplyType(r) != NEXCACHEMODULE_REPLY_STRING) {
         FAIL("Wrong or no reply for baz");
     } else {
-        rep = ValkeyModule_CallReplyStringPtr(r, &sz);
+        rep = NexCacheModule_CallReplyStringPtr(r, &sz);
         if (sz != 1 || *rep != '1') {
             FAIL("Got reply '%.*s'. expected '1'", (int)sz, rep);
         }
     }
     /* For l we expect nothing since we didn't subscribe to list events */
-    r = ValkeyModule_Call(ctx, "HGET", "cc", "notifications", "l");
-    if (r == NULL || ValkeyModule_CallReplyType(r) != VALKEYMODULE_REPLY_NULL) {
+    r = NexCacheModule_Call(ctx, "HGET", "cc", "notifications", "l");
+    if (r == NULL || NexCacheModule_CallReplyType(r) != NEXCACHEMODULE_REPLY_NULL) {
         FAIL("Wrong reply for l");
     }
 
-    r = ValkeyModule_Call(ctx, "HGET", "cc", "notifications", "nosuchkey");
-    if (r == NULL || ValkeyModule_CallReplyType(r) != VALKEYMODULE_REPLY_STRING) {
+    r = NexCacheModule_Call(ctx, "HGET", "cc", "notifications", "nosuchkey");
+    if (r == NULL || NexCacheModule_CallReplyType(r) != NEXCACHEMODULE_REPLY_STRING) {
         FAIL("Wrong or no reply for nosuchkey");
     } else {
-        rep = ValkeyModule_CallReplyStringPtr(r, &sz);
+        rep = NexCacheModule_CallReplyStringPtr(r, &sz);
         if (sz != 1 || *rep != '2') {
             FAIL("Got reply '%.*s'. expected '2'", (int)sz, rep);
         }
     }
 
-    ValkeyModule_Call(ctx, "FLUSHDB", "");
+    NexCacheModule_Call(ctx, "FLUSHDB", "");
 
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 err:
-    ValkeyModule_Call(ctx, "FLUSHDB", "");
+    NexCacheModule_Call(ctx, "FLUSHDB", "");
 
-    return ValkeyModule_ReplyWithSimpleString(ctx, "ERR");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "ERR");
 }
 
 /* test.latency latency_ms */
-int TestLatency(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int TestLatency(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     if (argc != 2) {
-        ValkeyModule_WrongArity(ctx);
-        return VALKEYMODULE_OK;
+        NexCacheModule_WrongArity(ctx);
+        return NEXCACHEMODULE_OK;
     }
 
     long long latency_ms;
-    if (ValkeyModule_StringToLongLong(argv[1], &latency_ms) != VALKEYMODULE_OK) {
-        ValkeyModule_ReplyWithError(ctx, "Invalid integer value");
-        return VALKEYMODULE_OK;
+    if (NexCacheModule_StringToLongLong(argv[1], &latency_ms) != NEXCACHEMODULE_OK) {
+        NexCacheModule_ReplyWithError(ctx, "Invalid integer value");
+        return NEXCACHEMODULE_OK;
     }
 
-    ValkeyModule_LatencyAddSample("test", latency_ms);
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_LatencyAddSample("test", latency_ms);
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    return NEXCACHEMODULE_OK;
 }
 
 /* TEST.CTXFLAGS -- Test GetContextFlags. */
-int TestCtxFlags(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argc);
-    VALKEYMODULE_NOT_USED(argv);
+int TestCtxFlags(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argc);
+    NEXCACHEMODULE_NOT_USED(argv);
 
-    ValkeyModule_AutoMemory(ctx);
+    NexCacheModule_AutoMemory(ctx);
 
     int ok = 1;
     const char *errString = NULL;
@@ -704,81 +704,81 @@ int TestCtxFlags(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
         goto end;        \
     }
 
-    int flags = ValkeyModule_GetContextFlags(ctx);
+    int flags = NexCacheModule_GetContextFlags(ctx);
     if (flags == 0) {
         FAIL("Got no flags");
     }
 
-    if (flags & VALKEYMODULE_CTX_FLAGS_LUA) FAIL("Lua flag was set");
-    if (flags & VALKEYMODULE_CTX_FLAGS_MULTI) FAIL("Multi flag was set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_LUA) FAIL("Lua flag was set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_MULTI) FAIL("Multi flag was set");
 
-    if (flags & VALKEYMODULE_CTX_FLAGS_AOF) FAIL("AOF Flag was set")
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_AOF) FAIL("AOF Flag was set")
     /* Enable AOF to test AOF flags */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "appendonly", "yes");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_AOF)) FAIL("AOF Flag not set after config set");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "appendonly", "yes");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_AOF)) FAIL("AOF Flag not set after config set");
 
     /* Disable RDB saving and test the flag. */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "save", "");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (flags & VALKEYMODULE_CTX_FLAGS_RDB) FAIL("RDB Flag was set");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "save", "");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_RDB) FAIL("RDB Flag was set");
     /* Enable RDB to test RDB flags */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "save", "900 1");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_RDB)) FAIL("RDB Flag was not set after config set");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "save", "900 1");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_RDB)) FAIL("RDB Flag was not set after config set");
 
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_PRIMARY)) FAIL("Master flag was not set");
-    if (flags & VALKEYMODULE_CTX_FLAGS_REPLICA) FAIL("Slave flag was set");
-    if (flags & VALKEYMODULE_CTX_FLAGS_READONLY) FAIL("Read-only flag was set");
-    if (flags & VALKEYMODULE_CTX_FLAGS_CLUSTER) FAIL("Cluster flag was set");
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_PRIMARY)) FAIL("Master flag was not set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_REPLICA) FAIL("Slave flag was set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_READONLY) FAIL("Read-only flag was set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_CLUSTER) FAIL("Cluster flag was set");
 
     /* Disable maxmemory and test the flag. (it is implicitly set in 32bit builds. */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "maxmemory", "0");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (flags & VALKEYMODULE_CTX_FLAGS_MAXMEMORY) FAIL("Maxmemory flag was set");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "maxmemory", "0");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_MAXMEMORY) FAIL("Maxmemory flag was set");
 
     /* Enable maxmemory and test the flag. */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "maxmemory", "100000000");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_MAXMEMORY))
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "maxmemory", "100000000");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_MAXMEMORY))
         FAIL("Maxmemory flag was not set after config set");
 
-    if (flags & VALKEYMODULE_CTX_FLAGS_EVICT) FAIL("Eviction flag was set");
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "maxmemory-policy", "allkeys-lru");
-    flags = ValkeyModule_GetContextFlags(ctx);
-    if (!(flags & VALKEYMODULE_CTX_FLAGS_EVICT)) FAIL("Eviction flag was not set after config set");
+    if (flags & NEXCACHEMODULE_CTX_FLAGS_EVICT) FAIL("Eviction flag was set");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "maxmemory-policy", "allkeys-lru");
+    flags = NexCacheModule_GetContextFlags(ctx);
+    if (!(flags & NEXCACHEMODULE_CTX_FLAGS_EVICT)) FAIL("Eviction flag was not set after config set");
 
 end:
     /* Revert config changes */
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "appendonly", "no");
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "save", "");
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "maxmemory", "0");
-    ValkeyModule_Call(ctx, "config", "ccc", "set", "maxmemory-policy", "noeviction");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "appendonly", "no");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "save", "");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "maxmemory", "0");
+    NexCacheModule_Call(ctx, "config", "ccc", "set", "maxmemory-policy", "noeviction");
 
     if (!ok) {
-        ValkeyModule_Log(ctx, "warning", "Failed CTXFLAGS Test. Reason: %s", errString);
-        return ValkeyModule_ReplyWithSimpleString(ctx, "ERR");
+        NexCacheModule_Log(ctx, "warning", "Failed CTXFLAGS Test. Reason: %s", errString);
+        return NexCacheModule_ReplyWithSimpleString(ctx, "ERR");
     }
 
-    return ValkeyModule_ReplyWithSimpleString(ctx, "OK");
+    return NexCacheModule_ReplyWithSimpleString(ctx, "OK");
 }
 
 /* ----------------------------- Test framework ----------------------------- */
 
 /* Return 1 if the reply matches the specified string, otherwise log errors
  * in the server log and return 0. */
-int TestAssertErrorReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, char *str, size_t len) {
-    ValkeyModuleString *mystr, *expected;
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_ERROR) {
+int TestAssertErrorReply(NexCacheModuleCtx *ctx, NexCacheModuleCallReply *reply, char *str, size_t len) {
+    NexCacheModuleString *mystr, *expected;
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_ERROR) {
         return 0;
     }
 
-    mystr = ValkeyModule_CreateStringFromCallReply(reply);
-    expected = ValkeyModule_CreateString(ctx,str,len);
-    if (ValkeyModule_StringCompare(mystr,expected) != 0) {
-        const char *mystr_ptr = ValkeyModule_StringPtrLen(mystr,NULL);
-        const char *expected_ptr = ValkeyModule_StringPtrLen(expected,NULL);
-        ValkeyModule_Log(ctx,"warning",
+    mystr = NexCacheModule_CreateStringFromCallReply(reply);
+    expected = NexCacheModule_CreateString(ctx,str,len);
+    if (NexCacheModule_StringCompare(mystr,expected) != 0) {
+        const char *mystr_ptr = NexCacheModule_StringPtrLen(mystr,NULL);
+        const char *expected_ptr = NexCacheModule_StringPtrLen(expected,NULL);
+        NexCacheModule_Log(ctx,"warning",
             "Unexpected Error reply reply '%s' (instead of '%s')",
             mystr_ptr, expected_ptr);
         return 0;
@@ -786,24 +786,24 @@ int TestAssertErrorReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, cha
     return 1;
 }
 
-int TestAssertStringReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, char *str, size_t len) {
-    ValkeyModuleString *mystr, *expected;
+int TestAssertStringReply(NexCacheModuleCtx *ctx, NexCacheModuleCallReply *reply, char *str, size_t len) {
+    NexCacheModuleString *mystr, *expected;
 
-    if (ValkeyModule_CallReplyType(reply) == VALKEYMODULE_REPLY_ERROR) {
-        ValkeyModule_Log(ctx,"warning","Test error reply: %s",
-            ValkeyModule_CallReplyStringPtr(reply, NULL));
+    if (NexCacheModule_CallReplyType(reply) == NEXCACHEMODULE_REPLY_ERROR) {
+        NexCacheModule_Log(ctx,"warning","Test error reply: %s",
+            NexCacheModule_CallReplyStringPtr(reply, NULL));
         return 0;
-    } else if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_STRING) {
-        ValkeyModule_Log(ctx,"warning","Unexpected reply type %d",
-            ValkeyModule_CallReplyType(reply));
+    } else if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_STRING) {
+        NexCacheModule_Log(ctx,"warning","Unexpected reply type %d",
+            NexCacheModule_CallReplyType(reply));
         return 0;
     }
-    mystr = ValkeyModule_CreateStringFromCallReply(reply);
-    expected = ValkeyModule_CreateString(ctx,str,len);
-    if (ValkeyModule_StringCompare(mystr,expected) != 0) {
-        const char *mystr_ptr = ValkeyModule_StringPtrLen(mystr,NULL);
-        const char *expected_ptr = ValkeyModule_StringPtrLen(expected,NULL);
-        ValkeyModule_Log(ctx,"warning",
+    mystr = NexCacheModule_CreateStringFromCallReply(reply);
+    expected = NexCacheModule_CreateString(ctx,str,len);
+    if (NexCacheModule_StringCompare(mystr,expected) != 0) {
+        const char *mystr_ptr = NexCacheModule_StringPtrLen(mystr,NULL);
+        const char *expected_ptr = NexCacheModule_StringPtrLen(expected,NULL);
+        NexCacheModule_Log(ctx,"warning",
             "Unexpected string reply '%s' (instead of '%s')",
             mystr_ptr, expected_ptr);
         return 0;
@@ -813,19 +813,19 @@ int TestAssertStringReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, ch
 
 /* Return 1 if the reply matches the specified integer, otherwise log errors
  * in the server log and return 0. */
-int TestAssertIntegerReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, long long expected) {
-    if (ValkeyModule_CallReplyType(reply) == VALKEYMODULE_REPLY_ERROR) {
-        ValkeyModule_Log(ctx,"warning","Test error reply: %s",
-            ValkeyModule_CallReplyStringPtr(reply, NULL));
+int TestAssertIntegerReply(NexCacheModuleCtx *ctx, NexCacheModuleCallReply *reply, long long expected) {
+    if (NexCacheModule_CallReplyType(reply) == NEXCACHEMODULE_REPLY_ERROR) {
+        NexCacheModule_Log(ctx,"warning","Test error reply: %s",
+            NexCacheModule_CallReplyStringPtr(reply, NULL));
         return 0;
-    } else if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_INTEGER) {
-        ValkeyModule_Log(ctx,"warning","Unexpected reply type %d",
-            ValkeyModule_CallReplyType(reply));
+    } else if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_INTEGER) {
+        NexCacheModule_Log(ctx,"warning","Unexpected reply type %d",
+            NexCacheModule_CallReplyType(reply));
         return 0;
     }
-    long long val = ValkeyModule_CallReplyInteger(reply);
+    long long val = NexCacheModule_CallReplyInteger(reply);
     if (val != expected) {
-        ValkeyModule_Log(ctx,"warning",
+        NexCacheModule_Log(ctx,"warning",
             "Unexpected integer reply '%lld' (instead of '%lld')",
             val, expected);
         return 0;
@@ -835,20 +835,20 @@ int TestAssertIntegerReply(ValkeyModuleCtx *ctx, ValkeyModuleCallReply *reply, l
 
 #define T(name,...) \
     do { \
-        ValkeyModule_Log(ctx,"warning","Testing %s", name); \
-        reply = ValkeyModule_Call(ctx,name,__VA_ARGS__); \
+        NexCacheModule_Log(ctx,"warning","Testing %s", name); \
+        reply = NexCacheModule_Call(ctx,name,__VA_ARGS__); \
     } while (0)
 
 /* TEST.BASICS -- Run all the tests.
  * Note: it is useful to run these tests from the module rather than TCL
  * since it's easier to check the reply types like that (make a distinction
  * between 0 and "0", etc. */
-int TestBasics(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int TestBasics(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    ValkeyModule_AutoMemory(ctx);
-    ValkeyModuleCallReply *reply;
+    NexCacheModule_AutoMemory(ctx);
+    NexCacheModuleCallReply *reply;
 
     /* Make sure the DB is empty before to proceed. */
     T("dbsize","");
@@ -912,10 +912,10 @@ int TestBasics(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
     if (!TestAssertStringReply(ctx,reply,"OK",2)) goto fail;
 
     T("test.callreplywitharrayreply", "");
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_ARRAY) goto fail;
-    if (ValkeyModule_CallReplyLength(reply) != 2) goto fail;
-    if (!TestAssertStringReply(ctx,ValkeyModule_CallReplyArrayElement(reply, 0),"test",4)) goto fail;
-    if (!TestAssertStringReply(ctx,ValkeyModule_CallReplyArrayElement(reply, 1),"1234",4)) goto fail;
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_ARRAY) goto fail;
+    if (NexCacheModule_CallReplyLength(reply) != 2) goto fail;
+    if (!TestAssertStringReply(ctx,NexCacheModule_CallReplyArrayElement(reply, 0),"test",4)) goto fail;
+    if (!TestAssertStringReply(ctx,NexCacheModule_CallReplyArrayElement(reply, 1),"1234",4)) goto fail;
 
     T("foo", "E");
     if (!TestAssertErrorReply(ctx,reply,"ERR unknown command 'foo', with args beginning with: ",53)) goto fail;
@@ -929,145 +929,145 @@ int TestBasics(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
     T("set", "WEcc", "x", "1");
     if (!TestAssertErrorReply(ctx,reply,"ERR Write command 'set' was called while write is not allowed.",62)) goto fail;
 
-    ValkeyModule_ReplyWithSimpleString(ctx,"ALL TESTS PASSED");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx,"ALL TESTS PASSED");
+    return NEXCACHEMODULE_OK;
 
 fail:
-    ValkeyModule_ReplyWithSimpleString(ctx,
+    NexCacheModule_ReplyWithSimpleString(ctx,
         "SOME TEST DID NOT PASS! Check server logs");
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx,"test",1,VALKEYMODULE_APIVER_1)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx,"test",1,NEXCACHEMODULE_APIVER_1)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    /* Perform RM_Call inside the ValkeyModule_OnLoad
+    /* Perform RM_Call inside the NexCacheModule_OnLoad
      * to verify that it works as expected without crashing.
      * The tests will verify it on different configurations
      * options (cluster/no cluster). A simple ping command
      * is enough for this test. */
-    ValkeyModuleCallReply *reply = ValkeyModule_Call(ctx, "ping", "");
-    if (ValkeyModule_CallReplyType(reply) != VALKEYMODULE_REPLY_STRING) {
-        ValkeyModule_FreeCallReply(reply);
-        return VALKEYMODULE_ERR;
+    NexCacheModuleCallReply *reply = NexCacheModule_Call(ctx, "ping", "");
+    if (NexCacheModule_CallReplyType(reply) != NEXCACHEMODULE_REPLY_STRING) {
+        NexCacheModule_FreeCallReply(reply);
+        return NEXCACHEMODULE_ERR;
     }
     size_t len;
-    const char *reply_str = ValkeyModule_CallReplyStringPtr(reply, &len);
+    const char *reply_str = NexCacheModule_CallReplyStringPtr(reply, &len);
     if (len != 4) {
-        ValkeyModule_FreeCallReply(reply);
-        return VALKEYMODULE_ERR;
+        NexCacheModule_FreeCallReply(reply);
+        return NEXCACHEMODULE_ERR;
     }
     if (memcmp(reply_str, "PONG", 4) != 0) {
-        ValkeyModule_FreeCallReply(reply);
-        return VALKEYMODULE_ERR;
+        NexCacheModule_FreeCallReply(reply);
+        return NEXCACHEMODULE_ERR;
     }
-    ValkeyModule_FreeCallReply(reply);
+    NexCacheModule_FreeCallReply(reply);
 
-    if (ValkeyModule_CreateCommand(ctx,"test.call",
-        TestCall,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.call",
+        TestCall,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3map",
-        TestCallResp3Map,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3map",
+        TestCallResp3Map,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3attribute",
-        TestCallResp3Attribute,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3attribute",
+        TestCallResp3Attribute,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3set",
-        TestCallResp3Set,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3set",
+        TestCallResp3Set,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3double",
-        TestCallResp3Double,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3double",
+        TestCallResp3Double,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3bool",
-        TestCallResp3Bool,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3bool",
+        TestCallResp3Bool,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callresp3null",
-        TestCallResp3Null,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callresp3null",
+        TestCallResp3Null,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callreplywitharrayreply",
-        TestCallReplyWithArrayReply,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callreplywitharrayreply",
+        TestCallReplyWithArrayReply,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callreplywithnestedreply",
-        TestCallReplyWithNestedReply,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callreplywithnestedreply",
+        TestCallReplyWithNestedReply,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callreplywithbignumberreply",
-        TestCallResp3BigNumber,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callreplywithbignumberreply",
+        TestCallResp3BigNumber,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.callreplywithverbatimstringreply",
-        TestCallResp3Verbatim,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.callreplywithverbatimstringreply",
+        TestCallResp3Verbatim,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.string.append",
-        TestStringAppend,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.string.append",
+        TestStringAppend,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.string.trim",
-        TestTrimString,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.string.trim",
+        TestTrimString,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.string.append.am",
-        TestStringAppendAM,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.string.append.am",
+        TestStringAppendAM,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.string.truncate",
-        TestStringTruncate,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.string.truncate",
+        TestStringTruncate,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.string.printf",
-        TestStringPrintf,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.string.printf",
+        TestStringPrintf,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.ctxflags",
-        TestCtxFlags,"readonly",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.ctxflags",
+        TestCtxFlags,"readonly",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.unlink",
-        TestUnlink,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.unlink",
+        TestUnlink,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.nestedcallreplyarray",
-        TestNestedCallReplyArrayElement,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.nestedcallreplyarray",
+        TestNestedCallReplyArrayElement,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.basics",
-        TestBasics,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.basics",
+        TestBasics,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
     /* the following commands are used by an external test and should not be added to TestBasics */
-    if (ValkeyModule_CreateCommand(ctx,"test.rmcallautomode",
-        TestCallRespAutoMode,"write",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.rmcallautomode",
+        TestCallRespAutoMode,"write",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"test.getresp",
-        TestGetResp,"readonly",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.getresp",
+        TestGetResp,"readonly",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModule_SubscribeToKeyspaceEvents(ctx,
-                                            VALKEYMODULE_NOTIFY_HASH |
-                                            VALKEYMODULE_NOTIFY_SET |
-                                            VALKEYMODULE_NOTIFY_STRING |
-                                            VALKEYMODULE_NOTIFY_KEY_MISS,
+    NexCacheModule_SubscribeToKeyspaceEvents(ctx,
+                                            NEXCACHEMODULE_NOTIFY_HASH |
+                                            NEXCACHEMODULE_NOTIFY_SET |
+                                            NEXCACHEMODULE_NOTIFY_STRING |
+                                            NEXCACHEMODULE_NOTIFY_KEY_MISS,
                                         NotifyCallback);
-    if (ValkeyModule_CreateCommand(ctx,"test.notify",
-        TestNotifications,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"test.notify",
+        TestNotifications,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx, "test.latency", TestLatency, "readonly", 0, 0, 0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "test.latency", TestLatency, "readonly", 0, 0, 0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

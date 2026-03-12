@@ -155,7 +155,7 @@ again:
         if (!combine && crc64_test_size) {
             if (csv && init_this_loop) printf("algorithm,buffer,performance,crc64_matches\n");
 
-            /* get the single-character version for single-byte Redis behavior */
+            /* get the single-character version for single-byte NexCache behavior */
             set_crc64_cutoffs(0, crc64_test_size + 1);
             if (bench_crc64(data, crc64_test_size, passes, expect, "crc_1byte", csv)) {
                 zfree(data);

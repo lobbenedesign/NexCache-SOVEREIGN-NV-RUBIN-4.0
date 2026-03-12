@@ -23,7 +23,7 @@ echo -e "${BLUE}NexCache v4 Advanced Feature Benchmark${NC}"
 echo "============================================================"
 
 # Verifica se il server è attivo
-if ! redis-cli -p $NEXCACHE_PORT ping > /dev/null 2>&1; then
+if ! nexcache-cli -p $NEXCACHE_PORT ping > /dev/null 2>&1; then
     echo "Errore: NexCache non in esecuzione sulla porta $NEXCACHE_PORT"
     exit 1
 fi
@@ -32,7 +32,7 @@ run_bench() {
     local title=$1
     local cmd=$2
     echo -ne "  %-40s " "$title"
-    res=$(redis-benchmark -p $NEXCACHE_PORT -n $N_REQUESTS -c $N_CLIENTS -q $cmd 2>&1 | grep "requests per second" | awk '{print $1}')
+    res=$(nexcache-benchmark -p $NEXCACHE_PORT -n $N_REQUESTS -c $N_CLIENTS -q $cmd 2>&1 | grep "requests per second" | awk '{print $1}')
     echo -e "${GREEN}$res req/s${NC}"
 }
 
@@ -44,7 +44,7 @@ run_bench "OR-Set Add (ORSET.ADD)" "ORSET.ADD set:1 member"
 
 echo -e "\n${YELLOW}2. Subkey TTL Performance${NC}"
 # Pre-popola una hash
-redis-cli -p $NEXCACHE_PORT HSET hash:1 f1 v1 f2 v2 f3 v3 > /dev/null
+nexcache-cli -p $NEXCACHE_PORT HSET hash:1 f1 v1 f2 v2 f3 v3 > /dev/null
 run_bench "Subkey Expire (HEXPIRE)" "HEXPIRE hash:1 60 FIELDS 1 f1"
 run_bench "Subkey TTL Read (HTTL)" "HTTL hash:1 FIELDS 1 f1"
 

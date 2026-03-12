@@ -88,13 +88,13 @@ endif
 
 .PHONY: FORCE
 
-# Valkey server library dependencies
-VALKEY_SERVER_LIB := ../libvalkey.a
-HIREDIS_LIB := ../../deps/libvalkey/lib/libvalkey.a
+# NexCache server library dependencies
+NEXCACHE_SERVER_LIB := ../libnexcache.a
+HINEXCACHE_LIB := ../../deps/libnexcache/lib/libnexcache.a
 JEMALLOC_LIB := ../../deps/jemalloc/lib/libjemalloc.a
 HDR_HISTOGRAM_LIB := ../../deps/hdr_histogram/libhdrhistogram.a
 FPCONV_LIB := ../../deps/fpconv/libfpconv.a
-TLS_LIBS := ../../deps/libvalkey/lib/libvalkey_tls.a -lssl -lcrypto
+TLS_LIBS := ../../deps/libnexcache/lib/libnexcache_tls.a -lssl -lcrypto
 GTEST_CFLAGS ?=
 GTEST_LIBS   ?=
 ifeq ($(strip $(GTEST_LIBS)),)
@@ -112,7 +112,7 @@ FAST_FLOAT_LIB := ../../deps/fast_float_c_interface/fast_float_strtod.o
 # by copying all object files into the wrapped/ folder and applying symbol redefinitions.
 ifeq ($(uname_S), Darwin)
 WRAP_DIR := wrapped
-VALKEY_SERVER_WRAP_LIB := $(WRAP_DIR)/wrappedlibvalkey.a
+NEXCACHE_SERVER_WRAP_LIB := $(WRAP_DIR)/wrappedlibnexcache.a
 ENGINE_SERVER_WRAP_OBJ := $(addprefix $(WRAP_DIR)/, $(ENGINE_SERVER_OBJ))
 
 $(WRAP_DIR):
@@ -131,13 +131,13 @@ $(WRAP_DIR)/%.o: ../%.o $(WRAP_DIR) generated_wrappers.o
 	fi
 	@rm -f $(WRAP_DIR)/$*-wrap-syms
 
-$(VALKEY_SERVER_WRAP_LIB): $(VALKEY_SERVER_LIB) $(ENGINE_SERVER_WRAP_OBJ) generated_wrappers.o
+$(NEXCACHE_SERVER_WRAP_LIB): $(NEXCACHE_SERVER_LIB) $(ENGINE_SERVER_WRAP_OBJ) generated_wrappers.o
 	$(SERVER_AR) rcs $@ $(ENGINE_SERVER_WRAP_OBJ)
 endif
 
-# Ensure Valkey server library is built
-$(VALKEY_SERVER_LIB): make-prerequisites
-	cd .. && $(MAKE) libvalkey.a
+# Ensure NexCache server library is built
+$(NEXCACHE_SERVER_LIB): make-prerequisites
+	cd .. && $(MAKE) libnexcache.a
 
 # Ensure parent prerequisites are built
 .PHONY: make-prerequisites
@@ -151,7 +151,7 @@ ifeq ($(MALLOC),libc)
 	JEMALLOC_LIB :=
 endif
 
-LD_LIBS := $(HIREDIS_LIB) \
+LD_LIBS := $(HINEXCACHE_LIB) \
 	$(JEMALLOC_LIB) \
 	$(GTEST_LIBS) \
 	$(HDR_HISTOGRAM_LIB) \
@@ -204,14 +204,14 @@ generated_wrappers.o: generated_wrappers.cpp
 
 # Generate the single test binary in parent directory.
 ifeq ($(uname_S), Darwin)
-valkey-unit-gtests: $(ALL_OBJECTS) generated_wrappers.o $(VALKEY_SERVER_WRAP_LIB) $(FINAL_LIBS)
+nexcache-unit-gtests: $(ALL_OBJECTS) generated_wrappers.o $(NEXCACHE_SERVER_WRAP_LIB) $(FINAL_LIBS)
 	$(CXX) -g $(LDFLAGS) -fno-lto \
 		-Wl,-flat_namespace -Wl,-undefined,dynamic_lookup \
 		-Wall -Wno-deprecated-declarations \
 		-o $@ $^ $(LD_LIBS) \
 		-lm -pthread -ldl
 else
-valkey-unit-gtests: $(ALL_OBJECTS) generated_wrappers.o $(VALKEY_SERVER_LIB) $(FINAL_LIBS)
+nexcache-unit-gtests: $(ALL_OBJECTS) generated_wrappers.o $(NEXCACHE_SERVER_LIB) $(FINAL_LIBS)
 	$(CXX) -g $(LDFLAGS) -fno-lto \
 		$(OVERRIDES) \
 		-Wall -Wno-deprecated-declarations \
@@ -220,19 +220,19 @@ valkey-unit-gtests: $(ALL_OBJECTS) generated_wrappers.o $(VALKEY_SERVER_LIB) $(F
 endif
 
 .PHONY: all
-all: valkey-unit-gtests
+all: nexcache-unit-gtests
 
 .PHONY: test-unit
-test-unit: valkey-unit-gtests
-	python3 ../../deps/gtest-parallel/gtest_parallel.py ./valkey-unit-gtests
+test-unit: nexcache-unit-gtests
+	python3 ../../deps/gtest-parallel/gtest_parallel.py ./nexcache-unit-gtests
 	@printf '\033[32mAll UNIT TESTS PASSED!\033[0m\n'
 
 .PHONY: valgrind
-valgrind: valkey-unit-gtests
-	valgrind $(VALGRIND_ARGS) ./valkey-unit-gtests
+valgrind: nexcache-unit-gtests
+	valgrind $(VALGRIND_ARGS) ./nexcache-unit-gtests
 
 clean:
-	rm -rf *.o valkey-unit-gtests ../valkey-unit-gtests generated_* $(DEPENDS) .flags wrapped
+	rm -rf *.o nexcache-unit-gtests ../nexcache-unit-gtests generated_* $(DEPENDS) .flags wrapped
 
 distclean: clean
 	$(MAKE) -C .. distclean

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without
@@ -186,7 +186,7 @@ enum RdbType {
 #define RDB_LOAD_ERR_OTHER 3             /* Any other errors */
 #define RDB_LOAD_ERR_ALL_ITEMS_EXPIRED 4 /* All fields expired */
 
-bool rdbIsVersionAccepted(int rdbver, bool is_nexcache_magic, bool is_nexcache_magic);
+bool rdbIsVersionAccepted(int rdbver, bool is_nexcache_magic, bool is_legacy_magic);
 ssize_t rdbWriteRaw(rio *rdb, void *p, size_t len);
 int rdbSaveType(rio *rdb, unsigned char type);
 int rdbLoadType(rio *rdb);

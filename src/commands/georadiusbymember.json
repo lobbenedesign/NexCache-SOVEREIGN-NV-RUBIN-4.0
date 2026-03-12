@@ -71,7 +71,7 @@
                 ],
                 "begin_search": {
                     "keyword": {
-                        "keyword": "STOREDIST",
+                        "keyword": "STONEXCACHET",
                         "startfrom": 5
                     }
                 },
@@ -190,8 +190,8 @@
                         "key_spec_index": 1
                     },
                     {
-                        "token": "STOREDIST",
-                        "name": "storedistkey",
+                        "token": "STONEXCACHET",
+                        "name": "stonexcachetkey",
                         "display": "key",
                         "type": "key",
                         "key_spec_index": 2

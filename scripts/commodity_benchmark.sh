@@ -37,7 +37,7 @@ sleep 1
 
 echo -e "\n${YELLOW}[3] Esecuzione Payload Misto (GET/SET 80/20) - 1M Requests...${RESET}"
 # Al momento è un mock dello script per dimostrare l'integrazione del benchmarking.
-# In una run reale evocherebbe memtier_benchmark o redis-benchmark con target locali.
+# In una run reale evocherebbe memtier_benchmark o nexcache-benchmark con target locali.
 echo "    > [memtier_benchmark] simulating 1000000 ops, 4 threads, 50 connections"
 sleep 2
 

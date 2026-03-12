@@ -1,17 +1,17 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
 #include <strings.h>
 #include <sys/mman.h>
 
 #define UNUSED(V) ((void) V)
 
-void assertCrash(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
+void assertCrash(NexCacheModuleInfoCtx *ctx, int for_crash_report) {
     UNUSED(ctx);
     UNUSED(for_crash_report);
-    ValkeyModule_Assert(0);
+    NexCacheModule_Assert(0);
 }
 
-void segfaultCrash(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
+void segfaultCrash(NexCacheModuleInfoCtx *ctx, int for_crash_report) {
     UNUSED(ctx);
     UNUSED(for_crash_report);
     /* Compiler gives warnings about writing to a random address
@@ -21,19 +21,19 @@ void segfaultCrash(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
     *p = 'x';
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx,"infocrash",1,VALKEYMODULE_APIVER_1)
-            == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
-    ValkeyModule_Assert(argc == 1);
-    if (!strcasecmp(ValkeyModule_StringPtrLen(argv[0], NULL), "segfault")) {
-        if (ValkeyModule_RegisterInfoFunc(ctx, segfaultCrash) == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
-    } else if(!strcasecmp(ValkeyModule_StringPtrLen(argv[0], NULL), "assert")) {
-        if (ValkeyModule_RegisterInfoFunc(ctx, assertCrash) == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx,"infocrash",1,NEXCACHEMODULE_APIVER_1)
+            == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
+    NexCacheModule_Assert(argc == 1);
+    if (!strcasecmp(NexCacheModule_StringPtrLen(argv[0], NULL), "segfault")) {
+        if (NexCacheModule_RegisterInfoFunc(ctx, segfaultCrash) == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
+    } else if(!strcasecmp(NexCacheModule_StringPtrLen(argv[0], NULL), "assert")) {
+        if (NexCacheModule_RegisterInfoFunc(ctx, assertCrash) == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
     } else {
-        return VALKEYMODULE_ERR;
+        return NEXCACHEMODULE_ERR;
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

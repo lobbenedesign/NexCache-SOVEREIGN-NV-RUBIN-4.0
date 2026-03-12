@@ -3,34 +3,34 @@ start_server {tags {"tls"}} {
         package require tls
 
         test {TLS: Not accepting non-TLS connections on a TLS port} {
-            set s [valkey [srv 0 host] [srv 0 port]]
+            set s [nexcache [srv 0 host] [srv 0 port]]
             catch {$s PING} e
             set e
         } {*I/O error*}
 
         test {TLS: Verify tls-auth-clients behaves as expected} {
-            set s [valkey [srv 0 host] [srv 0 port]]
+            set s [nexcache [srv 0 host] [srv 0 port]]
             ::tls::import [$s channel]
             catch {$s PING} e
             assert_match {*error*} $e
 
             r CONFIG SET tls-auth-clients no
 
-            set s [valkey [srv 0 host] [srv 0 port]]
+            set s [nexcache [srv 0 host] [srv 0 port]]
             ::tls::import [$s channel]
             catch {$s PING} e
             assert_match {PONG} $e
 
             r CONFIG SET tls-auth-clients optional
 
-            set s [valkey [srv 0 host] [srv 0 port]]
+            set s [nexcache [srv 0 host] [srv 0 port]]
             ::tls::import [$s channel]
             catch {$s PING} e
             assert_match {PONG} $e
 
             r CONFIG SET tls-auth-clients yes
 
-            set s [valkey [srv 0 host] [srv 0 port]]
+            set s [nexcache [srv 0 host] [srv 0 port]]
             ::tls::import [$s channel]
             catch {$s PING} e
             assert_match {*error*} $e
@@ -39,11 +39,11 @@ start_server {tags {"tls"}} {
         test {TLS: Verify tls-protocols behaves as expected} {
             r CONFIG SET tls-protocols TLSv1.2
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-tls1.2 0}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-tls1.2 0}]
             catch {$s PING} e
             assert_match {*I/O error*} $e
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-tls1.2 1}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-tls1.2 1}]
             catch {$s PING} e
             assert_match {PONG} $e
 
@@ -54,17 +54,17 @@ start_server {tags {"tls"}} {
             r CONFIG SET tls-protocols TLSv1.2
             r CONFIG SET tls-ciphers "DEFAULT:-AES128-SHA256"
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES128-SHA256"}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES128-SHA256"}]
             catch {$s PING} e
             assert_match {*I/O error*} $e
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES256-SHA256"}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES256-SHA256"}]
             catch {$s PING} e
             assert_match {PONG} $e
 
             r CONFIG SET tls-ciphers "DEFAULT"
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES128-SHA256"}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-cipher "-ALL:AES128-SHA256"}]
             catch {$s PING} e
             assert_match {PONG} $e
 
@@ -76,7 +76,7 @@ start_server {tags {"tls"}} {
             r CONFIG SET tls-protocols TLSv1.2
             r CONFIG SET tls-ciphers "AES128-SHA256:AES256-SHA256"
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-cipher "AES256-SHA256:AES128-SHA256"}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-cipher "AES256-SHA256:AES128-SHA256"}]
             catch {$s PING} e
             assert_match {PONG} $e
 
@@ -84,7 +84,7 @@ start_server {tags {"tls"}} {
 
             r CONFIG SET tls-prefer-server-ciphers yes
 
-            set s [valkey [srv 0 host] [srv 0 port] 0 1 {-cipher "AES256-SHA256:AES128-SHA256"}]
+            set s [nexcache [srv 0 host] [srv 0 port] 0 1 {-cipher "AES256-SHA256:AES128-SHA256"}]
             catch {$s PING} e
             assert_match {PONG} $e
 
@@ -100,10 +100,10 @@ start_server {tags {"tls"}} {
             set master_port [srv 0 port]
 
             # Use a non-restricted client/server cert for the replica
-            set valkey_crt [format "%s/tests/tls/valkey.crt" [pwd]]
-            set valkey_key [format "%s/tests/tls/valkey.key" [pwd]]
+            set nexcache_crt [format "%s/tests/tls/nexcache.crt" [pwd]]
+            set nexcache_key [format "%s/tests/tls/nexcache.key" [pwd]]
 
-            start_server [list overrides [list tls-cert-file $valkey_crt tls-key-file $valkey_key] \
+            start_server [list overrides [list tls-cert-file $nexcache_crt tls-key-file $nexcache_key] \
                                omit [list tls-client-cert-file tls-client-key-file]] {
                 set replica [srv 0 client]
                 $replica replicaof $master_host $master_port
@@ -119,7 +119,7 @@ start_server {tags {"tls"}} {
             set srv_port [srv 0 port]
 
             # TLS
-            set rd [valkey [srv 0 host] $srv_port 0 1]
+            set rd [nexcache [srv 0 host] $srv_port 0 1]
             $rd PING
 
             # TCP
@@ -127,7 +127,7 @@ start_server {tags {"tls"}} {
             $rd CONFIG SET port $srv_port
             $rd close
 
-            set rd [valkey [srv 0 host] $srv_port 0 0]
+            set rd [nexcache [srv 0 host] $srv_port 0 0]
             $rd PING
 
             # TLS
@@ -135,7 +135,7 @@ start_server {tags {"tls"}} {
             $rd CONFIG SET tls-port $srv_port
             $rd close
 
-            set rd [valkey [srv 0 host] $srv_port 0 1]
+            set rd [nexcache [srv 0 host] $srv_port 0 1]
             $rd PING
             $rd close
         }
@@ -163,7 +163,7 @@ start_server {tags {"tls"}} {
             r CONFIG SET tls-auth-clients-user CN
 
             # With feature on, client should be auto-authenticated using CN=Client-only
-            set s [valkey_client]
+            set s [nexcache_client]
 
             # Now no explicit AUTH is needed
             assert_equal "PONG" [$s PING]
@@ -179,36 +179,36 @@ start_server {tags {"tls"}} {
             r CONFIG SET tls-auth-clients-user URI
             
             # Create users matching the URI in the client certificate
-            r ACL SETUSER {urn:valkey:user:first} on allcommands
-            r ACL SETUSER {urn:valkey:user:second} on allcommands
+            r ACL SETUSER {urn:nexcache:user:first} on allcommands
+            r ACL SETUSER {urn:nexcache:user:second} on allcommands
 
             # With feature on, client should be auto-authenticated using the URI from SAN
             # Verify that the authenticated user matches the first URI
-            set s [valkey_client]
-            assert_equal "urn:valkey:user:first" [$s ACL WHOAMI]
+            set s [nexcache_client]
+            assert_equal "urn:nexcache:user:first" [$s ACL WHOAMI]
             $s close
 
             # Turn off the first user
-            r ACL SETUSER {urn:valkey:user:first} off
+            r ACL SETUSER {urn:nexcache:user:first} off
 
             # Verify that the authenticated user matches the second URI
-            set s [valkey_client]
-            assert_equal "urn:valkey:user:second" [$s ACL WHOAMI]
+            set s [nexcache_client]
+            assert_equal "urn:nexcache:user:second" [$s ACL WHOAMI]
             $s close
 
             # Turn off the second user
-            r ACL SETUSER {urn:valkey:user:second} off
+            r ACL SETUSER {urn:nexcache:user:second} off
 
             # Verify that the authenticated user matches the default
-            set s [valkey_client]
+            set s [nexcache_client]
             assert_equal "default" [$s ACL WHOAMI]
             $s close
 
             # Delete all users
-            r ACL DELUSER {urn:valkey:user:first} {urn:valkey:user:second}
+            r ACL DELUSER {urn:nexcache:user:first} {urn:nexcache:user:second}
 
             # Verify that the authenticated user matches the default
-            set s [valkey_client]
+            set s [nexcache_client]
             assert_equal "default" [$s ACL WHOAMI]
             $s close
 
@@ -219,22 +219,22 @@ start_server {tags {"tls"}} {
         test {TLS: Verify CN and URI modes are mutually exclusive} {
             # Create both CN and URI users
             r ACL SETUSER {Client-only} on allcommands allkeys
-            r ACL SETUSER {urn:valkey:user:first} on allcommands allkeys
+            r ACL SETUSER {urn:nexcache:user:first} on allcommands allkeys
 
             # Set to CN mode
             r CONFIG SET tls-auth-clients-user CN
-            set s [valkey_client]
+            set s [nexcache_client]
             assert_equal "Client-only" [$s ACL WHOAMI]
             $s close
 
             # Set to URI mode
             r CONFIG SET tls-auth-clients-user URI
-            set s [valkey_client]
-            assert_equal "urn:valkey:user:first" [$s ACL WHOAMI]
+            set s [nexcache_client]
+            assert_equal "urn:nexcache:user:first" [$s ACL WHOAMI]
             $s close
 
             # Clean up
-            r ACL DELUSER {Client-only} {urn:valkey:user:first}
+            r ACL DELUSER {Client-only} {urn:nexcache:user:first}
             r CONFIG SET tls-auth-clients-user off
         }
 
@@ -262,7 +262,7 @@ start_server {tags {"tls"}} {
                 r CONFIG SET tls-auto-reload-interval 1
 
                 # Verify initial connection works
-                set s [valkey_client]
+                set s [nexcache_client]
                 assert_equal "PONG" [$s PING]
                 $s close
                 set info1 [r info tls]
@@ -275,17 +275,17 @@ start_server {tags {"tls"}} {
                 after 1100
 
                 # Update temporary files with different certificate
-                set valkey_crt [format "%s/tests/tls/valkey.crt" [pwd]]
-                set valkey_key [format "%s/tests/tls/valkey.key" [pwd]]
-                file copy -force $valkey_crt $temp_crt
-                file copy -force $valkey_key $temp_key
+                set nexcache_crt [format "%s/tests/tls/nexcache.crt" [pwd]]
+                set nexcache_key [format "%s/tests/tls/nexcache.key" [pwd]]
+                file copy -force $nexcache_crt $temp_crt
+                file copy -force $nexcache_key $temp_key
 
                 # Wait for reload to actually complete by checking server logs
                 # Use generous timeout for slow/busy CI systems
                 wait_for_log_messages 0 {"*TLS materials reloaded successfully*"} 0 150 100
 
                 # Verify connection still works after reload
-                set s [valkey_client]
+                set s [nexcache_client]
                 assert_equal "PONG" [$s PING]
                 $s close
                 set info2 [r info tls]
@@ -308,7 +308,7 @@ start_server {tags {"tls"}} {
                 wait_for_log_messages 0 {"*TLS materials reloaded successfully*"} 0 150 100
 
                 # Verify connection still works after restore
-                set s [valkey_client]
+                set s [nexcache_client]
                 assert_equal "PONG" [$s PING]
                 $s close
             } finally {
@@ -392,7 +392,7 @@ start_server {tags {"tls"}} {
                     wait_for_log_messages 0 {"*TLS materials reloaded successfully*"} 0 50 100
 
                     # Verify connection still works after reload
-                    set s [valkey_client]
+                    set s [nexcache_client]
                     assert_equal "PONG" [$s PING]
                     $s close
                 } finally {
@@ -407,7 +407,7 @@ start_server {tags {"tls"}} {
 
         proc test_tls_cert_rejection {cert_type cert_path expected_error} {
             set tlsdir [file normalize ./tests/tls]
-            set server_path $::VALKEY_SERVER_BIN
+            set server_path $::NEXCACHE_SERVER_BIN
             set server_cert $tlsdir/server.crt
             set server_key $tlsdir/server.key
             set client_cert $tlsdir/client.crt
@@ -430,7 +430,7 @@ start_server {tags {"tls"}} {
             if {$ca_cert_dir ne ""}  { lappend cmd --tls-ca-cert-dir  $ca_cert_dir }
 
             if {$::tls_module} {
-                lappend cmd --loadmodule $::VALKEY_TLS_MODULE
+                lappend cmd --loadmodule $::NEXCACHE_TLS_MODULE
             }
 
             catch {exec {*}$cmd 2>@1} err
@@ -661,7 +661,7 @@ start_server {tags {"tls"}} {
                 fail "Plaintext port not available for TLS test harness"
             }
 
-            set plain_client [valkey $host $plain_port 0 0]
+            set plain_client [nexcache $host $plain_port 0 0]
 
             # Ensure the plaintext listener is active in case a prior test disabled it.
             $plain_client CONFIG SET port $plain_port
@@ -680,7 +680,7 @@ start_server {tags {"tls"}} {
             }
 
             wait_for_condition 50 100 {
-                [catch {set tls_client [valkey $host $tls_port 0 1]} err] == 0
+                [catch {set tls_client [nexcache $host $tls_port 0 1]} err] == 0
             } else {
                 fail "Timed out waiting for TLS listener to restart ($err)"
             }
@@ -740,7 +740,7 @@ start_server {tags {"tls"}} {
                 fail "Plaintext port not available for TLS test harness"
             }
 
-            set plain_client [valkey $host $plain_port 0 0]
+            set plain_client [nexcache $host $plain_port 0 0]
 
             # Ensure the plaintext listener is active in case a prior test disabled it.
             $plain_client CONFIG SET port $plain_port
@@ -774,7 +774,7 @@ start_server {tags {"tls"}} {
             }
 
             wait_for_condition 50 100 {
-                [catch {set tls_client [valkey $host $tls_port 0 1]} err] == 0
+                [catch {set tls_client [nexcache $host $tls_port 0 1]} err] == 0
             } else {
                 fail "Timed out waiting for TLS listener to restart ($err)"
             }

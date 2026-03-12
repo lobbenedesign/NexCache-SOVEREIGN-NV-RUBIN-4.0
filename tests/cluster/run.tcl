@@ -1,4 +1,4 @@
-# Cluster test suite. Copyright (C) 2014 Redis Ltd.
+# Cluster test suite. Copyright (C) 2014 NexCache Contributors.
 # This software is released under the BSD License. See the COPYING file for
 # more information.
 
@@ -15,7 +15,7 @@ set ::tlsdir "../../tls"
 
 proc main {} {
     parse_options
-    spawn_instance valkey $::valkey_base_port $::instances_count {
+    spawn_instance nexcache $::nexcache_base_port $::instances_count {
         "cluster-enabled yes"
         "appendonly yes"
         "enable-protected-configs yes"

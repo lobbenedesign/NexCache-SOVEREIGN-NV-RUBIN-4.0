@@ -233,7 +233,7 @@ start_server {tags {"commandlog"} overrides {commandlog-execution-slower-than 10
         assert_equal {INCRBYFLOAT A 1.0} [lindex [lindex [r commandlog get -1 slow] 0] 3]
 
         # blocked BLPOP is replicated as LPOP
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         $rd blpop l 0
         wait_for_blocked_clients_count 1 50 100
         r multi
@@ -321,7 +321,7 @@ start_server {tags {"commandlog"} overrides {commandlog-execution-slower-than 10
         # Cleanup first
         r del mylist
         # create a test client
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         
         # config the slowlog and reset
         r config set commandlog-execution-slower-than 0
@@ -342,7 +342,7 @@ start_server {tags {"commandlog"} overrides {commandlog-execution-slower-than 10
     foreach is_eval {0 1} {
         test "COMMANDLOG slow - the commands in script are recorded normally - is_eval: $is_eval" {
             if {$is_eval == 0} {
-                r function load replace "#!lua name=mylib \n redis.register_function('myfunc', function(KEYS, ARGS) server.call('ping') end)"
+                r function load replace "#!lua name=mylib \n nexcache.register_function('myfunc', function(KEYS, ARGS) server.call('ping') end)"
             }
 
             r client setname test-client

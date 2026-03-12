@@ -11,7 +11,7 @@ get_nexcache_server_linker_option(NEXCACHE_SERVER_LDFLAGS)
 list(APPEND SERVER_LIBS "fpconv")
 list(APPEND SERVER_LIBS "hdr_histogram")
 nexcache_build_and_install_bin(nexcache-server "${NEXCACHE_SERVER_SRCS}" "${NEXCACHE_SERVER_LDFLAGS}" "${SERVER_LIBS}"
-                             "redis-server")
+                             "nexcache-server")
 add_dependencies(nexcache-server generate_commands_def)
 add_dependencies(nexcache-server generate_fmtargs_h)
 add_dependencies(nexcache-server release_header)
@@ -60,7 +60,7 @@ unset(BUILD_SANITIZER CACHE)
 # Target: nexcache-cli
 list(APPEND CLI_LIBS "fpconv")
 list(APPEND CLI_LIBS "linenoise")
-nexcache_build_and_install_bin(nexcache-cli "${NEXCACHE_CLI_SRCS}" "${NEXCACHE_SERVER_LDFLAGS}" "${CLI_LIBS}" "redis-cli")
+nexcache_build_and_install_bin(nexcache-cli "${NEXCACHE_CLI_SRCS}" "${NEXCACHE_SERVER_LDFLAGS}" "${CLI_LIBS}" "nexcache-cli")
 add_dependencies(nexcache-cli generate_commands_def)
 add_dependencies(nexcache-cli generate_fmtargs_h)
 
@@ -68,7 +68,7 @@ add_dependencies(nexcache-cli generate_fmtargs_h)
 list(APPEND BENCH_LIBS "fpconv")
 list(APPEND BENCH_LIBS "hdr_histogram")
 nexcache_build_and_install_bin(nexcache-benchmark "${NEXCACHE_BENCHMARK_SRCS}" "${NEXCACHE_SERVER_LDFLAGS}" "${BENCH_LIBS}"
-                             "redis-benchmark")
+                             "nexcache-benchmark")
 add_dependencies(nexcache-benchmark generate_commands_def)
 add_dependencies(nexcache-benchmark generate_fmtargs_h)
 

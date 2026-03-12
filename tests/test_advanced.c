@@ -7,7 +7,7 @@
  *   - AOF/RDB Persistence
  *   - Cluster Sharding (CRC16 + Consistent Hash)
  *
- * Tutti i test sono standalone (non richiedono Redis/server).
+ * Tutti i test sono standalone (non richiedono NexCache/server).
  * Copyright (c) 2026 NexCache Project — BSD License
  */
 
@@ -331,8 +331,8 @@ static void test_persistence(void) {
 static void test_cluster(void) {
   printf("\n[Suite 5] Cluster Sharding\n");
 
-  /* CRC16 — compatibilità Redis Cluster */
-  /* Slot per "foo" deve essere 12356 (valore Redis standard) */
+  /* CRC16 — compatibilità NexCache Cluster */
+  /* Slot per "foo" deve essere 12356 (valore NexCache standard) */
   int slot_foo = cluster_key_to_slot("foo", 3);
   CHECK(slot_foo >= 0 && slot_foo < 16384, "slot in [0,16383]");
 

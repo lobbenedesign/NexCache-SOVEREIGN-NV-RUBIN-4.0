@@ -1,4 +1,4 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <strings.h>
 
 /* Second module configs module, for testing.
@@ -6,34 +6,34 @@
 int bool_config;
 
 int getBoolConfigCommand(const char *name, void *privdata) {
-    VALKEYMODULE_NOT_USED(privdata);
+    NEXCACHEMODULE_NOT_USED(privdata);
     if (!strcasecmp(name, "test")) {
         return bool_config;
     }
     return 0;
 }
 
-int setBoolConfigCommand(const char *name, int new, void *privdata, ValkeyModuleString **err) {
-    VALKEYMODULE_NOT_USED(privdata);
-    VALKEYMODULE_NOT_USED(err);
+int setBoolConfigCommand(const char *name, int new, void *privdata, NexCacheModuleString **err) {
+    NEXCACHEMODULE_NOT_USED(privdata);
+    NEXCACHEMODULE_NOT_USED(err);
     if (!strcasecmp(name, "test")) {
         bool_config = new;
-        return VALKEYMODULE_OK;
+        return NEXCACHEMODULE_OK;
     }
-    return VALKEYMODULE_ERR;
+    return NEXCACHEMODULE_ERR;
 }
 
 /* No arguments are expected */ 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx, "configs", 1, VALKEYMODULE_APIVER_1) == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx, "configs", 1, NEXCACHEMODULE_APIVER_1) == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_RegisterBoolConfig(ctx, "test", 1, VALKEYMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, NULL, &argc) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_RegisterBoolConfig(ctx, "test", 1, NEXCACHEMODULE_CONFIG_DEFAULT, getBoolConfigCommand, setBoolConfigCommand, NULL, &argc) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
-    if (ValkeyModule_LoadConfigs(ctx) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_LoadConfigs(ctx) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

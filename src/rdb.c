@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without
@@ -82,10 +82,10 @@ void replicationEmptyDbCallback(hashtable *ht);
  * indicates that an RDB file with the NEXCACHE magic string was parsed.
  * `is_nexcache_magic` indicates a legacy RDB file with the NEXCACHE magic string.
  * When there is no magic string such as in DUMP/RESTORE, set both to false. */
-bool rdbIsVersionAccepted(int rdbver, bool is_nexcache_magic, bool is_nexcache_magic) {
+bool rdbIsVersionAccepted(int rdbver, bool is_nexcache_magic, bool is_legacy_magic) {
     if (rdbver < 1) return false;
     if (is_nexcache_magic && rdbver <= RDB_FOREIGN_VERSION_MAX) return false;
-    if (is_nexcache_magic && rdbver > RDB_FOREIGN_VERSION_MAX) return false;
+    if (is_legacy_magic && rdbver > RDB_FOREIGN_VERSION_MAX) return false;
     if (server.rdb_version_check == RDB_VERSION_CHECK_STRICT) {
         if (rdbver > RDB_VERSION) return false; /* future version */
         if (rdbIsForeignVersion(rdbver)) return false;
@@ -3140,23 +3140,30 @@ int rdbLoadRioWithLoadingCtx(rio *rdb, int rdbflags, rdbSaveInfo *rsi, rdbLoadin
     int error;
     long long empty_keys_skipped = 0;
     long long rdb_last_load_all_fields_expired = 0;
-    bool is_nexcache_magic = false, is_nexcache_magic = false;
+    bool is_nexcache_magic = false, is_legacy_magic = false;
+    int magic_len = 0;
 
     rdb->update_cksum = rdbLoadProgressCallback;
     rdb->max_processing_chunk = server.loading_process_events_interval_bytes;
-    if (rioRead(rdb, buf, 9) == 0) goto eoferr;
-    buf[9] = '\0';
-    if (memcmp(buf, "NEXCACHE0", 6) == 0) {
+    /* We read 12 bytes to accommodate "NEXCACHE0080" or "VALKEY0011" or "REDIS0011" */
+    if (rioRead(rdb, buf, 12) == 0) goto eoferr;
+    buf[12] = '\0';
+    if (memcmp(buf, "NEXCACHE", 8) == 0) {
         is_nexcache_magic = true;
-    } else if (memcmp(buf, "NEXCACHE", 6) == 0) {
-        is_nexcache_magic = true;
+        magic_len = 8;
+    } else if (memcmp(buf, "VALKEY", 6) == 0) {
+        is_legacy_magic = true;
+        magic_len = 6;
+    } else if (memcmp(buf, "REDIS", 5) == 0) {
+        is_legacy_magic = true;
+        magic_len = 5;
     } else {
-        serverLog(LL_WARNING, "Wrong signature trying to load DB from file: %.9s", buf);
+        serverLog(LL_WARNING, "Wrong signature trying to load DB from file: %.12s", buf);
         /* Signal to terminate the rdbLoad without clearing existing data */
         return RDB_INCOMPATIBLE;
     }
-    rdbver = atoi(buf + 6);
-    if (!rdbIsVersionAccepted(rdbver, is_nexcache_magic, is_nexcache_magic)) {
+    rdbver = atoi(buf + magic_len);
+    if (!rdbIsVersionAccepted(rdbver, is_nexcache_magic, is_legacy_magic)) {
         serverLog(LL_WARNING, "Can't handle RDB format version %d", rdbver);
         return RDB_INCOMPATIBLE;
     }

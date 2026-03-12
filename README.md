@@ -6,7 +6,7 @@
 
 [English Version Below](#english-version) | [Versione Italiana](#versione-italiana)
 
-NexCache is a next-generation, high-density in-memory database designed for massive throughput and sub-microsecond latency. Built for the modern multicore era, it eliminates the performance bottlenecks of traditional single-threaded architectures while maintaining total compatibility with the Redis ecosystem.
+NexCache is a next-generation, high-density in-memory database designed for massive throughput and sub-microsecond latency. Built for the modern multicore era, it eliminates the performance bottlenecks of traditional single-threaded architectures while maintaining total compatibility with the NexCache ecosystem.
 
 ---
 
@@ -18,7 +18,7 @@ NexCache is a next-generation, high-density in-memory database designed for mass
 | **Arena Allocator** | Anti-fragmentation memory management with zero GC overhead. | Predictable P99 latencies. |
 | **NexDashTable** | Ultra-dense hash table with only 24-byte slots. | 60% memory savings vs competitors. |
 | **Vector Router** | Intelligent ANN routing across multiple shards. | Semantic search at scale. |
-| **RESP/TCP Fallback** | Full compatibility with all existing Redis clients. | Drop-in replacement. |
+| **RESP/TCP Fallback** | Full compatibility with all existing NexCache clients. | Drop-in replacement. |
 | **Blocked Bloom Filter** | Hardware-aware security filter for cache miss mitigation. | Optimized for 64-byte cache lines. |
 | **Native CRDTs** | G-Counter, PN-Counter, OR-Set, LWW-Register built-in. | Active-Active multi-node replication. |
 
@@ -74,7 +74,7 @@ Se cerchi uno sviluppatore che costruisce con passione e un profondo senso di re
 
 <a name="versione-italiana"></a>
 ## 🚀 Versione Italiana
-NexCache è un engine di storage in-memory di nuova generazione, progettato per throughput massivi e latenze ultra-basse. Risolve alla radice i colli di bottiglia dei sistemi legacy, mantenendo la totale compatibilità con l'ecosistema Redis.
+NexCache è un engine di storage in-memory di nuova generazione, progettato per throughput massivi e latenze ultra-basse. Risolve alla radice i colli di bottiglia dei sistemi legacy, mantenendo la totale compatibilità con l'ecosistema NexCache.
 
 ### Innovazioni Fondamentali:
 1. **Engine C++ Narrow-Waist**: Libero da lock e senza Garbage Collection.

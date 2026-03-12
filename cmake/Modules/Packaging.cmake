@@ -1,23 +1,23 @@
-set(CPACK_PACKAGE_NAME "valkey")
+set(CPACK_PACKAGE_NAME "nexcache")
 
-valkey_parse_version(CPACK_PACKAGE_VERSION_MAJOR CPACK_PACKAGE_VERSION_MINOR CPACK_PACKAGE_VERSION_PATCH)
+nexcache_parse_version(CPACK_PACKAGE_VERSION_MAJOR CPACK_PACKAGE_VERSION_MINOR CPACK_PACKAGE_VERSION_PATCH)
 
-set(CPACK_PACKAGE_CONTACT "maintainers@lists.valkey.io")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Valkey is an open source (BSD) high-performance key/value datastore")
+set(CPACK_PACKAGE_CONTACT "maintainers@lists.nexcache.io")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NexCache is an open source (BSD) high-performance key/value datastore")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
 set(CPACK_STRIP_FILES TRUE)
 
-valkey_get_distro_name(DISTRO_NAME)
+nexcache_get_distro_name(DISTRO_NAME)
 message(STATUS "Current host distro: ${DISTRO_NAME}")
 
 if (DISTRO_NAME MATCHES ubuntu
     OR DISTRO_NAME MATCHES debian
     OR DISTRO_NAME MATCHES mint)
     message(STATUS "Adding target package for ${DISTRO_NAME}")
-    set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/valkey")
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/nexcache")
     # Debian related parameters
-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Valkey contributors")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "NexCache contributors")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
     set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
     set(CPACK_GENERATOR "DEB")

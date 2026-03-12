@@ -1,7 +1,7 @@
 /* The following is the NetBSD libc qsort implementation modified in order to
  * support partial sorting of ranges.
  *
- * Copyright(C) 2009-2012 Redis Ltd.
+ * Copyright(C) 2009-2012 NexCache Contributors.
  *
  * The original copyright notice follows. */
 

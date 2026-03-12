@@ -36,7 +36,7 @@ ifneq ($(shell sh -c '[ -f .make-ldflags ] && cat .make-ldflags || echo none'), 
 endif
 
 distclean:
-	-(cd libvalkey && $(MAKE) clean) > /dev/null || true
+	-(cd libnexcache && $(MAKE) clean) > /dev/null || true
 	-(cd linenoise && $(MAKE) clean) > /dev/null || true
 	-(cd lua && $(MAKE) clean) > /dev/null || true
 	-(cd jemalloc && [ -f Makefile ] && $(MAKE) distclean) > /dev/null || true
@@ -59,11 +59,11 @@ ifneq (,$(filter $(BUILD_RDMA),yes module))
 	endif
 endif
 
-libvalkey: .make-prerequisites
+libnexcache: .make-prerequisites
 	@printf '%b %b\n' $(MAKECOLOR)MAKE$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR)
-	cd libvalkey && $(MAKE) static $(LIBVALKEY_MAKE_FLAGS)
+	cd libnexcache && $(MAKE) static $(LIBVALKEY_MAKE_FLAGS)
 
-.PHONY: libvalkey
+.PHONY: libnexcache
 
 linenoise: .make-prerequisites
 	@printf '%b %b\n' $(MAKECOLOR)MAKE$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR)
@@ -101,8 +101,8 @@ ifeq ($(LUA_COVERAGE),yes)
 endif
 
 # lua's Makefile defines AR="ar rcu", which is unusual, and makes it more
-# challenging to cross-compile lua (and redis).  These defines make it easier
-# to fit redis into cross-compilation environments, which typically set AR.
+# challenging to cross-compile lua (and nexcache).  These defines make it easier
+# to fit nexcache into cross-compilation environments, which typically set AR.
 AR=ar
 ARFLAGS=rc
 

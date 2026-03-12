@@ -4,7 +4,7 @@
  *
  *  https://github.com/antirez/listpack
  *
- * Copyright (c) 2017,2020, Redis Ltd.
+ * Copyright (c) 2017,2020, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

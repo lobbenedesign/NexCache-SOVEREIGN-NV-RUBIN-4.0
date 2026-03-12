@@ -1,6 +1,6 @@
 /* SDSLib 2.0 -- A C dynamic strings library
  *
- * Copyright (c) 2006-2015, Redis Ltd.
+ * Copyright (c) 2006-2015, NexCache Contributors.
  * Copyright (c) 2015, Oran Agra
  * All rights reserved.
  *

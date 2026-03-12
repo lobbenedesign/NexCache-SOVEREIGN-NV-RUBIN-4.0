@@ -166,7 +166,7 @@ start_server {tags {"protocol network"}} {
             }
             fconfigure $s -translation binary
             puts -nonewline $s $seq
-            # PROTO_INLINE_MAX_SIZE is hardcoded in Valkey code to 64K. doing the same here 
+            # PROTO_INLINE_MAX_SIZE is hardcoded in NexCache code to 64K. doing the same here 
             # since we would like to validate it is enforced. 
             set PROTO_INLINE_MAX_SIZE [expr 1024 * 64]
             set payload [string repeat A 1024]
@@ -359,7 +359,7 @@ start_server {tags {"regression"}} {
     }
 
     test "Regression for a crash with blocking ops and pipelining" {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         set fd [r channel]
         set proto "*3\r\n\$5\r\nBLPOP\r\n\$6\r\nnolist\r\n\$1\r\n0\r\n"
         puts -nonewline $fd $proto$proto

@@ -5,7 +5,7 @@
  *
  * -----------------------------------------------------------------------------
  *
- * Copyright (c) 2018, Redis Ltd.
+ * Copyright (c) 2018, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

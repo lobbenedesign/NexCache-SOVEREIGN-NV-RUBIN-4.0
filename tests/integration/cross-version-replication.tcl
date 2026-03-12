@@ -1,7 +1,7 @@
 # Test replication from an older version primary.
 #
 # Use minimal.conf to make sure we don't use any configs not supported on the old version.
-start_server {tags {"repl needs:other-server external:skip compatible-redis"} start-other-server 1 config "minimal.conf"} {
+start_server {tags {"repl needs:other-server external:skip compatible-nexcache"} start-other-server 1 config "minimal.conf"} {
     set hello [r hello]
     set primary_name_and_version "[dict get $hello server] [dict get $hello version]"
     r set foo bar

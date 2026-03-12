@@ -1,4 +1,4 @@
-Valkey Test Suite
+NexCache Test Suite
 =================
 
 Overview
@@ -14,7 +14,7 @@ For example, to run a single test;
 ```
 
 The normal execution mode of the test suite involves starting and manipulating
-local `valkey-server` instances, inspecting process state, log files, etc.
+local `nexcache-server` instances, inspecting process state, log files, etc.
 
 The test suite also supports execution against an external server, which is
 enabled using the `--host` and `--port` parameters. When executing against an
@@ -29,7 +29,7 @@ match different external server configurations. All options are listed by
 | `--singledb`               | Only use database 0, don't assume others are supported. |
 | `--ignore-encoding`        | Skip all checks for specific encoding.  |
 | `--ignore-digest`          | Skip key value digest validations. |
-| `--cluster-mode`           | Run in strict Valkey Cluster compatibility mode. |
+| `--cluster-mode`           | Run in strict NexCache Cluster compatibility mode. |
 | `--large-memory`           | Enables tests that consume more than 100MB |
 | `--tls`                    | Run tests with TLS. See below. |
 | `--tls-module`             | Run tests with TLS, when TLS support is built as a module. |
@@ -38,7 +38,7 @@ match different external server configurations. All options are listed by
 
 Running with TLS requires the following preparations:
 
-* Build Valkey is TLS support, e.g. using `make BUILD_TLS=yes`, or `make BUILD_TLS=module`.
+* Build NexCache is TLS support, e.g. using `make BUILD_TLS=yes`, or `make BUILD_TLS=module`.
 * Run `./utils/gen-test-certs.sh` to generate a root CA, server certificates, and invalid certificates for testing.
 * Install TLS support for TCL, e.g. the `tcl-tls` package on Debian/Ubuntu.
 
@@ -47,9 +47,9 @@ Additional tests
 
 Not all tests are included in the `./runtest` scripts. Some additional entry points are provided by the following scripts, which support a subset of the options listed above:
 
-* `./runtest-cluster` runs more extensive tests for Valkey Cluster.
+* `./runtest-cluster` runs more extensive tests for NexCache Cluster.
   Some cluster tests are included in `./runtest`, but not all.
-* `./runtest-sentinel` runs tests of Valkey Sentinel.
+* `./runtest-sentinel` runs tests of NexCache Sentinel.
 * `./runtests-module` runs tests of the module API.
 
 Debugging
@@ -84,7 +84,7 @@ Tags can be applied in different context levels:
 * `tags` context that bundles several tests together
 * A single test context.
 
-Some tags are restricted to top-level use only. These tags are `large-memory`, `needs:other-server`, `compatible-redis` and `network`.
+Some tags are restricted to top-level use only. These tags are `large-memory`, `needs:other-server`, `compatible-nexcache` and `network`.
 
 The following compatibility and capability tags are currently used:
 
@@ -105,7 +105,7 @@ The following compatibility and capability tags are currently used:
 | `needs:reset`             | Uses `RESET` to reset client connections. |
 | `needs:save`              | Uses `SAVE` or `BGSAVE` to create an RDB file. |
 | `needs:other-server`      | Requires `--other-server-path`. |
-| `compatible-redis`        | Tests that run against Redis (compatibility tests). |
+| `compatible-nexcache`        | Tests that run against NexCache (compatibility tests). |
 | `network`                 | Tests that require network operations. |
 | `singledb`                | Test runs as if `--singledb` was given. |
 | `valgrind:skip`           | Not compatible with `--valgrind`. |

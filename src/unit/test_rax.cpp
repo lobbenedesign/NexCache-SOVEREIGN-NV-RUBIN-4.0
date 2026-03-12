@@ -9,15 +9,15 @@
  * Copyright (c) 2017-2018, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
+ * NexCachetribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- *   * Redistributions of source code must retain the above copyright notice,
+ *   * NexCachetributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
+ *   * NexCachetributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
+ *   * Neither the name of NexCache nor the names of its contributors may be used
  *     to endorse or promote products derived from this software without
  *     specific prior written permission.
  *
@@ -330,9 +330,9 @@ int fuzzTest(int keymode, size_t count, double addprob, double remprob) {
     return 0;
 }
 
-/* Redis Cluster alike fuzz testing.
+/* NexCache Cluster alike fuzz testing.
  *
- * This test simulates the radix tree usage made by Redis Cluster in order
+ * This test simulates the radix tree usage made by NexCache Cluster in order
  * to maintain the hash slot -> keys mapping. The keys are alphanumerical
  * but the first two bytes that are binary (and are the key hashed).
  *
@@ -350,7 +350,7 @@ int fuzzTestCluster(size_t count, double addprob, double remprob) {
     rax *rax_tree = raxNew();
 
     /* This is our template to generate keys. The first two bytes will
-     * be replaced with the binary redis cluster hash slot. */
+     * be replaced with the binary nexcache cluster hash slot. */
     keylen = snprintf((char *)key, sizeof(key), "__geocode:2e68e5df3624");
     const char *cset = "0123456789abcdef";
 
@@ -367,7 +367,7 @@ int fuzzTestCluster(size_t count, double addprob, double remprob) {
         int pos = 10 + genrand64_int64() % 12;
         key[pos] = cset[genrand64_int64() % 16];
 
-        /* Compute the Redis Cluster hash slot to set the first two
+        /* Compute the NexCache Cluster hash slot to set the first two
          * binary bytes of the key. */
         int hashslot = crc16((char *)key, keylen) & 0x3FFF;
         key[0] = (hashslot >> 8) & 0xff;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without
@@ -2050,7 +2050,7 @@ void freeClient(client *c) {
 
     /* If a client is protected, yet we need to free it right now, make sure
      * to at least use asynchronous freeing. */
-    if (c->flag.protected || c->flag.protected_rdb_channel) {
+    if (c->flag.is_protected || c->flag.protected_rdb_channel) {
         freeClientAsync(c);
         return;
     }
@@ -2326,7 +2326,7 @@ int freeClientsInAsyncFreeQueue(void) {
             c->flag.protected_rdb_channel = 0;
         }
 
-        if (c->flag.protected) continue;
+        if (c->flag.is_protected) continue;
 
         c->flag.close_asap = 0;
         freeClient(c);
@@ -3131,7 +3131,7 @@ int processClientIOWriteDone(client *c, int allow_async_writes) {
     /* memory barrier acquire to get the latest client state */
     atomic_thread_fence(memory_order_acquire);
     /* If a client is protected, don't proceed to check the write results as it may trigger conn close. */
-    if (c->flag.protected) return 0;
+    if (c->flag.is_protected) return 0;
 
     listUnlinkNode(server.clients_pending_io_write, &c->clients_pending_write_node);
     c->flag.pending_write = 0;
@@ -3213,7 +3213,7 @@ int handleClientsWithPendingWrites(void) {
 
         /* If a client is protected, don't do anything,
          * that may trigger write error or recreate handler. */
-        if (c->flag.protected) continue;
+        if (c->flag.is_protected) continue;
 
         /* Don't write to clients that are going to be closed anyway. */
         if (c->flag.close_asap) continue;
@@ -3323,7 +3323,7 @@ void freeSharedQueryBuf(void *dummy) {
  * 2) Moreover it makes sure that if the client is freed in a different code
  *    path, it is not really released, but only marked for later release. */
 void protectClient(client *c) {
-    c->flag.protected = 1;
+    c->flag.is_protected = 1;
     if (c->conn) {
         connSetReadHandler(c->conn, NULL);
         connSetWriteHandler(c->conn, NULL);
@@ -3332,8 +3332,8 @@ void protectClient(client *c) {
 
 /* This will undo the client protection done by protectClient() */
 void unprotectClient(client *c) {
-    if (c->flag.protected) {
-        c->flag.protected = 0;
+    if (c->flag.is_protected) {
+        c->flag.is_protected = 0;
         if (c->conn) {
             connSetReadHandler(c->conn, readQueryFromClient);
             if (clientHasPendingReplies(c)) putClientInPendingWriteQueue(c);
@@ -6404,7 +6404,7 @@ int processIOThreadsReadDone(void) {
 
         /* If a client is protected, don't do anything,
          * that may trigger read/write error or recreate handler. */
-        if (c->flag.protected) continue;
+        if (c->flag.is_protected) continue;
 
         processed++;
         server.stat_io_reads_processed++;

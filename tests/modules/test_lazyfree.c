@@ -1,14 +1,14 @@
 /* This module emulates a linked list for lazyfree testing of modules, which
  is a simplified version of 'hellotype.c'
  */
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdint.h>
 
-static ValkeyModuleType *LazyFreeLinkType;
+static NexCacheModuleType *LazyFreeLinkType;
 
 struct LazyFreeLinkNode {
     int64_t value;
@@ -22,7 +22,7 @@ struct LazyFreeLinkObject {
 
 struct LazyFreeLinkObject *createLazyFreeLinkObject(void) {
     struct LazyFreeLinkObject *o;
-    o = ValkeyModule_Alloc(sizeof(*o));
+    o = NexCacheModule_Alloc(sizeof(*o));
     o->head = NULL;
     o->len = 0;
     return o;
@@ -35,7 +35,7 @@ void LazyFreeLinkInsert(struct LazyFreeLinkObject *o, int64_t ele) {
         prev = next;
         next = next->next;
     }
-    newnode = ValkeyModule_Alloc(sizeof(*newnode));
+    newnode = NexCacheModule_Alloc(sizeof(*newnode));
     newnode->value = ele;
     newnode->next = next;
     if (prev) {
@@ -51,94 +51,94 @@ void LazyFreeLinkReleaseObject(struct LazyFreeLinkObject *o) {
     cur = o->head;
     while(cur) {
         next = cur->next;
-        ValkeyModule_Free(cur);
+        NexCacheModule_Free(cur);
         cur = next;
     }
-    ValkeyModule_Free(o);
+    NexCacheModule_Free(o);
 }
 
 /* LAZYFREELINK.INSERT key value */
-int LazyFreeLinkInsert_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx); /* Use automatic memory management. */
+int LazyFreeLinkInsert_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx); /* Use automatic memory management. */
 
-    if (argc != 3) return ValkeyModule_WrongArity(ctx);
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx,argv[1],
-        VALKEYMODULE_READ|VALKEYMODULE_WRITE);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY &&
-        ValkeyModule_ModuleTypeGetType(key) != LazyFreeLinkType)
+    if (argc != 3) return NexCacheModule_WrongArity(ctx);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx,argv[1],
+        NEXCACHEMODULE_READ|NEXCACHEMODULE_WRITE);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY &&
+        NexCacheModule_ModuleTypeGetType(key) != LazyFreeLinkType)
     {
-        return ValkeyModule_ReplyWithError(ctx,VALKEYMODULE_ERRORMSG_WRONGTYPE);
+        return NexCacheModule_ReplyWithError(ctx,NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     long long value;
-    if ((ValkeyModule_StringToLongLong(argv[2],&value) != VALKEYMODULE_OK)) {
-        return ValkeyModule_ReplyWithError(ctx,"ERR invalid value: must be a signed 64 bit integer");
+    if ((NexCacheModule_StringToLongLong(argv[2],&value) != NEXCACHEMODULE_OK)) {
+        return NexCacheModule_ReplyWithError(ctx,"ERR invalid value: must be a signed 64 bit integer");
     }
 
     struct LazyFreeLinkObject *hto;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
         hto = createLazyFreeLinkObject();
-        ValkeyModule_ModuleTypeSetValue(key,LazyFreeLinkType,hto);
+        NexCacheModule_ModuleTypeSetValue(key,LazyFreeLinkType,hto);
     } else {
-        hto = ValkeyModule_ModuleTypeGetValue(key);
+        hto = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     LazyFreeLinkInsert(hto,value);
-    ValkeyModule_SignalKeyAsReady(ctx,argv[1]);
+    NexCacheModule_SignalKeyAsReady(ctx,argv[1]);
 
-    ValkeyModule_ReplyWithLongLong(ctx,hto->len);
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithLongLong(ctx,hto->len);
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
 /* LAZYFREELINK.LEN key */
-int LazyFreeLinkLen_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx); /* Use automatic memory management. */
+int LazyFreeLinkLen_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx); /* Use automatic memory management. */
 
-    if (argc != 2) return ValkeyModule_WrongArity(ctx);
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx,argv[1],
-                                              VALKEYMODULE_READ);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY &&
-        ValkeyModule_ModuleTypeGetType(key) != LazyFreeLinkType)
+    if (argc != 2) return NexCacheModule_WrongArity(ctx);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx,argv[1],
+                                              NEXCACHEMODULE_READ);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY &&
+        NexCacheModule_ModuleTypeGetType(key) != LazyFreeLinkType)
     {
-        return ValkeyModule_ReplyWithError(ctx,VALKEYMODULE_ERRORMSG_WRONGTYPE);
+        return NexCacheModule_ReplyWithError(ctx,NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    struct LazyFreeLinkObject *hto = ValkeyModule_ModuleTypeGetValue(key);
-    ValkeyModule_ReplyWithLongLong(ctx,hto ? hto->len : 0);
-    return VALKEYMODULE_OK;
+    struct LazyFreeLinkObject *hto = NexCacheModule_ModuleTypeGetValue(key);
+    NexCacheModule_ReplyWithLongLong(ctx,hto ? hto->len : 0);
+    return NEXCACHEMODULE_OK;
 }
 
-void *LazyFreeLinkRdbLoad(ValkeyModuleIO *rdb, int encver) {
+void *LazyFreeLinkRdbLoad(NexCacheModuleIO *rdb, int encver) {
     if (encver != 0) {
         return NULL;
     }
-    uint64_t elements = ValkeyModule_LoadUnsigned(rdb);
+    uint64_t elements = NexCacheModule_LoadUnsigned(rdb);
     struct LazyFreeLinkObject *hto = createLazyFreeLinkObject();
     while(elements--) {
-        int64_t ele = ValkeyModule_LoadSigned(rdb);
+        int64_t ele = NexCacheModule_LoadSigned(rdb);
         LazyFreeLinkInsert(hto,ele);
     }
     return hto;
 }
 
-void LazyFreeLinkRdbSave(ValkeyModuleIO *rdb, void *value) {
+void LazyFreeLinkRdbSave(NexCacheModuleIO *rdb, void *value) {
     struct LazyFreeLinkObject *hto = value;
     struct LazyFreeLinkNode *node = hto->head;
-    ValkeyModule_SaveUnsigned(rdb,hto->len);
+    NexCacheModule_SaveUnsigned(rdb,hto->len);
     while(node) {
-        ValkeyModule_SaveSigned(rdb,node->value);
+        NexCacheModule_SaveSigned(rdb,node->value);
         node = node->next;
     }
 }
 
-void LazyFreeLinkAofRewrite(ValkeyModuleIO *aof, ValkeyModuleString *key, void *value) {
+void LazyFreeLinkAofRewrite(NexCacheModuleIO *aof, NexCacheModuleString *key, void *value) {
     struct LazyFreeLinkObject *hto = value;
     struct LazyFreeLinkNode *node = hto->head;
     while(node) {
-        ValkeyModule_EmitAOF(aof,"LAZYFREELINK.INSERT","sl",key,node->value);
+        NexCacheModule_EmitAOF(aof,"LAZYFREELINK.INSERT","sl",key,node->value);
         node = node->next;
     }
 }
@@ -147,32 +147,32 @@ void LazyFreeLinkFree(void *value) {
     LazyFreeLinkReleaseObject(value);
 }
 
-size_t LazyFreeLinkFreeEffort(ValkeyModuleString *key, const void *value) {
-    VALKEYMODULE_NOT_USED(key);
+size_t LazyFreeLinkFreeEffort(NexCacheModuleString *key, const void *value) {
+    NEXCACHEMODULE_NOT_USED(key);
     const struct LazyFreeLinkObject *hto = value;
     return hto->len;
 }
 
-void LazyFreeLinkUnlink(ValkeyModuleString *key, const void *value) {
-    VALKEYMODULE_NOT_USED(key);
-    VALKEYMODULE_NOT_USED(value);
+void LazyFreeLinkUnlink(NexCacheModuleString *key, const void *value) {
+    NEXCACHEMODULE_NOT_USED(key);
+    NEXCACHEMODULE_NOT_USED(value);
     /* Here you can know which key and value is about to be freed. */
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx,"lazyfreetest",1,VALKEYMODULE_APIVER_1)
-        == VALKEYMODULE_ERR) return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx,"lazyfreetest",1,NEXCACHEMODULE_APIVER_1)
+        == NEXCACHEMODULE_ERR) return NEXCACHEMODULE_ERR;
 
     /* We only allow our module to be loaded when the core version is greater than the version of my module */
-    if (ValkeyModule_GetTypeMethodVersion() < VALKEYMODULE_TYPE_METHOD_VERSION) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_GetTypeMethodVersion() < NEXCACHEMODULE_TYPE_METHOD_VERSION) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    ValkeyModuleTypeMethods tm = {
-        .version = VALKEYMODULE_TYPE_METHOD_VERSION,
+    NexCacheModuleTypeMethods tm = {
+        .version = NEXCACHEMODULE_TYPE_METHOD_VERSION,
         .rdb_load = LazyFreeLinkRdbLoad,
         .rdb_save = LazyFreeLinkRdbSave,
         .aof_rewrite = LazyFreeLinkAofRewrite,
@@ -181,16 +181,16 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
         .unlink = LazyFreeLinkUnlink,
     };
 
-    LazyFreeLinkType = ValkeyModule_CreateDataType(ctx,"test_lazy",0,&tm);
-    if (LazyFreeLinkType == NULL) return VALKEYMODULE_ERR;
+    LazyFreeLinkType = NexCacheModule_CreateDataType(ctx,"test_lazy",0,&tm);
+    if (LazyFreeLinkType == NULL) return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"lazyfreelink.insert",
-        LazyFreeLinkInsert_RedisCommand,"write deny-oom",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"lazyfreelink.insert",
+        LazyFreeLinkInsert_NexCacheCommand,"write deny-oom",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"lazyfreelink.len",
-        LazyFreeLinkLen_RedisCommand,"readonly",1,1,1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"lazyfreelink.len",
+        LazyFreeLinkLen_NexCacheCommand,"readonly",1,1,1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

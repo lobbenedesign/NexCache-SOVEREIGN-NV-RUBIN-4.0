@@ -1,10 +1,10 @@
-source tests/support/valkey.tcl
+source tests/support/nexcache.tcl
 source tests/support/util.tcl
 
 set ::tlsdir "tests/tls"
 
 proc bg_complex_data {host port db ops tls} {
-    set r [valkey $host $port 0 $tls]
+    set r [nexcache $host $port 0 $tls]
     $r client setname LOAD_HANDLER
     $r select $db
     createComplexDataset $r $ops

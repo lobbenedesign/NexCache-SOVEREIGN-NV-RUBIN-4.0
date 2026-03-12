@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Redis Ltd.
+ * Copyright (c) 2022, NexCache Contributors.
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

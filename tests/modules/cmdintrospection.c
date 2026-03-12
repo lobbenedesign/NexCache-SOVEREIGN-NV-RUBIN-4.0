@@ -1,33 +1,33 @@
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 
 #define UNUSED(V) ((void) V)
 
-int cmd_xadd(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
+int cmd_xadd(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
     UNUSED(argv);
     UNUSED(argc);
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
-    if (ValkeyModule_Init(ctx, "cmdintrospection", 1, VALKEYMODULE_APIVER_1) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
+    if (NexCacheModule_Init(ctx, "cmdintrospection", 1, NEXCACHEMODULE_APIVER_1) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    if (ValkeyModule_CreateCommand(ctx,"cmdintrospection.xadd",cmd_xadd,"write deny-oom random fast",0,0,0) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx,"cmdintrospection.xadd",cmd_xadd,"write deny-oom random fast",0,0,0) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    ValkeyModuleCommand *xadd = ValkeyModule_GetCommand(ctx,"cmdintrospection.xadd");
+    NexCacheModuleCommand *xadd = NexCacheModule_GetCommand(ctx,"cmdintrospection.xadd");
 
-    ValkeyModuleCommandInfo info = {
-        .version = VALKEYMODULE_COMMAND_INFO_VERSION,
+    NexCacheModuleCommandInfo info = {
+        .version = NEXCACHEMODULE_COMMAND_INFO_VERSION,
         .arity = -5,
         .summary = "Appends a new message to a stream. Creates the key if it doesn't exist.",
         .since = "5.0.0",
         .complexity = "O(1) when adding a new entry, O(N) when trimming where N being the number of entries evicted.",
         .tips = "nondeterministic_output",
-        .history = (ValkeyModuleCommandHistoryEntry[]){
+        .history = (NexCacheModuleCommandHistoryEntry[]){
             /* NOTE: All versions specified should be the module's versions, not
              * the server's! We use server versions in this example for the purpose of
              * testing (comparing the output with the output of the vanilla
@@ -36,47 +36,47 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
             {"7.0.0", "Added support for the `<ms>-*` explicit ID form."},
             {0}
         },
-        .key_specs = (ValkeyModuleCommandKeySpec[]){
+        .key_specs = (NexCacheModuleCommandKeySpec[]){
             {
                 .notes = "UPDATE instead of INSERT because of the optional trimming feature",
-                .flags = VALKEYMODULE_CMD_KEY_RW | VALKEYMODULE_CMD_KEY_UPDATE,
-                .begin_search_type = VALKEYMODULE_KSPEC_BS_INDEX,
+                .flags = NEXCACHEMODULE_CMD_KEY_RW | NEXCACHEMODULE_CMD_KEY_UPDATE,
+                .begin_search_type = NEXCACHEMODULE_KSPEC_BS_INDEX,
                 .bs.index.pos = 1,
-                .find_keys_type = VALKEYMODULE_KSPEC_FK_RANGE,
+                .find_keys_type = NEXCACHEMODULE_KSPEC_FK_RANGE,
                 .fk.range = {0,1,0}
             },
             {0}
         },
-        .args = (ValkeyModuleCommandArg[]){
+        .args = (NexCacheModuleCommandArg[]){
             {
                 .name = "key",
-                .type = VALKEYMODULE_ARG_TYPE_KEY,
+                .type = NEXCACHEMODULE_ARG_TYPE_KEY,
                 .key_spec_index = 0
             },
             {
                 .name = "nomkstream",
-                .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                 .token = "NOMKSTREAM",
                 .since = "6.2.0",
-                .flags = VALKEYMODULE_CMD_ARG_OPTIONAL
+                .flags = NEXCACHEMODULE_CMD_ARG_OPTIONAL
             },
             {
                 .name = "trim",
-                .type = VALKEYMODULE_ARG_TYPE_BLOCK,
-                .flags = VALKEYMODULE_CMD_ARG_OPTIONAL,
-                .subargs = (ValkeyModuleCommandArg[]){
+                .type = NEXCACHEMODULE_ARG_TYPE_BLOCK,
+                .flags = NEXCACHEMODULE_CMD_ARG_OPTIONAL,
+                .subargs = (NexCacheModuleCommandArg[]){
                     {
                         .name = "strategy",
-                        .type = VALKEYMODULE_ARG_TYPE_ONEOF,
-                        .subargs = (ValkeyModuleCommandArg[]){
+                        .type = NEXCACHEMODULE_ARG_TYPE_ONEOF,
+                        .subargs = (NexCacheModuleCommandArg[]){
                             {
                                 .name = "maxlen",
-                                .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                                .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                                 .token = "MAXLEN",
                             },
                             {
                                 .name = "minid",
-                                .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                                .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                                 .token = "MINID",
                                 .since = "6.2.0",
                             },
@@ -85,17 +85,17 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
                     },
                     {
                         .name = "operator",
-                        .type = VALKEYMODULE_ARG_TYPE_ONEOF,
-                        .flags = VALKEYMODULE_CMD_ARG_OPTIONAL,
-                        .subargs = (ValkeyModuleCommandArg[]){
+                        .type = NEXCACHEMODULE_ARG_TYPE_ONEOF,
+                        .flags = NEXCACHEMODULE_CMD_ARG_OPTIONAL,
+                        .subargs = (NexCacheModuleCommandArg[]){
                             {
                                 .name = "equal",
-                                .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                                .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                                 .token = "="
                             },
                             {
                                 .name = "approximately",
-                                .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                                .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                                 .token = "~"
                             },
                             {0}
@@ -103,47 +103,47 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
                     },
                     {
                         .name = "threshold",
-                        .type = VALKEYMODULE_ARG_TYPE_STRING,
+                        .type = NEXCACHEMODULE_ARG_TYPE_STRING,
                         .display_text = "threshold" /* Just for coverage, doesn't have a visible effect */
                     },
                     {
                         .name = "count",
-                        .type = VALKEYMODULE_ARG_TYPE_INTEGER,
+                        .type = NEXCACHEMODULE_ARG_TYPE_INTEGER,
                         .token = "LIMIT",
                         .since = "6.2.0",
-                        .flags = VALKEYMODULE_CMD_ARG_OPTIONAL
+                        .flags = NEXCACHEMODULE_CMD_ARG_OPTIONAL
                     },
                     {0}
                 }
             },
             {
                 .name = "id-selector",
-                .type = VALKEYMODULE_ARG_TYPE_ONEOF,
-                .subargs = (ValkeyModuleCommandArg[]){
+                .type = NEXCACHEMODULE_ARG_TYPE_ONEOF,
+                .subargs = (NexCacheModuleCommandArg[]){
                     {
                         .name = "auto-id",
-                        .type = VALKEYMODULE_ARG_TYPE_PURE_TOKEN,
+                        .type = NEXCACHEMODULE_ARG_TYPE_PURE_TOKEN,
                         .token = "*"
                     },
                     {
                         .name = "id",
-                        .type = VALKEYMODULE_ARG_TYPE_STRING,
+                        .type = NEXCACHEMODULE_ARG_TYPE_STRING,
                     },
                     {0}
                 }
             },
             {
                 .name = "data",
-                .type = VALKEYMODULE_ARG_TYPE_BLOCK,
-                .flags = VALKEYMODULE_CMD_ARG_MULTIPLE,
-                .subargs = (ValkeyModuleCommandArg[]){
+                .type = NEXCACHEMODULE_ARG_TYPE_BLOCK,
+                .flags = NEXCACHEMODULE_CMD_ARG_MULTIPLE,
+                .subargs = (NexCacheModuleCommandArg[]){
                     {
                         .name = "field",
-                        .type = VALKEYMODULE_ARG_TYPE_STRING,
+                        .type = NEXCACHEMODULE_ARG_TYPE_STRING,
                     },
                     {
                         .name = "value",
-                        .type = VALKEYMODULE_ARG_TYPE_STRING,
+                        .type = NEXCACHEMODULE_ARG_TYPE_STRING,
                     },
                     {0}
                 }
@@ -151,8 +151,8 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
             {0}
         }
     };
-    if (ValkeyModule_SetCommandInfo(xadd, &info) == VALKEYMODULE_ERR)
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_SetCommandInfo(xadd, &info) == NEXCACHEMODULE_ERR)
+        return NEXCACHEMODULE_ERR;
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

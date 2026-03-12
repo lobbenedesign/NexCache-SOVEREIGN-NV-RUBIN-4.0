@@ -63,7 +63,7 @@ function(copy_runtest_script script_name)
     set(insert_content
 "# Most tests assume running from the project root
 cd ${CMAKE_SOURCE_DIR}
-export VALKEY_BIN_DIR=\"${CMAKE_BINARY_DIR}/bin\"
+export NEXCACHE_BIN_DIR=\"${CMAKE_BINARY_DIR}/bin\"
 ")
     # Reconstruct the full script
     set(new_contents "${shebang_line}${insert_content}${script_body}")

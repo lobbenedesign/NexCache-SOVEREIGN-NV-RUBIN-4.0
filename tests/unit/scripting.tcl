@@ -1,11 +1,11 @@
 foreach is_eval {0 1} {
-foreach script_compatibility_api {server redis} {
+foreach script_compatibility_api {server nexcache} {
 
-# We run the tests using both the server APIs, e.g. server.call(), and valkey APIs, e.g. redis.call(),
+# We run the tests using both the server APIs, e.g. server.call(), and nexcache APIs, e.g. nexcache.call(),
 # in order to ensure compatibility.
 if {$script_compatibility_api eq "server"} {
-    proc replace_script_redis_api_with_server {args} {
-        set new_string [regsub -all {redis\.} [lindex $args 0] {server.}]
+    proc replace_script_nexcache_api_with_server {args} {
+        set new_string [regsub -all {nexcache\.} [lindex $args 0] {server.}]
         return lreplace $args 0 0 $new_string
     }
 
@@ -13,26 +13,26 @@ if {$script_compatibility_api eq "server"} {
         return "server"
     }
 } else {
-    proc replace_script_redis_api_with_server {args} {
+    proc replace_script_nexcache_api_with_server {args} {
         return {*}$args
     }
 
     proc get_script_api_name {} {
-        return "redis"
+        return "nexcache"
     }
 }
 
 if {$is_eval == 1} {
     proc run_script {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         r eval {*}$args
     }
     proc run_script_ro {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         r eval_ro {*}$args
     }
     proc run_script_on_connection {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         [lindex $args 0] eval {*}[lrange $args 1 end]
     }
     proc kill_script {args} {
@@ -40,7 +40,7 @@ if {$is_eval == 1} {
     }
 } else {
     proc run_script {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         r function load replace [format "#!lua name=test\n%s.register_function('test', function(KEYS, ARGV)\n %s \nend)" [get_script_api_name] [lindex $args 0]]
         if {[r readingraw] eq 1} {
             # read name
@@ -49,7 +49,7 @@ if {$is_eval == 1} {
         r fcall test {*}[lrange $args 1 end]
     }
     proc run_script_ro {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         r function load replace [format "#!lua name=test\n%s.register_function{function_name='test', callback=function(KEYS, ARGV)\n %s \nend, flags={'no-writes'}}" [get_script_api_name] [lindex $args 0]]
         if {[r readingraw] eq 1} {
             # read name
@@ -58,7 +58,7 @@ if {$is_eval == 1} {
         r fcall_ro test {*}[lrange $args 1 end]
     }
     proc run_script_on_connection {args} {
-        set args [replace_script_redis_api_with_server $args]
+        set args [replace_script_nexcache_api_with_server $args]
         set rd [lindex $args 0]
         $rd function load replace [format "#!lua name=test\n%s.register_function('test', function(KEYS, ARGV)\n %s \nend)" [get_script_api_name] [lindex $args 1]]
         # read name
@@ -72,11 +72,11 @@ if {$is_eval == 1} {
 
 start_server {tags {"scripting"}} {
 
-    if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+    if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     test {Script - disallow write on OOM} {
         r config set maxmemory 1
 
-        catch {[r eval "redis.call('set', 'x', 1)" 0]} e
+        catch {[r eval "nexcache.call('set', 'x', 1)" 0]} e
         assert_match {*command not allowed when used memory*} $e
 
         r config set maxmemory 0
@@ -96,39 +96,39 @@ start_server {tags {"scripting"}} {
     } {}
 
     test {EVAL - Return table with a metatable that call server} {
-        run_script {local a = {}; setmetatable(a,{__index=function() redis.call('set', 'x', '1') end}) return a} 1 x
+        run_script {local a = {}; setmetatable(a,{__index=function() nexcache.call('set', 'x', '1') end}) return a} 1 x
         # make sure x was not set
         r get x
     } {}
 
-    test {EVAL - Lua integer -> Redis protocol type conversion} {
+    test {EVAL - Lua integer -> NexCache protocol type conversion} {
         run_script {return 100.5} 0
     } {100}
 
-    test {EVAL - Lua string -> Redis protocol type conversion} {
+    test {EVAL - Lua string -> NexCache protocol type conversion} {
         run_script {return 'hello world'} 0
     } {hello world}
 
-    test {EVAL - Lua true boolean -> Redis protocol type conversion} {
+    test {EVAL - Lua true boolean -> NexCache protocol type conversion} {
         run_script {return true} 0
     } {1}
 
-    test {EVAL - Lua false boolean -> Redis protocol type conversion} {
+    test {EVAL - Lua false boolean -> NexCache protocol type conversion} {
         run_script {return false} 0
     } {}
 
-    test {EVAL - Lua status code reply -> Redis protocol type conversion} {
+    test {EVAL - Lua status code reply -> NexCache protocol type conversion} {
         run_script {return {ok='fine'}} 0
     } {fine}
 
-    test {EVAL - Lua error reply -> Redis protocol type conversion} {
+    test {EVAL - Lua error reply -> NexCache protocol type conversion} {
         catch {
             run_script {return {err='ERR this is an error'}} 0
         } e
         set _ $e
     } {ERR this is an error}
 
-    test {EVAL - Lua table -> Redis protocol type conversion} {
+    test {EVAL - Lua table -> NexCache protocol type conversion} {
         run_script {return {1,2,3,'ciao',{1,2}}} 0
     } {1 2 3 ciao {1 2}}
 
@@ -136,12 +136,12 @@ start_server {tags {"scripting"}} {
         run_script {return {KEYS[1],KEYS[2],ARGV[1],ARGV[2]}} 2 a{t} b{t} c{t} d{t}
     } {a{t} b{t} c{t} d{t}}
 
-    test {EVAL - is Lua able to call Redis API?} {
+    test {EVAL - is Lua able to call NexCache API?} {
         r set mykey myval
-        run_script {return redis.call('get',KEYS[1])} 1 mykey
+        run_script {return nexcache.call('get',KEYS[1])} 1 mykey
     } {myval}
 
-    if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+    if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     # eval sha is only relevant for is_eval Lua
     test {EVALSHA - Can we call a SHA1 if already defined?} {
         r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey
@@ -166,60 +166,60 @@ start_server {tags {"scripting"}} {
     } {NOSCRIPT*}
     } ;# is_eval
 
-    test {EVAL - Redis integer -> Lua type conversion} {
+    test {EVAL - NexCache integer -> Lua type conversion} {
         r set x 0
         run_script {
-            local foo = redis.pcall('incr',KEYS[1])
+            local foo = nexcache.pcall('incr',KEYS[1])
             return {type(foo),foo}
         } 1 x
     } {number 1}
 
-    test {EVAL - Lua number -> Redis integer conversion} {
+    test {EVAL - Lua number -> NexCache integer conversion} {
         r del hash
         run_script {
-            local foo = redis.pcall('hincrby','hash','field',200000000)
+            local foo = nexcache.pcall('hincrby','hash','field',200000000)
             return {type(foo),foo}
         } 0
     } {number 200000000}
 
-    test {EVAL - Redis bulk -> Lua type conversion} {
+    test {EVAL - NexCache bulk -> Lua type conversion} {
         r set mykey myval
         run_script {
-            local foo = redis.pcall('get',KEYS[1])
+            local foo = nexcache.pcall('get',KEYS[1])
             return {type(foo),foo}
         } 1 mykey
     } {string myval}
 
-    test {EVAL - Redis multi bulk -> Lua type conversion} {
+    test {EVAL - NexCache multi bulk -> Lua type conversion} {
         r del mylist
         r rpush mylist a
         r rpush mylist b
         r rpush mylist c
         run_script {
-            local foo = redis.pcall('lrange',KEYS[1],0,-1)
+            local foo = nexcache.pcall('lrange',KEYS[1],0,-1)
             return {type(foo),foo[1],foo[2],foo[3],# foo}
         } 1 mylist
     } {table a b c 3}
 
-    test {EVAL - Redis status reply -> Lua type conversion} {
+    test {EVAL - NexCache status reply -> Lua type conversion} {
         run_script {
-            local foo = redis.pcall('set',KEYS[1],'myval')
+            local foo = nexcache.pcall('set',KEYS[1],'myval')
             return {type(foo),foo['ok']}
         } 1 mykey
     } {table OK}
 
-    test {EVAL - Redis error reply -> Lua type conversion} {
+    test {EVAL - NexCache error reply -> Lua type conversion} {
         r set mykey myval
         run_script {
-            local foo = redis.pcall('incr',KEYS[1])
+            local foo = nexcache.pcall('incr',KEYS[1])
             return {type(foo),foo['err']}
         } 1 mykey
     } {table {ERR value is not an integer or out of range}}
 
-    test {EVAL - Redis nil bulk reply -> Lua type conversion} {
+    test {EVAL - NexCache nil bulk reply -> Lua type conversion} {
         r del mykey
         run_script {
-            local foo = redis.pcall('get',KEYS[1])
+            local foo = nexcache.pcall('get',KEYS[1])
             return {type(foo),foo == false}
         } 1 mykey
     } {boolean 1}
@@ -228,13 +228,13 @@ start_server {tags {"scripting"}} {
         r set mykey "this is DB 9"
         r select 10
         r set mykey "this is DB 10"
-        run_script {return redis.pcall('get',KEYS[1])} 1 mykey
+        run_script {return nexcache.pcall('get',KEYS[1])} 1 mykey
     } {this is DB 10} {singledb:skip}
 
     test {EVAL - SELECT inside Lua should not affect the caller} {
         # here we DB 10 is selected
         r set mykey "original value"
-        run_script {return redis.pcall('select','9')} 0
+        run_script {return nexcache.pcall('select','9')} 0
         set res [r get mykey]
         r select 9
         set res
@@ -256,74 +256,74 @@ start_server {tags {"scripting"}} {
     test {EVAL - Scripts do not block on blpop command} {
         r lpush l 1
         r lpop l
-        run_script {return redis.pcall('blpop','l',0)} 1 l
+        run_script {return nexcache.pcall('blpop','l',0)} 1 l
     } {}
 
     test {EVAL - Scripts do not block on brpop command} {
         r lpush l 1
         r lpop l
-        run_script {return redis.pcall('brpop','l',0)} 1 l
+        run_script {return nexcache.pcall('brpop','l',0)} 1 l
     } {}
 
     test {EVAL - Scripts do not block on brpoplpush command} {
         r lpush empty_list1{t} 1
         r lpop empty_list1{t}
-        run_script {return redis.pcall('brpoplpush','empty_list1{t}', 'empty_list2{t}',0)} 2 empty_list1{t} empty_list2{t}
+        run_script {return nexcache.pcall('brpoplpush','empty_list1{t}', 'empty_list2{t}',0)} 2 empty_list1{t} empty_list2{t}
     } {}
 
     test {EVAL - Scripts do not block on blmove command} {
         r lpush empty_list1{t} 1
         r lpop empty_list1{t}
-        run_script {return redis.pcall('blmove','empty_list1{t}', 'empty_list2{t}', 'LEFT', 'LEFT', 0)} 2 empty_list1{t} empty_list2{t}
+        run_script {return nexcache.pcall('blmove','empty_list1{t}', 'empty_list2{t}', 'LEFT', 'LEFT', 0)} 2 empty_list1{t} empty_list2{t}
     } {}
 
     test {EVAL - Scripts do not block on bzpopmin command} {
         r zadd empty_zset 10 foo
         r zmpop 1 empty_zset MIN
-        run_script {return redis.pcall('bzpopmin','empty_zset', 0)} 1 empty_zset
+        run_script {return nexcache.pcall('bzpopmin','empty_zset', 0)} 1 empty_zset
     } {}
 
     test {EVAL - Scripts do not block on bzpopmax command} {
         r zadd empty_zset 10 foo
         r zmpop 1 empty_zset MIN
-        run_script {return redis.pcall('bzpopmax','empty_zset', 0)} 1 empty_zset
+        run_script {return nexcache.pcall('bzpopmax','empty_zset', 0)} 1 empty_zset
     } {}
 
     test {EVAL - Scripts do not block on wait} {
-        run_script {return redis.pcall('wait','1','0')} 0
+        run_script {return nexcache.pcall('wait','1','0')} 0
     } {0}
 
     test {EVAL - Scripts do not block on waitaof} {
-        run_script {return redis.pcall('waitaof','0','1','0')} 0
+        run_script {return nexcache.pcall('waitaof','0','1','0')} 0
     } {* 0}
 
     test {EVAL - Scripts do not block on XREAD with BLOCK option} {
         r del s
         r xgroup create s g $ MKSTREAM
-        set res [run_script {return redis.pcall('xread','STREAMS','s','$')} 1 s]
+        set res [run_script {return nexcache.pcall('xread','STREAMS','s','$')} 1 s]
         assert {$res eq {}}
-        run_script {return redis.pcall('xread','BLOCK',0,'STREAMS','s','$')} 1 s
+        run_script {return nexcache.pcall('xread','BLOCK',0,'STREAMS','s','$')} 1 s
     } {}
 
     test {EVAL - Scripts do not block on XREADGROUP with BLOCK option} {
-        set res [run_script {return redis.pcall('xreadgroup','group','g','c','STREAMS','s','>')} 1 s]
+        set res [run_script {return nexcache.pcall('xreadgroup','group','g','c','STREAMS','s','>')} 1 s]
         assert {$res eq {}}
-        run_script {return redis.pcall('xreadgroup','group','g','c','BLOCK',0,'STREAMS','s','>')} 1 s
+        run_script {return nexcache.pcall('xreadgroup','group','g','c','BLOCK',0,'STREAMS','s','>')} 1 s
     } {}
 
     test {EVAL - Scripts do not block on XREAD with BLOCK option -- non empty stream} {
         r XADD s * a 1
-        set res [run_script {return redis.pcall('xread','BLOCK',0,'STREAMS','s','$')} 1 s]
+        set res [run_script {return nexcache.pcall('xread','BLOCK',0,'STREAMS','s','$')} 1 s]
         assert {$res eq {}}
 
-        set res [run_script {return redis.pcall('xread','BLOCK',0,'STREAMS','s','0-0')} 1 s]
+        set res [run_script {return nexcache.pcall('xread','BLOCK',0,'STREAMS','s','0-0')} 1 s]
         assert {[lrange [lindex $res 0 1 0 1] 0 1] eq {a 1}}
     }
 
     test {EVAL - Scripts do not block on XREADGROUP with BLOCK option -- non empty stream} {
         r XADD s * b 2
         set res [
-            run_script {return redis.pcall('xreadgroup','group','g','c','BLOCK',0,'STREAMS','s','>')} 1 s
+            run_script {return nexcache.pcall('xreadgroup','group','g','c','BLOCK',0,'STREAMS','s','>')} 1 s
         ]
         assert {[llength [lindex $res 0 1]] == 2}
         lindex $res 0 1 0 1
@@ -332,38 +332,38 @@ start_server {tags {"scripting"}} {
     test {EVAL - Scripts can run non-deterministic commands} {
         set e {}
         catch {
-            run_script {redis.pcall('randomkey'); return redis.pcall('set','x','ciao')} 1 x
+            run_script {nexcache.pcall('randomkey'); return nexcache.pcall('set','x','ciao')} 1 x
         } e
         set e
     } {*OK*}
 
-    test {EVAL - No arguments to redis.call/pcall is considered an error} {
+    test {EVAL - No arguments to nexcache.call/pcall is considered an error} {
         set e {}
-        catch {run_script {return redis.call()} 0} e
+        catch {run_script {return nexcache.call()} 0} e
         set e
     } {*one argument*}
 
-    test {EVAL - redis.call variant raises a Lua error on Redis cmd error (1)} {
+    test {EVAL - nexcache.call variant raises a Lua error on NexCache cmd error (1)} {
         set e {}
         catch {
-            run_script "redis.call('nosuchcommand')" 0
+            run_script "nexcache.call('nosuchcommand')" 0
         } e
         set e
     } {*Unknown command*}
 
-    test {EVAL - redis.call variant raises a Lua error on Redis cmd error (1)} {
+    test {EVAL - nexcache.call variant raises a Lua error on NexCache cmd error (1)} {
         set e {}
         catch {
-            run_script "redis.call('get','a','b','c')" 0
+            run_script "nexcache.call('get','a','b','c')" 0
         } e
         set e
     } {*number of args*}
 
-    test {EVAL - redis.call variant raises a Lua error on Redis cmd error (1)} {
+    test {EVAL - nexcache.call variant raises a Lua error on NexCache cmd error (1)} {
         set e {}
         r set foo bar
         catch {
-            run_script {redis.call('lpush',KEYS[1],'val')} 1 foo
+            run_script {nexcache.call('lpush',KEYS[1],'val')} 1 foo
         } e
         set e
     } {*against a key*}
@@ -585,27 +585,27 @@ start_server {tags {"scripting"}} {
 
     test {EVAL_RO - Successful case} {
         r set foo bar
-        assert_equal bar [run_script_ro {return redis.call('get', KEYS[1]);} 1 foo]
+        assert_equal bar [run_script_ro {return nexcache.call('get', KEYS[1]);} 1 foo]
     }
 
     test {EVAL_RO - Cannot run write commands} {
         r set foo bar
-        catch {run_script_ro {redis.call('del', KEYS[1]);} 1 foo} e
+        catch {run_script_ro {nexcache.call('del', KEYS[1]);} 1 foo} e
         set e
     } {ERR Write commands are not allowed from read-only scripts*}
 
-    if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+    if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     # script command is only relevant for is_eval Lua
     test {SCRIPTING FLUSH - is able to clear the scripts cache?} {
         r set mykey myval
 
-        r script load {return redis.call('get',KEYS[1])}
+        r script load {return nexcache.call('get',KEYS[1])}
         set v [r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey]
         assert_equal $v myval
         r script flush
         assert_error {NOSCRIPT*} {r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey}
 
-        r eval {return redis.call('get',KEYS[1])} 1 mykey
+        r eval {return nexcache.call('get',KEYS[1])} 1 mykey
         set v [r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey]
         assert_equal $v myval
         r script flush
@@ -728,25 +728,25 @@ start_server {tags {"scripting"}} {
     test "SORT is normally not alpha re-ordered for the scripting engine" {
         r del myset
         r sadd myset 1 2 3 4 10
-        r eval {return redis.call('sort',KEYS[1],'desc')} 1 myset
+        r eval {return nexcache.call('sort',KEYS[1],'desc')} 1 myset
     } {10 4 3 2 1} {cluster:skip}
 
     test "SORT BY <constant> output gets ordered for scripting" {
         r del myset
         r sadd myset a b c d e f g h i l m n o p q r s t u v z aa aaa azz
-        r eval {return redis.call('sort',KEYS[1],'by','_')} 1 myset
+        r eval {return nexcache.call('sort',KEYS[1],'by','_')} 1 myset
     } {a aa aaa azz b c d e f g h i l m n o p q r s t u v z} {cluster:skip}
 
     test "SORT BY <constant> with GET gets ordered for scripting" {
         r del myset
         r sadd myset a b c
-        r eval {return redis.call('sort',KEYS[1],'by','_','get','#','get','_:*')} 1 myset
+        r eval {return nexcache.call('sort',KEYS[1],'by','_','get','#','get','_:*')} 1 myset
     } {a {} b {} c {}} {cluster:skip}
     } ;# is_eval
 
-    test "redis.sha1hex() implementation" {
-        list [run_script {return redis.sha1hex('')} 0] \
-             [run_script {return redis.sha1hex('Pizza & Mandolino')} 0]
+    test "nexcache.sha1hex() implementation" {
+        list [run_script {return nexcache.sha1hex('')} 0] \
+             [run_script {return nexcache.sha1hex('Pizza & Mandolino')} 0]
     } {da39a3ee5e6b4b0d3255bfef95601890afd80709 74822d82031af7493c20eefa13bd07ec4fada82f}
 
     test "Measures elapsed time os.clock()" {
@@ -815,12 +815,12 @@ start_server {tags {"scripting"}} {
         set decr_if_gt {
             local current
 
-            current = redis.call('get',KEYS[1])
+            current = nexcache.call('get',KEYS[1])
             if not current then return nil end
             if current > ARGV[1] then
-                return redis.call('decr',KEYS[1])
+                return nexcache.call('decr',KEYS[1])
             else
-                return redis.call('get',KEYS[1])
+                return nexcache.call('get',KEYS[1])
             end
         }
         r set foo 5
@@ -833,7 +833,7 @@ start_server {tags {"scripting"}} {
         set res
     } {4 3 2 2 2}
 
-    if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+    if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     # random handling is only relevant for is_eval Lua
     test {random numbers are random now} {
         set rand1 [r eval {return tostring(math.random())} 0]
@@ -863,9 +863,9 @@ start_server {tags {"scripting"}} {
         r script flush ;# reset Lua VM
         r set x 0
         # Use a non blocking client to speedup the loop.
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         for {set j 0} {$j < 10000} {incr j} {
-            run_script_on_connection $rd {return redis.call("incr",KEYS[1])} 1 x
+            run_script_on_connection $rd {return nexcache.call("incr",KEYS[1])} 1 x
         }
         for {set j 0} {$j < 10000} {incr j} {
             $rd read
@@ -875,18 +875,18 @@ start_server {tags {"scripting"}} {
         r get x
     } {10000}
 
-    if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+    if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     test {SPOP: We can call scripts rewriting client->argv from Lua} {
         set repl [attach_to_replication_stream]
         #this sadd operation is for external-cluster test. If myset doesn't exist, 'del myset' won't get propagated.
         r sadd myset ppp
         r del myset
         r sadd myset a b c
-        assert {[r eval {return redis.call('spop', 'myset')} 0] ne {}}
-        assert {[r eval {return redis.call('spop', 'myset', 1)} 0] ne {}}
-        assert {[r eval {return redis.call('spop', KEYS[1])} 1 myset] ne {}}
+        assert {[r eval {return nexcache.call('spop', 'myset')} 0] ne {}}
+        assert {[r eval {return nexcache.call('spop', 'myset', 1)} 0] ne {}}
+        assert {[r eval {return nexcache.call('spop', KEYS[1])} 1 myset] ne {}}
         # this one below should not be replicated
-        assert {[r eval {return redis.call('spop', KEYS[1])} 1 myset] eq {}}
+        assert {[r eval {return nexcache.call('spop', KEYS[1])} 1 myset] eq {}}
         r set trailingkey 1
         assert_replication_stream $repl {
             {select *}
@@ -905,7 +905,7 @@ start_server {tags {"scripting"}} {
         set repl [attach_to_replication_stream]
         r mset a{t} 1 b{t} 2 c{t} 3 d{t} 4
         #read-only, won't be replicated
-        assert {[r eval {return redis.call('mget', 'a{t}', 'b{t}', 'c{t}', 'd{t}')} 0] eq {1 2 3 4}}
+        assert {[r eval {return nexcache.call('mget', 'a{t}', 'b{t}', 'c{t}', 'd{t}')} 0] eq {1 2 3 4}}
         r set trailingkey 2
         assert_replication_stream $repl {
             {select *}
@@ -919,7 +919,7 @@ start_server {tags {"scripting"}} {
         set repl [attach_to_replication_stream]
         r set expirekey 1
         #should be replicated as EXPIREAT
-        assert {[r eval {return redis.call('expire', KEYS[1], ARGV[1])} 1 expirekey 3] eq 1}
+        assert {[r eval {return nexcache.call('expire', KEYS[1], ARGV[1])} 1 expirekey 3] eq 1}
 
         assert_replication_stream $repl {
             {select *}
@@ -931,18 +931,18 @@ start_server {tags {"scripting"}} {
 
     test {INCRBYFLOAT: We can call scripts expanding client->argv from Lua} {
         # coverage for scripts calling commands that expand the argv array
-        # an attempt to add coverage for a possible bug in luaArgsToRedisArgv
+        # an attempt to add coverage for a possible bug in luaArgsToNexCacheArgv
         # this test needs a fresh server so that lua_argv_size is 0.
         # glibc realloc can return the same pointer even when the size changes
         # still this test isn't able to trigger the issue, but we keep it anyway.
         start_server {tags {"scripting"}} {
             set repl [attach_to_replication_stream]
             # a command with 5 arguments
-            r eval {redis.call('hmget', KEYS[1], 1, 2, 3)} 1 key
+            r eval {nexcache.call('hmget', KEYS[1], 1, 2, 3)} 1 key
             # then a command with 3 that is replicated as one with 4
-            r eval {redis.call('incrbyfloat', KEYS[1], 1)} 1 key
+            r eval {nexcache.call('incrbyfloat', KEYS[1], 1)} 1 key
             # then a command with 4 args
-            r eval {redis.call('set', KEYS[1], '1', 'KEEPTTL')} 1 key
+            r eval {nexcache.call('set', KEYS[1], '1', 'KEEPTTL')} 1 key
 
             assert_replication_stream $repl {
                 {select *}
@@ -955,31 +955,31 @@ start_server {tags {"scripting"}} {
 
     } ;# is_eval
 
-    test {Call Redis command with many args from Lua (issue #1764)} {
+    test {Call NexCache command with many args from Lua (issue #1764)} {
         run_script {
             local i
             local x={}
-            redis.call('del','mylist')
+            nexcache.call('del','mylist')
             for i=1,100 do
                 table.insert(x,i)
             end
-            redis.call('rpush','mylist',unpack(x))
-            return redis.call('lrange','mylist',0,-1)
+            nexcache.call('rpush','mylist',unpack(x))
+            return nexcache.call('lrange','mylist',0,-1)
         } 1 mylist
     } {1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100}
 
     test {Number conversion precision test (issue #1118)} {
         run_script {
               local value = 9007199254740991
-              redis.call("set","foo",value)
-              return redis.call("get","foo")
+              nexcache.call("set","foo",value)
+              return nexcache.call("get","foo")
         } 1 foo
     } {9007199254740991}
 
     test {String containing number precision test (regression of issue #1118)} {
         run_script {
-            redis.call("set", "key", "12039611435714932082")
-            return redis.call("get", "key")
+            nexcache.call("set", "key", "12039611435714932082")
+            return nexcache.call("get", "key")
         } 1 key
     } {12039611435714932082}
 
@@ -989,26 +989,26 @@ start_server {tags {"scripting"}} {
     } {ERR Number of keys can't be negative}
 
     test {Scripts can handle commands with incorrect arity} {
-        assert_error "ERR Wrong number of args calling command from script*" {run_script "redis.call('set','invalid')" 0}
-        assert_error "ERR Wrong number of args calling command from script*" {run_script "redis.call('incr')" 0}
+        assert_error "ERR Wrong number of args calling command from script*" {run_script "nexcache.call('set','invalid')" 0}
+        assert_error "ERR Wrong number of args calling command from script*" {run_script "nexcache.call('incr')" 0}
     }
 
     test {Correct handling of reused argv (issue #1939)} {
         run_script {
               for i = 0, 10 do
-                  redis.call('SET', 'a{t}', '1')
-                  redis.call('MGET', 'a{t}', 'b{t}', 'c{t}')
-                  redis.call('EXPIRE', 'a{t}', 0)
-                  redis.call('GET', 'a{t}')
-                  redis.call('MGET', 'a{t}', 'b{t}', 'c{t}')
+                  nexcache.call('SET', 'a{t}', '1')
+                  nexcache.call('MGET', 'a{t}', 'b{t}', 'c{t}')
+                  nexcache.call('EXPIRE', 'a{t}', 0)
+                  nexcache.call('GET', 'a{t}')
+                  nexcache.call('MGET', 'a{t}', 'b{t}', 'c{t}')
               end
         } 3 a{t} b{t} c{t}
     }
 
-    test {Functions in the Redis namespace are able to report errors} {
+    test {Functions in the NexCache namespace are able to report errors} {
         catch {
             run_script {
-                  redis.sha1hex()
+                  nexcache.sha1hex()
             } 0
         } e
         set e
@@ -1017,7 +1017,7 @@ start_server {tags {"scripting"}} {
     test {CLUSTER RESET can not be invoke from within a script} {
         catch {
             run_script {
-                  redis.call('cluster', 'reset', 'hard')
+                  nexcache.call('cluster', 'reset', 'hard')
             } 0
         } e
         set _ $e
@@ -1034,16 +1034,16 @@ start_server {tags {"scripting"}} {
         assert_equal $res $expected_dict
 
         # Test RESP3 client with script in both RESP2 and RESP3 modes
-        set res [run_script {redis.setresp(3); return redis.call('hgetall', KEYS[1])} 1 hash]
+        set res [run_script {nexcache.setresp(3); return nexcache.call('hgetall', KEYS[1])} 1 hash]
         assert_equal $res $expected_dict
-        set res [run_script {redis.setresp(2); return redis.call('hgetall', KEYS[1])} 1 hash]
+        set res [run_script {nexcache.setresp(2); return nexcache.call('hgetall', KEYS[1])} 1 hash]
         assert_equal $res $expected_list
 
         # Test RESP2 client with script in both RESP2 and RESP3 modes
         r HELLO 2
-        set res [run_script {redis.setresp(3); return redis.call('hgetall', KEYS[1])} 1 hash]
+        set res [run_script {nexcache.setresp(3); return nexcache.call('hgetall', KEYS[1])} 1 hash]
         assert_equal $res $expected_list
-        set res [run_script {redis.setresp(2); return redis.call('hgetall', KEYS[1])} 1 hash]
+        set res [run_script {nexcache.setresp(2); return nexcache.call('hgetall', KEYS[1])} 1 hash]
         assert_equal $res $expected_list
     } {} {resp3}
 
@@ -1071,17 +1071,17 @@ start_server {tags {"scripting"}} {
             for i=1,7999 do
                 a[i] = 1
             end
-            return redis.call("lpush", "l", unpack(a))
+            return nexcache.call("lpush", "l", unpack(a))
         } 1 l
     } {7999}
 
     test "Script read key with expiration set" {
         r SET key value EX 10
         assert_equal [run_script {
-             if redis.call("EXISTS", "key") then
-                 return redis.call("GET", "key")
+             if nexcache.call("EXISTS", "key") then
+                 return nexcache.call("GET", "key")
              else
-                 return redis.call("EXISTS", "key")
+                 return nexcache.call("EXISTS", "key")
              end
         } 1 key] "value"
     }
@@ -1089,8 +1089,8 @@ start_server {tags {"scripting"}} {
     test "Script del key with expiration set" {
         r SET key value EX 10
         assert_equal [run_script {
-             redis.call("DEL", "key")
-             return redis.call("EXISTS", "key")
+             nexcache.call("DEL", "key")
+             return nexcache.call("EXISTS", "key")
         } 1 key] 0
     }
 
@@ -1100,23 +1100,23 @@ start_server {tags {"scripting"}} {
 
         # Check permission granted
         assert_equal [run_script {
-            return redis.acl_check_cmd('set','xx',1)
+            return nexcache.acl_check_cmd('set','xx',1)
         } 1 xx] 1
 
         # Check permission denied unauthorised command
         assert_equal [run_script {
-            return redis.acl_check_cmd('hset','xx','f',1)
+            return nexcache.acl_check_cmd('hset','xx','f',1)
         } 1 xx] {}
 
         # Check permission denied unauthorised key
         # Note: we don't pass the "yy" key as an argument to the script so key acl checks won't block the script
         assert_equal [run_script {
-            return redis.acl_check_cmd('set','yy',1)
+            return nexcache.acl_check_cmd('set','yy',1)
         } 0] {}
 
         # Check error due to invalid command
         assert_error {ERR *Invalid command passed to server.acl_check_cmd()*} {run_script {
-            return redis.acl_check_cmd('invalid-cmd','arg')
+            return nexcache.acl_check_cmd('invalid-cmd','arg')
         } 0}
     }
 
@@ -1148,7 +1148,7 @@ start_server {tags {"scripting"}} {
     test "Try trick global protection 3" {
         catch {
             run_script {
-                redis = function() return 1 end
+                nexcache = function() return 1 end
             } 0
         } e
         set _ $e
@@ -1163,10 +1163,10 @@ start_server {tags {"scripting"}} {
         set _ $e
     } {*Attempt to modify a readonly table*}
 
-    test "Try trick readonly table on valkey table" {
+    test "Try trick readonly table on nexcache table" {
         catch {
             run_script {
-                redis.call = function() return 1 end
+                nexcache.call = function() return 1 end
             } 0
         } e
         set _ $e
@@ -1280,7 +1280,7 @@ start_server {tags {"scripting external:skip large-memory"}} {
 # instance at all.
 start_server {tags {"scripting"}} {
     test {Timedout read-only scripts can be killed by SCRIPT KILL} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set lua-time-limit 10
         run_script_on_connection $rd {while true do end} 0
         after 200
@@ -1293,9 +1293,9 @@ start_server {tags {"scripting"}} {
     }
 
     test {Timedout read-only scripts can be killed by SCRIPT KILL even when use pcall} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set lua-time-limit 10
-        run_script_on_connection $rd {local f = function() while 1 do redis.call('ping') end end while 1 do pcall(f) end} 0
+        run_script_on_connection $rd {local f = function() while 1 do nexcache.call('ping') end end while 1 do pcall(f) end} 0
 
         wait_for_condition 50 100 {
             [catch {r ping} e] == 1
@@ -1321,14 +1321,14 @@ start_server {tags {"scripting"}} {
     }
 
     test {Timedout script does not cause a false dead client} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set lua-time-limit 10
 
         # sending (in a pipeline):
-        # 1. eval "while 1 do redis.call('ping') end" 0
+        # 1. eval "while 1 do nexcache.call('ping') end" 0
         # 2. ping
         if {$is_eval == 1} {
-            set buf "*3\r\n\$4\r\neval\r\n\$33\r\nwhile 1 do redis.call('ping') end\r\n\$1\r\n0\r\n"
+            set buf "*3\r\n\$4\r\neval\r\n\$33\r\nwhile 1 do nexcache.call('ping') end\r\n\$1\r\n0\r\n"
             append buf "*1\r\n\$4\r\nping\r\n"
         } else {
             set buf "*4\r\n\$8\r\nfunction\r\n\$4\r\nload\r\n\$7\r\nreplace\r\n\$99\r\n#!lua name=test\nserver.register_function('test', function() while 1 do server.call('ping') end end)\r\n"
@@ -1370,7 +1370,7 @@ start_server {tags {"scripting"}} {
 
     test {Timedout script link is still usable after Lua returns} {
         r config set lua-time-limit 10
-        run_script {for i=1,100000 do redis.call('ping') end return 'ok'} 0
+        run_script {for i=1,100000 do nexcache.call('ping') end return 'ok'} 0
         r ping
     } {PONG}
 
@@ -1382,9 +1382,9 @@ start_server {tags {"scripting"}} {
         r config set appendonly yes
 
         # create clients, and set one to block waiting for key 'x'
-        set rd [valkey_deferring_client]
-        set rd2 [valkey_deferring_client]
-        set r3 [valkey_client]
+        set rd [nexcache_deferring_client]
+        set rd2 [nexcache_deferring_client]
+        set r3 [nexcache_client]
         $rd2 blpop x 0
         wait_for_blocked_clients_count 1
 
@@ -1393,12 +1393,12 @@ start_server {tags {"scripting"}} {
         r config set lua-time-limit 10
         run_script_on_connection $rd {
             local clients
-            redis.call('lpush',KEYS[1],'y');
+            nexcache.call('lpush',KEYS[1],'y');
             while true do
-                clients = redis.call('client','list')
+                clients = nexcache.call('client','list')
                 if string.find(clients, 'abortscript') ~= nil then break end
             end
-            redis.call('lpush',KEYS[1],'z');
+            nexcache.call('lpush',KEYS[1],'z');
             return clients
             } 1 x
 
@@ -1423,9 +1423,9 @@ start_server {tags {"scripting"}} {
     } {OK} {external:skip needs:debug}
 
     test {Timedout scripts that modified data can't be killed by SCRIPT KILL} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set lua-time-limit 10
-        run_script_on_connection $rd {redis.call('set',KEYS[1],'y'); while true do end} 1 x
+        run_script_on_connection $rd {nexcache.call('set',KEYS[1],'y'); while true do end} 1 x
         after 200
         catch {r ping} e
         assert_match {BUSY*} $e
@@ -1443,7 +1443,7 @@ start_server {tags {"scripting"}} {
         assert_match {BUSY*} $e
         catch {r shutdown nosave}
         # Make sure the server was killed
-        catch {set rd [valkey_deferring_client]} e
+        catch {set rd [nexcache_deferring_client]} e
         assert_match {*connection refused*} $e
     } {} {external:skip}
 }
@@ -1454,11 +1454,11 @@ start_server {tags {"scripting"}} {
                 # One with an error, but still executing a command.
                 # SHA is: 67164fc43fa971f76fd1aaeeaf60c1c178d25876
                 catch {
-                    run_script {redis.call('incr',KEYS[1]); redis.call('nonexisting')} 1 x
+                    run_script {nexcache.call('incr',KEYS[1]); nexcache.call('nonexisting')} 1 x
                 }
                 # One command is correct:
                 # SHA is: 6f5ade10a69975e903c6d07b10ea44c6382381a5
-                run_script {return redis.call('incr',KEYS[1])} 1 x
+                run_script {return nexcache.call('incr',KEYS[1])} 1 x
             } {2}
 
             test "Connect a replica to the master instance" {
@@ -1471,7 +1471,7 @@ start_server {tags {"scripting"}} {
                 }
             }
 
-            if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+            if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
             test "Now use EVALSHA against the master, with both SHAs" {
                 # The server should replicate successful and unsuccessful
                 # commands as EVAL instead of EVALSHA.
@@ -1491,11 +1491,11 @@ start_server {tags {"scripting"}} {
             } ;# is_eval
 
             test "Replication of script multiple pushes to list with BLPOP" {
-                set rd [valkey_deferring_client]
+                set rd [nexcache_deferring_client]
                 $rd brpop a 0
                 run_script {
-                    redis.call("lpush",KEYS[1],"1");
-                    redis.call("lpush",KEYS[1],"2");
+                    nexcache.call("lpush",KEYS[1],"1");
+                    nexcache.call("lpush",KEYS[1],"2");
                 } 1 a
                 set res [$rd read]
                 $rd close
@@ -1507,10 +1507,10 @@ start_server {tags {"scripting"}} {
                 set res
             } {a 1}
 
-            if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+            if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
             test "EVALSHA replication when first call is readonly" {
                 r del x
-                r eval {if tonumber(ARGV[1]) > 0 then redis.call('incr', KEYS[1]) end} 1 x 0
+                r eval {if tonumber(ARGV[1]) > 0 then nexcache.call('incr', KEYS[1]) end} 1 x 0
                 r evalsha 6e0e2745aa546d0b50b801a20983b70710aef3ce 1 x 0
                 r evalsha 6e0e2745aa546d0b50b801a20983b70710aef3ce 1 x 1
                 wait_for_condition 50 100 {
@@ -1523,18 +1523,18 @@ start_server {tags {"scripting"}} {
 
             test "Lua scripts using SELECT are replicated correctly" {
                 run_script {
-                    redis.call("set","foo1","bar1")
-                    redis.call("select","10")
-                    redis.call("incr","x")
-                    redis.call("select","11")
-                    redis.call("incr","z")
+                    nexcache.call("set","foo1","bar1")
+                    nexcache.call("select","10")
+                    nexcache.call("incr","x")
+                    nexcache.call("select","11")
+                    nexcache.call("incr","z")
                 } 3 foo1 x z
                 run_script {
-                    redis.call("set","foo1","bar1")
-                    redis.call("select","10")
-                    redis.call("incr","x")
-                    redis.call("select","11")
-                    redis.call("incr","z")
+                    nexcache.call("set","foo1","bar1")
+                    nexcache.call("select","10")
+                    nexcache.call("incr","x")
+                    nexcache.call("select","11")
+                    nexcache.call("incr","z")
                 } 3 foo1 x z
                 wait_for_condition 50 100 {
                     [debug_digest -1] eq [debug_digest]
@@ -1558,26 +1558,26 @@ start_server {tags {"scripting repl external:skip"}} {
         }
 
         # replicate_commands is the default on server Functions
-        test "Redis.replicate_commands() can be issued anywhere now" {
+        test "NexCache.replicate_commands() can be issued anywhere now" {
             r eval {
-                redis.call('set','foo','bar');
-                return redis.replicate_commands();
+                nexcache.call('set','foo','bar');
+                return nexcache.replicate_commands();
             } 0
         } {1}
 
-        test "Redis.set_repl() can be issued before replicate_commands() now" {
+        test "NexCache.set_repl() can be issued before replicate_commands() now" {
             catch {
                 r eval {
-                    redis.set_repl(redis.REPL_ALL);
+                    nexcache.set_repl(nexcache.REPL_ALL);
                 } 0
             } e
             set e
         } {}
 
-        test "Redis.set_repl() don't accept invalid values" {
+        test "NexCache.set_repl() don't accept invalid values" {
             catch {
                 run_script {
-                    redis.set_repl(12345);
+                    nexcache.set_repl(12345);
                 } 0
             } e
             set e
@@ -1586,13 +1586,13 @@ start_server {tags {"scripting repl external:skip"}} {
         test "Test selective replication of certain commands from Lua" {
             r del a b c d
             run_script {
-                redis.call('set','a','1');
-                redis.set_repl(redis.REPL_NONE);
-                redis.call('set','b','2');
-                redis.set_repl(redis.REPL_AOF);
-                redis.call('set','c','3');
-                redis.set_repl(redis.REPL_ALL);
-                redis.call('set','d','4');
+                nexcache.call('set','a','1');
+                nexcache.set_repl(nexcache.REPL_NONE);
+                nexcache.call('set','b','2');
+                nexcache.set_repl(nexcache.REPL_AOF);
+                nexcache.call('set','c','3');
+                nexcache.set_repl(nexcache.REPL_ALL);
+                nexcache.call('set','d','4');
             } 4 a b c d
 
             wait_for_condition 50 100 {
@@ -1611,17 +1611,17 @@ start_server {tags {"scripting repl external:skip"}} {
         }
 
         test "PRNG is seeded randomly for command replication" {
-            if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
-                # on is_eval Lua we need to call redis.replicate_commands() to get real randomization
+            if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
+                # on is_eval Lua we need to call nexcache.replicate_commands() to get real randomization
                 set a [
                     run_script {
-                        redis.replicate_commands()
+                        nexcache.replicate_commands()
                         return math.random()*100000;
                     } 0
                 ]
                 set b [
                     run_script {
-                        redis.replicate_commands()
+                        nexcache.replicate_commands()
                         return math.random()*100000;
                     } 0
                 ]
@@ -1642,7 +1642,7 @@ start_server {tags {"scripting repl external:skip"}} {
 
         test "Using side effects is not a problem with command replication" {
             run_script {
-                redis.call('set','time',redis.call('time')[1])
+                nexcache.call('set','time',nexcache.call('time')[1])
             } 0
 
             assert {[r get time] ne {}}
@@ -1656,7 +1656,7 @@ start_server {tags {"scripting repl external:skip"}} {
     }
 }
 
-if {$is_eval eq 1 && $script_compatibility_api == "redis"} {
+if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
 start_server {tags {"scripting external:skip"}} {
     r script debug sync
     r eval {return 'hello'} 0
@@ -1680,7 +1680,7 @@ start_server {tags {"scripting needs:debug external:skip"}} {
     test {Test scripting debug lua stack overflow} {
         r script debug sync
         r eval {return 'hello'} 0
-        set cmd "*101\r\n\$5\r\nredis\r\n"
+        set cmd "*101\r\n\$5\r\nnexcache\r\n"
         append cmd [string repeat "\$4\r\ntest\r\n" 100]
         r write $cmd
         r flush
@@ -1820,7 +1820,7 @@ start_server {tags {"scripting needs:debug"}} {
             r readraw 1
 
             test "test $extra big number protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'bignum')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'bignum')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {$37}
@@ -1842,7 +1842,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra map protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'map')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'map')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {*6}
@@ -1855,7 +1855,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra set protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'set')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'set')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {*3}
@@ -1868,7 +1868,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra double protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'double')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'double')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {$5}
@@ -1879,7 +1879,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra null protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'null')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'null')" 0]
                 if {$client_proto == 2} {
                     # null is a special case in which a Lua client format does not effect the reply to the client
                     assert_equal $ret {$-1}
@@ -1889,7 +1889,7 @@ start_server {tags {"scripting needs:debug"}} {
             } {}
 
             test "test $extra verbatim protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'verbatim')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'verbatim')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {$25}
@@ -1903,7 +1903,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra true protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'true')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'true')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {:1}
@@ -1913,7 +1913,7 @@ start_server {tags {"scripting needs:debug"}} {
             }
 
             test "test $extra false protocol parsing" {
-                set ret [run_script "redis.setresp($i);return redis.call('debug', 'protocol', 'false')" 0]
+                set ret [run_script "nexcache.setresp($i);return nexcache.call('debug', 'protocol', 'false')" 0]
                 if {$client_proto == 2 || $i == 2} {
                     # if either Lua or the client is RESP2 the reply will be RESP2
                     assert_equal $ret {:0}
@@ -1931,14 +1931,14 @@ start_server {tags {"scripting needs:debug"}} {
     test {test resp3 attribute protocol parsing} {
         # attributes are not (yet) expose to the script
         # So here we just check the parser handles them and they are ignored.
-        run_script "redis.setresp(3);return redis.call('debug', 'protocol', 'attrib')" 0
+        run_script "nexcache.setresp(3);return nexcache.call('debug', 'protocol', 'attrib')" 0
     } {Some real reply following the attribute}
 
     test "Script block the time during execution" {
         assert_equal [run_script {
-            redis.call("SET", "key", "value", "PX", "1")
-            redis.call("DEBUG", "SLEEP", 0.01)
-            return redis.call("EXISTS", "key")
+            nexcache.call("SET", "key", "value", "PX", "1")
+            nexcache.call("DEBUG", "SLEEP", 0.01)
+            return nexcache.call("EXISTS", "key")
         } 1 key] 1
 
         assert_equal 0 [r EXISTS key]
@@ -1952,16 +1952,16 @@ start_server {tags {"scripting needs:debug"}} {
         # use DEBUG OBJECT to make sure it doesn't error (means the key still exists)
         r DEBUG OBJECT key
 
-        assert_equal [run_script {return redis.call('EXISTS', 'key')} 1 key] 0
+        assert_equal [run_script {return nexcache.call('EXISTS', 'key')} 1 key] 0
         assert_equal 0 [r EXISTS key]
         r DEBUG set-active-expire 1
     }
 
     test "TIME command using cached time" {
         set res [run_script {
-            local result1 = {redis.call("TIME")}
-            redis.call("DEBUG", "SLEEP", 0.01)
-            local result2 = {redis.call("TIME")}
+            local result1 = {nexcache.call("TIME")}
+            nexcache.call("DEBUG", "SLEEP", 0.01)
+            local result2 = {nexcache.call("TIME")}
             return {result1, result2}
          } 0]
          assert_equal [lindex $res 0] [lindex $res 1]
@@ -1972,69 +1972,69 @@ start_server {tags {"scripting needs:debug"}} {
         # and interspersed with "DEBUG SLEEP", to verify that time is frozen in script.
         # The commands involved are [P]TTL / SET EX[PX] / [P]EXPIRE / GETEX / [P]SETEX / [P]EXPIRETIME
         set res [run_script {
-            redis.call("SET", "key1{t}", "value", "EX", 1)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key1{t}", "value", "EX", 1)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SET", "key2{t}", "value", "PX", 1000)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key2{t}", "value", "PX", 1000)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SET", "key3{t}", "value")
-            redis.call("EXPIRE", "key3{t}", 1)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key3{t}", "value")
+            nexcache.call("EXPIRE", "key3{t}", 1)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SET", "key4{t}", "value")
-            redis.call("PEXPIRE", "key4{t}", 1000)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key4{t}", "value")
+            nexcache.call("PEXPIRE", "key4{t}", 1000)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SETEX", "key5{t}", 1, "value")
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SETEX", "key5{t}", 1, "value")
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("PSETEX", "key6{t}", 1000, "value")
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("PSETEX", "key6{t}", 1000, "value")
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SET", "key7{t}", "value")
-            redis.call("GETEX", "key7{t}", "EX", 1)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key7{t}", "value")
+            nexcache.call("GETEX", "key7{t}", "EX", 1)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            redis.call("SET", "key8{t}", "value")
-            redis.call("GETEX", "key8{t}", "PX", 1000)
-            redis.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("SET", "key8{t}", "value")
+            nexcache.call("GETEX", "key8{t}", "PX", 1000)
+            nexcache.call("DEBUG", "SLEEP", 0.01)
 
-            local ttl_results = {redis.call("TTL", "key1{t}"),
-                                 redis.call("TTL", "key2{t}"),
-                                 redis.call("TTL", "key3{t}"),
-                                 redis.call("TTL", "key4{t}"),
-                                 redis.call("TTL", "key5{t}"),
-                                 redis.call("TTL", "key6{t}"),
-                                 redis.call("TTL", "key7{t}"),
-                                 redis.call("TTL", "key8{t}")}
+            local ttl_results = {nexcache.call("TTL", "key1{t}"),
+                                 nexcache.call("TTL", "key2{t}"),
+                                 nexcache.call("TTL", "key3{t}"),
+                                 nexcache.call("TTL", "key4{t}"),
+                                 nexcache.call("TTL", "key5{t}"),
+                                 nexcache.call("TTL", "key6{t}"),
+                                 nexcache.call("TTL", "key7{t}"),
+                                 nexcache.call("TTL", "key8{t}")}
 
-            local pttl_results = {redis.call("PTTL", "key1{t}"),
-                                  redis.call("PTTL", "key2{t}"),
-                                  redis.call("PTTL", "key3{t}"),
-                                  redis.call("PTTL", "key4{t}"),
-                                  redis.call("PTTL", "key5{t}"),
-                                  redis.call("PTTL", "key6{t}"),
-                                  redis.call("PTTL", "key7{t}"),
-                                  redis.call("PTTL", "key8{t}")}
+            local pttl_results = {nexcache.call("PTTL", "key1{t}"),
+                                  nexcache.call("PTTL", "key2{t}"),
+                                  nexcache.call("PTTL", "key3{t}"),
+                                  nexcache.call("PTTL", "key4{t}"),
+                                  nexcache.call("PTTL", "key5{t}"),
+                                  nexcache.call("PTTL", "key6{t}"),
+                                  nexcache.call("PTTL", "key7{t}"),
+                                  nexcache.call("PTTL", "key8{t}")}
 
-            local expiretime_results = {redis.call("EXPIRETIME", "key1{t}"),
-                                        redis.call("EXPIRETIME", "key2{t}"),
-                                        redis.call("EXPIRETIME", "key3{t}"),
-                                        redis.call("EXPIRETIME", "key4{t}"),
-                                        redis.call("EXPIRETIME", "key5{t}"),
-                                        redis.call("EXPIRETIME", "key6{t}"),
-                                        redis.call("EXPIRETIME", "key7{t}"),
-                                        redis.call("EXPIRETIME", "key8{t}")}
+            local expiretime_results = {nexcache.call("EXPIRETIME", "key1{t}"),
+                                        nexcache.call("EXPIRETIME", "key2{t}"),
+                                        nexcache.call("EXPIRETIME", "key3{t}"),
+                                        nexcache.call("EXPIRETIME", "key4{t}"),
+                                        nexcache.call("EXPIRETIME", "key5{t}"),
+                                        nexcache.call("EXPIRETIME", "key6{t}"),
+                                        nexcache.call("EXPIRETIME", "key7{t}"),
+                                        nexcache.call("EXPIRETIME", "key8{t}")}
 
-            local pexpiretime_results = {redis.call("PEXPIRETIME", "key1{t}"),
-                                         redis.call("PEXPIRETIME", "key2{t}"),
-                                         redis.call("PEXPIRETIME", "key3{t}"),
-                                         redis.call("PEXPIRETIME", "key4{t}"),
-                                         redis.call("PEXPIRETIME", "key5{t}"),
-                                         redis.call("PEXPIRETIME", "key6{t}"),
-                                         redis.call("PEXPIRETIME", "key7{t}"),
-                                         redis.call("PEXPIRETIME", "key8{t}")}
+            local pexpiretime_results = {nexcache.call("PEXPIRETIME", "key1{t}"),
+                                         nexcache.call("PEXPIRETIME", "key2{t}"),
+                                         nexcache.call("PEXPIRETIME", "key3{t}"),
+                                         nexcache.call("PEXPIRETIME", "key4{t}"),
+                                         nexcache.call("PEXPIRETIME", "key5{t}"),
+                                         nexcache.call("PEXPIRETIME", "key6{t}"),
+                                         nexcache.call("PEXPIRETIME", "key7{t}"),
+                                         nexcache.call("PEXPIRETIME", "key8{t}")}
 
             return {ttl_results, pttl_results, expiretime_results, pexpiretime_results}
         } 8 key1{t} key2{t} key3{t} key4{t} key5{t} key6{t} key7{t} key8{t}]
@@ -2054,14 +2054,14 @@ start_server {tags {"scripting needs:debug"}} {
 
     test "RESTORE expired keys with expiration time" {
         set res [run_script {
-            redis.call("SET", "key1{t}", "value")
-            local encoded = redis.call("DUMP", "key1{t}")
+            nexcache.call("SET", "key1{t}", "value")
+            local encoded = nexcache.call("DUMP", "key1{t}")
 
-            redis.call("RESTORE", "key2{t}", 1, encoded, "REPLACE")
-            redis.call("DEBUG", "SLEEP", 0.01)
-            redis.call("RESTORE", "key3{t}", 1, encoded, "REPLACE")
+            nexcache.call("RESTORE", "key2{t}", 1, encoded, "REPLACE")
+            nexcache.call("DEBUG", "SLEEP", 0.01)
+            nexcache.call("RESTORE", "key3{t}", 1, encoded, "REPLACE")
 
-            return {redis.call("PEXPIRETIME", "key2{t}"), redis.call("PEXPIRETIME", "key3{t}")}
+            return {nexcache.call("PEXPIRETIME", "key2{t}"), nexcache.call("PEXPIRETIME", "key3{t}")}
         } 3 key1{t} key2{t} key3{t}]
 
         # Can get the expiration time and they are all equal.
@@ -2116,14 +2116,14 @@ start_server {tags {"scripting"}} {
         # Fail to execute deny-oom command in OOM condition (backwards compatibility mode without flags)
         assert_error {OOM command not allowed when used memory > 'maxmemory'*} {
             r eval {
-                redis.call('set','x',1)
+                nexcache.call('set','x',1)
                 return 1
             } 1 x
         }
         # Can execute non deny-oom commands in OOM condition (backwards compatibility mode without flags)
         assert_equal [
             r eval {
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         ] {123}
 
@@ -2137,7 +2137,7 @@ start_server {tags {"scripting"}} {
         # Script with allow-oom can write despite being in OOM state
         assert_equal [
             r eval {#!lua flags=allow-oom
-                redis.call('set','x',1)
+                nexcache.call('set','x',1)
                 return 1
             } 1 x
         ] 1
@@ -2145,13 +2145,13 @@ start_server {tags {"scripting"}} {
         # read-only scripts implies allow-oom
         assert_equal [
             r eval {#!lua flags=no-writes
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 0
         ] 1
         assert_equal [
             r eval_ro {#!lua flags=no-writes
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 1 x
         ] 1
@@ -2159,7 +2159,7 @@ start_server {tags {"scripting"}} {
         # Script with no shebang can read in OOM state
         assert_equal [
             r eval {
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 1 x
         ] 1
@@ -2167,7 +2167,7 @@ start_server {tags {"scripting"}} {
         # Script with no shebang can read in OOM state (eval_ro variant)
         assert_equal [
             r eval_ro {
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 1 x
         ] 1
@@ -2178,7 +2178,7 @@ start_server {tags {"scripting"}} {
     test "no-writes shebang flag" {
         assert_error {ERR Write commands are not allowed from read-only scripts*} {
             r eval {#!lua flags=no-writes
-                redis.call('set','x',1)
+                nexcache.call('set','x',1)
                 return 1
             } 1 x
         }
@@ -2197,20 +2197,20 @@ start_server {tags {"scripting"}} {
 
             assert_equal [
                 r eval {#!lua flags=no-writes
-                    return redis.call('get','x')
+                    return nexcache.call('get','x')
                 } 1 x
             ] "some value"
 
             assert_error {READONLY You can't write against a read only replica.} {
                 r eval {#!lua
-                    return redis.call('get','x')
+                    return nexcache.call('get','x')
                 } 1 x
             }
 
             # test no-write inside multi-exec
             r multi
             r eval {#!lua flags=no-writes
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 1 x
             assert_equal [r exec] 1
@@ -2218,7 +2218,7 @@ start_server {tags {"scripting"}} {
             # test no shebang without write inside multi-exec
             r multi
             r eval {
-                redis.call('get','x')
+                nexcache.call('get','x')
                 return 1
             } 1 x
             assert_equal [r exec] 1
@@ -2226,8 +2226,8 @@ start_server {tags {"scripting"}} {
             # temporarily set the server to master, so it doesn't block the queuing
             # and we can test the evaluation of the flags on exec
             r replicaof no one
-            set rr [valkey_client]
-            set rr2 [valkey_client]
+            set rr [nexcache_client]
+            set rr2 [nexcache_client]
             $rr multi
             $rr2 multi
 
@@ -2239,7 +2239,7 @@ start_server {tags {"scripting"}} {
 
             # test no shebang with write inside multi-exec
             $rr2 eval {
-                redis.call('set','x',1)
+                nexcache.call('set','x',1)
                 return 1
             } 1 x
 
@@ -2257,25 +2257,25 @@ start_server {tags {"scripting"}} {
 
         assert_equal [
             r eval {#!lua flags=no-writes
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         ] "some value"
 
         assert_equal [
             r eval {
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         ] "some value"
 
         assert_error {NOREPLICAS *} {
             r eval {#!lua
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         }
 
         assert_error {NOREPLICAS *} {
             r eval {
-                return redis.call('set','x', 1)
+                return nexcache.call('set','x', 1)
             } 1 x
         }
 
@@ -2293,13 +2293,13 @@ start_server {tags {"scripting"}} {
 
             # run a slow script that does one write, then waits for INFO to indicate
             # that the replica dropped, and then runs another write
-            set rd [valkey_deferring_client -1]
+            set rd [nexcache_deferring_client -1]
             $rd eval {
-                redis.call('set','x',"script value")
+                nexcache.call('set','x',"script value")
                 while true do
-                    local info = redis.call('info','replication')
+                    local info = nexcache.call('info','replication')
                     if (string.match(info, "connected_slaves:0")) then
-                        redis.call('set','x',info)
+                        nexcache.call('set','x',info)
                         break
                     end
                 end
@@ -2334,7 +2334,7 @@ start_server {tags {"scripting"}} {
 
         assert_error {MASTERDOWN Link with MASTER is down and replica-serve-stale-data is set to 'no'.} {
             r eval {
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         }
 
@@ -2353,20 +2353,20 @@ start_server {tags {"scripting"}} {
 
         assert_error {*Can not execute the command on a stale replica*} {
             r eval {#!lua flags=allow-stale,no-writes
-                return redis.call('get','x')
+                return nexcache.call('get','x')
             } 1 x
         }
 
         assert_match {foobar} [
             r eval {#!lua flags=allow-stale,no-writes
-                return redis.call('echo','foobar')
+                return nexcache.call('echo','foobar')
             } 0
         ]
 
         # Test again with EVALSHA
         set sha [
             r script load {#!lua flags=allow-stale,no-writes
-                return redis.call('echo','foobar')
+                return nexcache.call('echo','foobar')
             }
         ]
         assert_match {foobar} [r evalsha $sha 0]
@@ -2397,18 +2397,18 @@ start_server {tags {"scripting"}} {
         r config set maxmemory 1
         # Script aborted due to server state (OOM) should report script execution error with detailed internal error
         assert_error {OOM command not allowed when used memory > 'maxmemory'*} {
-            r eval {return redis.call('set','x','y')} 1 x
+            r eval {return nexcache.call('set','x','y')} 1 x
         }
         assert_equal [errorrstat OOM r] {count=1}
         assert_equal [s total_error_replies] {1}
         assert_match {calls=0*rejected_calls=1,failed_calls=0*} [cmdrstat set r]
         assert_match {calls=1*rejected_calls=0,failed_calls=1*} [cmdrstat eval r]
 
-        # redis.pcall() failure due to server state (OOM) returns lua error table with server error message without '-' prefix
+        # nexcache.pcall() failure due to server state (OOM) returns lua error table with server error message without '-' prefix
         r config resetstat
         assert_equal [
             r eval {
-                local t = redis.pcall('set','x','y')
+                local t = nexcache.pcall('set','x','y')
                 if t['err'] == "OOM command not allowed when used memory > 'maxmemory'." then
                     return 1
                 else
@@ -2426,7 +2426,7 @@ start_server {tags {"scripting"}} {
         # Returning an error object from lua is handled as a valid RESP error result.
         r config resetstat
         assert_error {OOM command not allowed when used memory > 'maxmemory'.} {
-            r eval { return redis.pcall('set','x','y') } 1 x
+            r eval { return nexcache.pcall('set','x','y') } 1 x
         }
         assert_equal [errorrstat ERR r] {}
         assert_equal [errorrstat OOM r] {count=1}
@@ -2438,18 +2438,18 @@ start_server {tags {"scripting"}} {
         r config resetstat
         # Script aborted due to error result of server command
         assert_error {ERR DB index is out of range*} {
-            r eval {return redis.call('select',99)} 0
+            r eval {return nexcache.call('select',99)} 0
         }
         assert_equal [errorrstat ERR r] {count=1}
         assert_equal [s total_error_replies] {1}
         assert_match {calls=1*rejected_calls=0,failed_calls=1*} [cmdrstat select r]
         assert_match {calls=1*rejected_calls=0,failed_calls=1*} [cmdrstat eval r]
 
-        # redis.pcall() failure due to error in server command returns lua error table with server error message without '-' prefix
+        # nexcache.pcall() failure due to error in server command returns lua error table with server error message without '-' prefix
         r config resetstat
         assert_equal [
             r eval {
-                local t = redis.pcall('select',99)
+                local t = nexcache.pcall('select',99)
                 if t['err'] == "ERR DB index is out of range" then
                     return 1
                 else
@@ -2465,18 +2465,18 @@ start_server {tags {"scripting"}} {
         # Script aborted due to scripting specific error state (write cmd with eval_ro) should report script execution error with detailed internal error
         r config resetstat
         assert_error {ERR Write commands are not allowed from read-only scripts*} {
-            r eval_ro {return redis.call('set','x','y')} 1 x
+            r eval_ro {return nexcache.call('set','x','y')} 1 x
         }
         assert_equal [errorrstat ERR r] {count=1}
         assert_equal [s total_error_replies] {1}
         assert_match {calls=0*rejected_calls=1,failed_calls=0*} [cmdrstat set r]
         assert_match {calls=1*rejected_calls=0,failed_calls=1*} [cmdrstat eval_ro r]
 
-        # redis.pcall() failure due to scripting specific error state (write cmd with eval_ro) returns lua error table with server error message without '-' prefix
+        # nexcache.pcall() failure due to scripting specific error state (write cmd with eval_ro) returns lua error table with server error message without '-' prefix
         r config resetstat
         assert_equal [
             r eval_ro {
-                local t = redis.pcall('set','x','y')
+                local t = nexcache.pcall('set','x','y')
                 if t['err'] == "ERR Write commands are not allowed from read-only scripts." then
                     return 1
                 else
@@ -2493,7 +2493,7 @@ start_server {tags {"scripting"}} {
         # make sure geoadd will failed
         r set Sicily 1
         assert_error {WRONGTYPE Operation against a key holding the wrong kind of value*} {
-            r eval {return redis.call('GEOADD', 'Sicily', '13.361389', '38.115556', 'Palermo', '15.087269', '37.502669', 'Catania')} 1 x
+            r eval {return nexcache.call('GEOADD', 'Sicily', '13.361389', '38.115556', 'Palermo', '15.087269', '37.502669', 'Catania')} 1 x
         }
         assert_equal [errorrstat WRONGTYPE r] {count=1}
         assert_equal [s total_error_replies] {1}
@@ -2501,36 +2501,36 @@ start_server {tags {"scripting"}} {
         assert_match {calls=1*rejected_calls=0,failed_calls=1*} [cmdrstat eval r]
     } {} {cluster:skip}
 
-    test "LUA redis.error_reply API" {
+    test "LUA nexcache.error_reply API" {
         r config resetstat
         assert_error {MY_ERR_CODE custom msg} {
-            r eval {return redis.error_reply("MY_ERR_CODE custom msg")} 0
+            r eval {return nexcache.error_reply("MY_ERR_CODE custom msg")} 0
         }
         assert_equal [errorrstat MY_ERR_CODE r] {count=1}
     }
 
-    test "LUA redis.error_reply API with empty string" {
+    test "LUA nexcache.error_reply API with empty string" {
         r config resetstat
         assert_error {ERR} {
-            r eval {return redis.error_reply("")} 0
+            r eval {return nexcache.error_reply("")} 0
         }
         assert_equal [errorrstat ERR r] {count=1}
     }
 
-    test "LUA redis.status_reply API" {
+    test "LUA nexcache.status_reply API" {
         r config resetstat
         r readraw 1
         assert_equal [
-            r eval {return redis.status_reply("MY_OK_CODE custom msg")} 0
+            r eval {return nexcache.status_reply("MY_OK_CODE custom msg")} 0
         ] {+MY_OK_CODE custom msg}
         r readraw 0
         assert_equal [errorrstat MY_ERR_CODE r] {} ;# error stats were not incremented
     }
 
-    test "LUA redis.error_reply API sanitation" {
+    test "LUA nexcache.error_reply API sanitation" {
         r config resetstat
         assert_error {ERR*} {
-            r eval {error(redis.error_reply("-ERR\r\n-ERR FAKE"))} 0
+            r eval {error(nexcache.error_reply("-ERR\r\n-ERR FAKE"))} 0
         }
         assert_equal PONG [r ping]
         assert_equal [errorrstat ERR r] {count=1}
@@ -2561,13 +2561,13 @@ start_server {tags {"scripting"}} {
         assert_error "ERR Command arguments must be strings or integers*" {
             r eval {
                 local x={}
-                return redis.call("ping", x)
+                return nexcache.call("ping", x)
             } 0
         }
         # run another command, to make sure the cached argv array survived
         assert_equal [
             r eval {
-                return redis.call("ping", "asdf")
+                return nexcache.call("ping", "asdf")
             } 0
         ] {asdf}
     }
@@ -2584,13 +2584,13 @@ start_server {tags {"scripting"}} {
             # This value will be recycled to be used in the next argument.
             # We use SETNX to avoid saving the string which will prevent us to reuse it in the next command.
             r eval {
-                return redis.call("SETNX", "foo", string.rep("a", 63))
+                return nexcache.call("SETNX", "foo", string.rep("a", 63))
             } 0
 
             # Jemalloc will allocate for the request 45 bytes, 56 bytes.
             # we can't test for smaller sizes because OBJ_ENCODING_EMBSTR_SIZE_LIMIT is 44 where no trim is done.
             r eval {
-                return redis.call("SET", "foo", string.rep("a", 45))
+                return nexcache.call("SET", "foo", string.rep("a", 45))
             } 0
 
             # Assert the string has been trimmed and the 80 bytes from the previous alloc were not kept.

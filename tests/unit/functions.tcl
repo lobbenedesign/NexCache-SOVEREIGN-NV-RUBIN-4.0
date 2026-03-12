@@ -145,7 +145,7 @@ start_server {tags {"scripting"}} {
 
     test {FUNCTION - test flushall and flushdb do not clean functions} {
         r function flush
-        r function load REPLACE [get_function_code lua test test {return redis.call('set', 'x', '1')}]
+        r function load REPLACE [get_function_code lua test test {return nexcache.call('set', 'x', '1')}]
         r flushall
         r flushdb
         r function list
@@ -209,19 +209,19 @@ start_server {tags {"scripting"}} {
     } {*unknown subcommand or wrong number of arguments for 'restore'. Try FUNCTION HELP.}
 
     test {FUNCTION - test fcall_ro with write command} {
-        r function load REPLACE [get_no_writes_function_code lua test test {return redis.call('set', 'x', '1')}]
+        r function load REPLACE [get_no_writes_function_code lua test test {return nexcache.call('set', 'x', '1')}]
         catch { r fcall_ro test 1 x } e
         set _ $e
     } {*Write commands are not allowed from read-only scripts*}
 
     test {FUNCTION - test fcall_ro with read only commands} {
-        r function load REPLACE [get_no_writes_function_code lua test test {return redis.call('get', 'x')}]
+        r function load REPLACE [get_no_writes_function_code lua test test {return nexcache.call('get', 'x')}]
         r set x 1
         r fcall_ro test 1 x
     } {1}
 
     test {FUNCTION - test keys and argv} {
-        r function load REPLACE [get_function_code lua test test {return redis.call('set', KEYS[1], ARGV[1])}]
+        r function load REPLACE [get_function_code lua test test {return nexcache.call('set', KEYS[1], ARGV[1])}]
         r fcall test 1 x foo
         r get x
     } {foo}
@@ -235,7 +235,7 @@ start_server {tags {"scripting"}} {
     } {x}
 
     test {FUNCTION - test function kill} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set busy-reply-threshold 10
         r function load REPLACE [get_function_code lua test test {local a = 1 while true do a = a + 1 end}]
         $rd fcall test 0
@@ -251,7 +251,7 @@ start_server {tags {"scripting"}} {
     }
 
     test {FUNCTION - test script kill not working on function} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set busy-reply-threshold 10
         r function load REPLACE [get_function_code lua test test {local a = 1 while true do a = a + 1 end}]
         $rd fcall test 0
@@ -268,7 +268,7 @@ start_server {tags {"scripting"}} {
     }
 
     test {FUNCTION - test function kill not working on eval} {
-        set rd [valkey_deferring_client]
+        set rd [nexcache_deferring_client]
         r config set busy-reply-threshold 10
         $rd eval {local a = 1 while true do a = a + 1 end} 0
         after 200
@@ -451,7 +451,7 @@ start_server {tags {"scripting repl external:skip"}} {
         } {*can't write against a read only replica*}
 
         test "FUNCTION - function effect is replicated to replica" {
-            r function load REPLACE [get_function_code LUA test test {return redis.call('set', 'x', '1')}]
+            r function load REPLACE [get_function_code LUA test test {return nexcache.call('set', 'x', '1')}]
             r fcall test 1 x
             assert {[r get x] eq {1}}
             wait_for_condition 150 100 {
@@ -502,7 +502,7 @@ start_server {tags {"scripting"}} {
     test {LIBRARIES - test shared function can access default globals} {
         r function load {#!lua name=lib1
             local function ping()
-                return redis.call('ping')
+                return nexcache.call('ping')
             end
             server.register_function(
                 'f1',
@@ -659,37 +659,37 @@ start_server {tags {"scripting"}} {
         set _ $e
     } {*attempted to access nonexistent global variable 'math'*}
 
-    test {LIBRARIES - redis.call from function load} {
+    test {LIBRARIES - nexcache.call from function load} {
         catch {
             r function load replace {#!lua name=lib2
-                return redis.call('ping')
+                return nexcache.call('ping')
             }
         } e
         set _ $e
     } {*attempted to access nonexistent global variable 'call'*}
 
-    test {LIBRARIES - redis.setresp from function load} {
+    test {LIBRARIES - nexcache.setresp from function load} {
         catch {
             r function load replace {#!lua name=lib2
-                return redis.setresp(3)
+                return nexcache.setresp(3)
             }
         } e
         set _ $e
     } {*attempted to access nonexistent global variable 'setresp'*}
 
-    test {LIBRARIES - redis.set_repl from function load} {
+    test {LIBRARIES - nexcache.set_repl from function load} {
         catch {
             r function load replace {#!lua name=lib2
-                return redis.set_repl(redis.REPL_NONE)
+                return nexcache.set_repl(nexcache.REPL_NONE)
             }
         } e
         set _ $e
     } {*attempted to access nonexistent global variable 'set_repl'*}
 
-    test {LIBRARIES - redis.acl_check_cmd from function load} {
+    test {LIBRARIES - nexcache.acl_check_cmd from function load} {
         catch {
             r function load replace {#!lua name=lib2
-                return redis.acl_check_cmd('set','xx',1)
+                return nexcache.acl_check_cmd('set','xx',1)
             }
         } e
         set _ $e
@@ -697,7 +697,7 @@ start_server {tags {"scripting"}} {
 
     test {LIBRARIES - malicious access test} {
         # the 'library' API is not exposed inside a
-        # function context and the 'redis' API is not
+        # function context and the 'nexcache' API is not
         # expose on the library registration context.
         # But a malicious user might find a way to hack it
         # (as demonstrated in this test). This is why we
@@ -705,16 +705,16 @@ start_server {tags {"scripting"}} {
         # code itself and we want to test it and verify
         # that it works properly.
         r function load replace {#!lua name=lib1
-            local lib = redis
+            local lib = nexcache
             lib.register_function('f1', function ()
-                lib.redis = redis
+                lib.nexcache = nexcache
                 lib.math = math
                 return {ok='OK'}
             end)
 
             lib.register_function('f2', function ()
                 lib.register_function('f1', function ()
-                    lib.redis = redis
+                    lib.nexcache = nexcache
                     lib.math = math
                     return {ok='OK'}
                 end)
@@ -724,14 +724,14 @@ start_server {tags {"scripting"}} {
         assert_match {*Attempt to modify a readonly table*} $e
 
         catch {[r function load {#!lua name=lib2
-            redis.math.random()
+            nexcache.math.random()
         }]} e
         assert_match {*Script attempted to access nonexistent global variable 'math'*} $e
 
         catch {[r function load {#!lua name=lib2
-            redis.redis.call('ping')
+            nexcache.nexcache.call('ping')
         }]} e
-        assert_match {*Script attempted to access nonexistent global variable 'redis'*} $e
+        assert_match {*Script attempted to access nonexistent global variable 'nexcache'*} $e
 
         catch {[r fcall f2 0]} e
         assert_match {*can only be called on FUNCTION LOAD command*} $e
@@ -1024,7 +1024,7 @@ start_server {tags {"scripting"}} {
         r FUNCTION load replace {#!lua name=f1
             server.register_function{
                 function_name='f1',
-                callback=function() return redis.call('set', 'x', '1') end,
+                callback=function() return nexcache.call('set', 'x', '1') end,
                 flags={'allow-oom'}
             }
         }
@@ -1076,7 +1076,7 @@ start_server {tags {"scripting"}} {
         r function load replace {#!lua name=test
             server.register_function{
                 function_name = 'f1',
-                callback = function() return redis.call('set', 'x', 1) end
+                callback = function() return nexcache.call('set', 'x', 1) end
             }
         }
         catch {r fcall_ro f1 1 x} e
@@ -1087,7 +1087,7 @@ start_server {tags {"scripting"}} {
         r function load replace {#!lua name=test
             server.register_function{
                 function_name = 'f1',
-                callback = function() return redis.call('set', 'x', 1) end,
+                callback = function() return nexcache.call('set', 'x', 1) end,
                 flags = {'no-writes'}
             }
         }
@@ -1097,7 +1097,7 @@ start_server {tags {"scripting"}} {
 
     test {FUNCTION - deny oom} {
         r FUNCTION load replace {#!lua name=test
-            server.register_function('f1', function() return redis.call('set', 'x', '1') end)
+            server.register_function('f1', function() return nexcache.call('set', 'x', '1') end)
         }
 
         r config set maxmemory 1
@@ -1125,8 +1125,8 @@ start_server {tags {"scripting"}} {
         r FUNCTION load replace {#!lua name=test
             server.register_function{function_name='f1', callback=function() return 'hello' end, flags={'no-writes'}}
             server.register_function{function_name='f2', callback=function() return 'hello' end, flags={'allow-stale', 'no-writes'}}
-            server.register_function{function_name='f3', callback=function() return redis.call('get', 'x') end, flags={'allow-stale', 'no-writes'}}
-            server.register_function{function_name='f4', callback=function() return redis.call('info', 'server') end, flags={'allow-stale', 'no-writes'}}
+            server.register_function{function_name='f3', callback=function() return nexcache.call('get', 'x') end, flags={'allow-stale', 'no-writes'}}
+            server.register_function{function_name='f4', callback=function() return nexcache.call('info', 'server') end, flags={'allow-stale', 'no-writes'}}
         }
 
         r config set replica-serve-stale-data no
@@ -1140,16 +1140,16 @@ start_server {tags {"scripting"}} {
         catch {[r fcall f3 1 x]} e
         assert_match {ERR *Can not execute the command on a stale replica*} $e
 
-        assert_match {*redis_version*} [r fcall f4 0]
+        assert_match {*nexcache_version*} [r fcall f4 0]
 
         r replicaof no one
         r config set replica-serve-stale-data yes
         set _ {}
     } {} {external:skip}
 
-    test {FUNCTION - valkey version api} {
+    test {FUNCTION - nexcache version api} {
         r FUNCTION load replace {#!lua name=test
-            local version = redis.REDIS_VERSION_NUM
+            local version = nexcache.NEXCACHE_VERSION_NUM
 
             server.register_function{function_name='get_version_v1', callback=function()
               return string.format('%s.%s.%s',
@@ -1157,7 +1157,7 @@ start_server {tags {"scripting"}} {
                                     bit.band(bit.rshift(version, 8), 0x000000ff),
                                     bit.band(version, 0x000000ff))
             end}
-            server.register_function{function_name='get_version_v2', callback=function() return redis.REDIS_VERSION end}
+            server.register_function{function_name='get_version_v2', callback=function() return nexcache.NEXCACHE_VERSION end}
         }
 
         catch {[r fcall f1 0]} e
@@ -1252,7 +1252,7 @@ start_server {tags {"scripting"}} {
             server.register_function('f1', function()
                 mt = getmetatable(_G)
                 original_globals = mt.__index
-                original_globals['redis'] = function() return 1 end
+                original_globals['nexcache'] = function() return 1 end
             end)
         }
 

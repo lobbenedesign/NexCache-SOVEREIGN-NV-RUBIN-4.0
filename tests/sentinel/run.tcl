@@ -1,4 +1,4 @@
-# Sentinel test suite. Copyright (C) 2014 Redis Ltd.
+# Sentinel test suite. Copyright (C) 2014 NexCache Contributors.
 # This software is released under the BSD License. See the COPYING file for
 # more information.
 
@@ -22,7 +22,7 @@ proc main {} {
         "enable-debug-command yes"
     } "../tests/includes/sentinel.conf"
 
-    spawn_instance valkey $::valkey_base_port $::instances_count {
+    spawn_instance nexcache $::nexcache_base_port $::instances_count {
         "enable-protected-configs yes"
         "enable-debug-command yes"
         "save ''"

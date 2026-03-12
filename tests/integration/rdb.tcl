@@ -338,7 +338,7 @@ test {client freed during loading} {
         # connect and disconnect 5 clients
         set clients {}
         for {set j 0} {$j < 5} {incr j} {
-            lappend clients [valkey_deferring_client]
+            lappend clients [nexcache_deferring_client]
         }
         foreach rd $clients {
             $rd debug log bla
@@ -413,7 +413,7 @@ start_server {overrides {save ""}} {
         # populate the db with 10k keys of 512B each (since we want to measure the COW size by
         # changing some keys and read the reported COW size, we are using small key size to prevent from
         # the "dismiss mechanism" free memory and reduce the COW size)
-        set rd [valkey_deferring_client 0]
+        set rd [nexcache_deferring_client 0]
         set size 500 ;# aim for the 512 bin (sds overhead)
         set cmd_count 10000
         for {set k 0} {$k < $cmd_count} {incr k} {
@@ -512,7 +512,7 @@ start_server {overrides {save ""}} {
 
 exec cp -f tests/assets/scriptbackup.rdb $server_path
 start_server [list overrides [list "dir" $server_path "dbfilename" "scriptbackup.rdb" "appendonly" "no"]] {
-    # the script is: "return redis.call('set', 'foo', 'bar')""
+    # the script is: "return nexcache.call('set', 'foo', 'bar')""
     # its sha1   is: a0c38691e9fffe4563723c32ba77a34398e090e6
     test {script won't load anymore if it's in rdb} {
         assert_equal [r script exists a0c38691e9fffe4563723c32ba77a34398e090e6] 0
@@ -540,21 +540,21 @@ start_server {} {
 
         # repeat with script
         assert_error {MISCONF *} {r eval {
-            return redis.call('set','x',1)
+            return nexcache.call('set','x',1)
             } 1 x
         }
         assert_equal {x} [r eval {
-            return redis.call('get','x')
+            return nexcache.call('get','x')
             } 1 x
         ]
 
         # again with script using shebang
         assert_error {MISCONF *} {r eval {#!lua
-            return redis.call('set','x',1)
+            return nexcache.call('set','x',1)
             } 1 x
         }
         assert_equal {x} [r eval {#!lua flags=no-writes
-            return redis.call('get','x')
+            return nexcache.call('get','x')
             } 1 x
         ]
 

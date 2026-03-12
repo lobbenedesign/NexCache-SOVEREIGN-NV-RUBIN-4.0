@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause
  */

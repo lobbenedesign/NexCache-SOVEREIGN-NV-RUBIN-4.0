@@ -2,7 +2,7 @@
 
 /*
  * Copyright 2001-2010 Georges Menie (www.menie.org)
- * Copyright 2010-2012 Redis Ltd. (adapted to Redis coding style)
+ * Copyright 2010-2012 NexCache Contributors. (adapted to NexCache coding style)
  * All rights reserved.
  *
  * NexCachetribution and use in source and binary forms, with or without

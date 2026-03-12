@@ -29,7 +29,7 @@ proc reboot_instance {type id} {
     }
 
     # Connect with it with a fresh link
-    set link [valkey 127.0.0.1 $port 0 $::tls]
+    set link [nexcache 127.0.0.1 $port 0 $::tls]
     $link reconnect 1
     set_instance_attrib $type $id link $link
 }
@@ -54,8 +54,8 @@ test "Primary reboot in very short time" {
 	}
     }
 
-    kill_instance valkey $master_id
-    reboot_instance valkey $master_id
+    kill_instance nexcache $master_id
+    reboot_instance nexcache $master_id
     
     foreach_sentinel_id id {        
         wait_for_condition 1000 100 {
@@ -66,7 +66,7 @@ test "Primary reboot in very short time" {
     }
 
     set addr [S 0 SENTINEL GET-PRIMARY-ADDR-BY-NAME mymaster]
-    set master_id [get_instance_id_by_port valkey [lindex $addr 1]]
+    set master_id [get_instance_id_by_port nexcache [lindex $addr 1]]
 
     # Make sure the instance load all the dataset
     while 1 {
@@ -85,12 +85,12 @@ test "New primary [join $addr {:}] role matches" {
 }
 
 test "All the other slaves now point to the new primary" {
-    foreach_valkey_id id {
+    foreach_nexcache_id id {
         if {$id != $master_id && $id != 0} {
             wait_for_condition 1000 50 {
                 [RI $id master_port] == [lindex $addr 1]
             } else {
-                fail "Valkey ID $id not configured to replicate with new primary"
+                fail "NexCache ID $id not configured to replicate with new primary"
             }
         }
     }

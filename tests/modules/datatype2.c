@@ -72,17 +72,17 @@
  *
  **/
 
-#include "valkeymodule.h"
+#include "nexcachemodule.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdint.h>
 
-static ValkeyModuleType *MemAllocType;
+static NexCacheModuleType *MemAllocType;
 
 #define MAX_DB 16
-ValkeyModuleDict *mem_pool[MAX_DB];
+NexCacheModuleDict *mem_pool[MAX_DB];
 typedef struct MemAllocObject {
     long long size;
     long long used;
@@ -90,7 +90,7 @@ typedef struct MemAllocObject {
 } MemAllocObject;
 
 MemAllocObject *createMemAllocObject(void) {
-    MemAllocObject *o = ValkeyModule_Calloc(1, sizeof(*o));
+    MemAllocObject *o = NexCacheModule_Calloc(1, sizeof(*o));
     return o;
 }
 
@@ -104,10 +104,10 @@ struct MemBlock {
 void MemBlockFree(struct MemBlock *head) {
     if (head) {
         struct MemBlock *block = head->next, *next;
-        ValkeyModule_Free(head);
+        NexCacheModule_Free(head);
         while (block) {
             next = block->next;
-            ValkeyModule_Free(block);
+            NexCacheModule_Free(block);
             block = next;
         }
     }
@@ -117,10 +117,10 @@ struct MemBlock *MemBlockCreate(long long num) {
         return NULL;
     }
 
-    struct MemBlock *head = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
+    struct MemBlock *head = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
     struct MemBlock *block = head;
     while (--num) {
-        block->next = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
+        block->next = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
         block = block->next;
     }
 
@@ -170,27 +170,27 @@ int MemBlockRead(struct MemBlock *head, long long block_index, char *data, size_
     return r_size;
 }
 
-void MemPoolFreeDb(ValkeyModuleCtx *ctx, int dbid) {
-    ValkeyModuleString *key;
+void MemPoolFreeDb(NexCacheModuleCtx *ctx, int dbid) {
+    NexCacheModuleString *key;
     void *tdata;
-    ValkeyModuleDictIter *iter = ValkeyModule_DictIteratorStartC(mem_pool[dbid], "^", NULL, 0);
-    while((key = ValkeyModule_DictNext(ctx, iter, &tdata)) != NULL) {
+    NexCacheModuleDictIter *iter = NexCacheModule_DictIteratorStartC(mem_pool[dbid], "^", NULL, 0);
+    while((key = NexCacheModule_DictNext(ctx, iter, &tdata)) != NULL) {
         MemBlockFree((struct MemBlock *)tdata);
     }
-    ValkeyModule_DictIteratorStop(iter);
-    ValkeyModule_FreeDict(NULL, mem_pool[dbid]);
-    mem_pool[dbid] = ValkeyModule_CreateDict(NULL);
+    NexCacheModule_DictIteratorStop(iter);
+    NexCacheModule_FreeDict(NULL, mem_pool[dbid]);
+    mem_pool[dbid] = NexCacheModule_CreateDict(NULL);
 }
 
 struct MemBlock *MemBlockClone(const struct MemBlock *head) {
     struct MemBlock *newhead = NULL;
     if (head) {
-        newhead = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
+        newhead = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
         memcpy(newhead->block, head->block, BLOCK_SIZE);
         struct MemBlock *newblock = newhead;
         const struct MemBlock *oldblock = head->next;
         while (oldblock) {
-            newblock->next = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
+            newblock->next = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
             newblock = newblock->next;
             memcpy(newblock->block, oldblock->block, BLOCK_SIZE);
             oldblock = oldblock->next;
@@ -201,28 +201,28 @@ struct MemBlock *MemBlockClone(const struct MemBlock *head) {
 }
 
 /*---------------------------- event handler ------------------------------------*/
-void swapDbCallback(ValkeyModuleCtx *ctx, ValkeyModuleEvent e, uint64_t sub, void *data) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(e);
-    VALKEYMODULE_NOT_USED(sub);
+void swapDbCallback(NexCacheModuleCtx *ctx, NexCacheModuleEvent e, uint64_t sub, void *data) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(e);
+    NEXCACHEMODULE_NOT_USED(sub);
 
-    ValkeyModuleSwapDbInfo *ei = data;
+    NexCacheModuleSwapDbInfo *ei = data;
 
     // swap
-    ValkeyModuleDict *tmp = mem_pool[ei->dbnum_first];
+    NexCacheModuleDict *tmp = mem_pool[ei->dbnum_first];
     mem_pool[ei->dbnum_first] = mem_pool[ei->dbnum_second];
     mem_pool[ei->dbnum_second] = tmp;
 }
 
-void flushdbCallback(ValkeyModuleCtx *ctx, ValkeyModuleEvent e, uint64_t sub, void *data) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(e);
+void flushdbCallback(NexCacheModuleCtx *ctx, NexCacheModuleEvent e, uint64_t sub, void *data) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(e);
     int i;
-    ValkeyModuleFlushInfo *fi = data;
+    NexCacheModuleFlushInfo *fi = data;
 
-    ValkeyModule_AutoMemory(ctx);
+    NexCacheModule_AutoMemory(ctx);
 
-    if (sub == VALKEYMODULE_SUBEVENT_FLUSHDB_START) {
+    if (sub == NEXCACHEMODULE_SUBEVENT_FLUSHDB_START) {
         if (fi->dbnum != -1) {
            MemPoolFreeDb(ctx, fi->dbnum);
         } else {
@@ -236,71 +236,71 @@ void flushdbCallback(ValkeyModuleCtx *ctx, ValkeyModuleEvent e, uint64_t sub, vo
 /*---------------------------- command implementation ------------------------------------*/
 
 /* MEM.ALLOC key block_num */
-int MemAlloc_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemAlloc_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc != 3) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     long long block_num;
-    if ((ValkeyModule_StringToLongLong(argv[2], &block_num) != VALKEYMODULE_OK) || block_num <= 0) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid block_num: must be a value greater than 0");
+    if ((NexCacheModule_StringToLongLong(argv[2], &block_num) != NEXCACHEMODULE_OK) || block_num <= 0) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid block_num: must be a value greater than 0");
     }
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ | VALKEYMODULE_WRITE);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(key) != MemAllocType) {
-        return ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ | NEXCACHEMODULE_WRITE);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(key) != MemAllocType) {
+        return NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     MemAllocObject *o;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
         o = createMemAllocObject();
-        ValkeyModule_ModuleTypeSetValue(key, MemAllocType, o);
+        NexCacheModule_ModuleTypeSetValue(key, MemAllocType, o);
     } else {
-        o = ValkeyModule_ModuleTypeGetValue(key);
+        o = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     struct MemBlock *mem = MemBlockCreate(block_num);
-    ValkeyModule_Assert(mem != NULL);
-    ValkeyModule_DictSet(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], mem);
+    NexCacheModule_Assert(mem != NULL);
+    NexCacheModule_DictSet(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], mem);
     o->size = block_num;
     o->used = 0;
     o->mask = 0;
 
-    ValkeyModule_ReplyWithLongLong(ctx, block_num);
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithLongLong(ctx, block_num);
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
 /* MEM.FREE key */
-int MemFree_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemFree_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc != 2) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(key) != MemAllocType) {
-        return ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(key) != MemAllocType) {
+        return NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     int ret = 0;
     MemAllocObject *o;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
-        ValkeyModule_ReplyWithLongLong(ctx, ret);
-        return VALKEYMODULE_OK;
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
+        NexCacheModule_ReplyWithLongLong(ctx, ret);
+        return NEXCACHEMODULE_OK;
     } else {
-        o = ValkeyModule_ModuleTypeGetValue(key);
+        o = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     int nokey;
-    struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], &nokey);
+    struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], &nokey);
     if (!nokey && mem) {
-        ValkeyModule_DictDel(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], NULL);
+        NexCacheModule_DictDel(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], NULL);
         MemBlockFree(mem);
         o->used = 0;
         o->size = 0;
@@ -308,174 +308,174 @@ int MemFree_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int ar
         ret = 1;
     }
 
-    ValkeyModule_ReplyWithLongLong(ctx, ret);
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithLongLong(ctx, ret);
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
 /* MEM.WRITE key block_index data */
-int MemWrite_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemWrite_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc != 4) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     long long block_index;
-    if ((ValkeyModule_StringToLongLong(argv[2], &block_index) != VALKEYMODULE_OK) || block_index < 0) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid block_index: must be a value greater than 0");
+    if ((NexCacheModule_StringToLongLong(argv[2], &block_index) != NEXCACHEMODULE_OK) || block_index < 0) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid block_index: must be a value greater than 0");
     }
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ | VALKEYMODULE_WRITE);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(key) != MemAllocType) {
-        return ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ | NEXCACHEMODULE_WRITE);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(key) != MemAllocType) {
+        return NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     MemAllocObject *o;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR Memory has not been allocated");
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR Memory has not been allocated");
     } else {
-        o = ValkeyModule_ModuleTypeGetValue(key);
+        o = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     if (o->mask & (1UL << block_index)) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR block is busy");
+        return NexCacheModule_ReplyWithError(ctx, "ERR block is busy");
     }
 
     int ret = 0;
     int nokey;
-    struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], &nokey);
+    struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], &nokey);
     if (!nokey && mem) {
         size_t len;
-        const char *buf = ValkeyModule_StringPtrLen(argv[3], &len);
+        const char *buf = NexCacheModule_StringPtrLen(argv[3], &len);
         ret = MemBlockWrite(mem, block_index, buf, len);
         o->mask |= (1UL << block_index);
         o->used++;
     }
 
-    ValkeyModule_ReplyWithLongLong(ctx, ret);
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithLongLong(ctx, ret);
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
 /* MEM.READ key block_index */
-int MemRead_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemRead_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc != 3) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     long long block_index;
-    if ((ValkeyModule_StringToLongLong(argv[2], &block_index) != VALKEYMODULE_OK) || block_index < 0) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid block_index: must be a value greater than 0");
+    if ((NexCacheModule_StringToLongLong(argv[2], &block_index) != NEXCACHEMODULE_OK) || block_index < 0) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid block_index: must be a value greater than 0");
     }
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(key) != MemAllocType) {
-        return ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(key) != MemAllocType) {
+        return NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     MemAllocObject *o;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR Memory has not been allocated");
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR Memory has not been allocated");
     } else {
-        o = ValkeyModule_ModuleTypeGetValue(key);
+        o = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     if (!(o->mask & (1UL << block_index))) {
-        return ValkeyModule_ReplyWithNull(ctx);
+        return NexCacheModule_ReplyWithNull(ctx);
     }
 
     int nokey;
-    struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], &nokey);
-    ValkeyModule_Assert(nokey == 0 && mem != NULL);
+    struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], &nokey);
+    NexCacheModule_Assert(nokey == 0 && mem != NULL);
      
     char buf[BLOCK_SIZE];
     MemBlockRead(mem, block_index, buf, sizeof(buf));
     
     /* Assuming that the contents are all c-style strings */
-    ValkeyModule_ReplyWithStringBuffer(ctx, buf, strlen(buf));
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithStringBuffer(ctx, buf, strlen(buf));
+    return NEXCACHEMODULE_OK;
 }
 
 /* MEM.USAGE dbid */
-int MemUsage_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemUsage_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc != 2) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     long long dbid;
-    if ((ValkeyModule_StringToLongLong(argv[1], (long long *)&dbid) != VALKEYMODULE_OK)) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid value: must be a integer");
+    if ((NexCacheModule_StringToLongLong(argv[1], (long long *)&dbid) != NEXCACHEMODULE_OK)) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid value: must be a integer");
     }
 
     if (dbid < 0 || dbid >= MAX_DB) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR dbid out of range");
+        return NexCacheModule_ReplyWithError(ctx, "ERR dbid out of range");
     }
 
 
     long long size = 0, used = 0;
 
     void *data;
-    ValkeyModuleString *key;
-    ValkeyModuleDictIter *iter = ValkeyModule_DictIteratorStartC(mem_pool[dbid], "^", NULL, 0);
-    while((key = ValkeyModule_DictNext(ctx, iter, &data)) != NULL) {
-        int dbbackup = ValkeyModule_GetSelectedDb(ctx);
-        ValkeyModule_SelectDb(ctx, dbid);
-        ValkeyModuleKey *openkey = ValkeyModule_OpenKey(ctx, key, VALKEYMODULE_READ);
-        int type = ValkeyModule_KeyType(openkey);
-        ValkeyModule_Assert(type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(openkey) == MemAllocType);
-        MemAllocObject *o = ValkeyModule_ModuleTypeGetValue(openkey);
+    NexCacheModuleString *key;
+    NexCacheModuleDictIter *iter = NexCacheModule_DictIteratorStartC(mem_pool[dbid], "^", NULL, 0);
+    while((key = NexCacheModule_DictNext(ctx, iter, &data)) != NULL) {
+        int dbbackup = NexCacheModule_GetSelectedDb(ctx);
+        NexCacheModule_SelectDb(ctx, dbid);
+        NexCacheModuleKey *openkey = NexCacheModule_OpenKey(ctx, key, NEXCACHEMODULE_READ);
+        int type = NexCacheModule_KeyType(openkey);
+        NexCacheModule_Assert(type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(openkey) == MemAllocType);
+        MemAllocObject *o = NexCacheModule_ModuleTypeGetValue(openkey);
         used += o->used;
         size += o->size;
-        ValkeyModule_CloseKey(openkey);
-        ValkeyModule_SelectDb(ctx, dbbackup);
+        NexCacheModule_CloseKey(openkey);
+        NexCacheModule_SelectDb(ctx, dbbackup);
     }
-    ValkeyModule_DictIteratorStop(iter);
+    NexCacheModule_DictIteratorStop(iter);
 
-    ValkeyModule_ReplyWithArray(ctx, 4);
-    ValkeyModule_ReplyWithSimpleString(ctx, "total");
-    ValkeyModule_ReplyWithLongLong(ctx, size);
-    ValkeyModule_ReplyWithSimpleString(ctx, "used");
-    ValkeyModule_ReplyWithLongLong(ctx, used);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithArray(ctx, 4);
+    NexCacheModule_ReplyWithSimpleString(ctx, "total");
+    NexCacheModule_ReplyWithLongLong(ctx, size);
+    NexCacheModule_ReplyWithSimpleString(ctx, "used");
+    NexCacheModule_ReplyWithLongLong(ctx, used);
+    return NEXCACHEMODULE_OK;
 }
 
 /* MEM.ALLOCANDWRITE key block_num block_index data block_index data ... */
-int MemAllocAndWrite_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    ValkeyModule_AutoMemory(ctx);  
+int MemAllocAndWrite_NexCacheCommand(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NexCacheModule_AutoMemory(ctx);  
 
     if (argc < 3) {
-        return ValkeyModule_WrongArity(ctx);
+        return NexCacheModule_WrongArity(ctx);
     }
 
     long long block_num;
-    if ((ValkeyModule_StringToLongLong(argv[2], &block_num) != VALKEYMODULE_OK) || block_num <= 0) {
-        return ValkeyModule_ReplyWithError(ctx, "ERR invalid block_num: must be a value greater than 0");
+    if ((NexCacheModule_StringToLongLong(argv[2], &block_num) != NEXCACHEMODULE_OK) || block_num <= 0) {
+        return NexCacheModule_ReplyWithError(ctx, "ERR invalid block_num: must be a value greater than 0");
     }
 
-    ValkeyModuleKey *key = ValkeyModule_OpenKey(ctx, argv[1], VALKEYMODULE_READ | VALKEYMODULE_WRITE);
-    int type = ValkeyModule_KeyType(key);
-    if (type != VALKEYMODULE_KEYTYPE_EMPTY && ValkeyModule_ModuleTypeGetType(key) != MemAllocType) {
-        return ValkeyModule_ReplyWithError(ctx, VALKEYMODULE_ERRORMSG_WRONGTYPE);
+    NexCacheModuleKey *key = NexCacheModule_OpenKey(ctx, argv[1], NEXCACHEMODULE_READ | NEXCACHEMODULE_WRITE);
+    int type = NexCacheModule_KeyType(key);
+    if (type != NEXCACHEMODULE_KEYTYPE_EMPTY && NexCacheModule_ModuleTypeGetType(key) != MemAllocType) {
+        return NexCacheModule_ReplyWithError(ctx, NEXCACHEMODULE_ERRORMSG_WRONGTYPE);
     }
 
     MemAllocObject *o;
-    if (type == VALKEYMODULE_KEYTYPE_EMPTY) {
+    if (type == NEXCACHEMODULE_KEYTYPE_EMPTY) {
         o = createMemAllocObject();
-        ValkeyModule_ModuleTypeSetValue(key, MemAllocType, o);
+        NexCacheModule_ModuleTypeSetValue(key, MemAllocType, o);
     } else {
-        o = ValkeyModule_ModuleTypeGetValue(key);
+        o = NexCacheModule_ModuleTypeGetValue(key);
     }
 
     struct MemBlock *mem = MemBlockCreate(block_num);
-    ValkeyModule_Assert(mem != NULL);
-    ValkeyModule_DictSet(mem_pool[ValkeyModule_GetSelectedDb(ctx)], argv[1], mem);
+    NexCacheModule_Assert(mem != NULL);
+    NexCacheModule_DictSet(mem_pool[NexCacheModule_GetSelectedDb(ctx)], argv[1], mem);
     o->used = 0;
     o->mask = 0;
     o->size = block_num;
@@ -484,182 +484,182 @@ int MemAllocAndWrite_RedisCommand(ValkeyModuleCtx *ctx, ValkeyModuleString **arg
     long long block_index;
     for (; i < argc; i++) {
         /* Security is guaranteed internally, so no security check. */
-        ValkeyModule_StringToLongLong(argv[i], &block_index);
+        NexCacheModule_StringToLongLong(argv[i], &block_index);
         size_t len;
-        const char * buf = ValkeyModule_StringPtrLen(argv[i + 1], &len);
+        const char * buf = NexCacheModule_StringPtrLen(argv[i + 1], &len);
         MemBlockWrite(mem, block_index, buf, len);
         o->used++;
         o->mask |= (1UL << block_index);
     }
 
-    ValkeyModule_ReplyWithSimpleString(ctx, "OK");
-    ValkeyModule_ReplicateVerbatim(ctx);
-    return VALKEYMODULE_OK;
+    NexCacheModule_ReplyWithSimpleString(ctx, "OK");
+    NexCacheModule_ReplicateVerbatim(ctx);
+    return NEXCACHEMODULE_OK;
 }
 
 /*---------------------------- type callbacks ------------------------------------*/
 
-void *MemAllocRdbLoad(ValkeyModuleIO *rdb, int encver) {
+void *MemAllocRdbLoad(NexCacheModuleIO *rdb, int encver) {
     if (encver != 0) {
         return NULL;
     }
 
     MemAllocObject *o = createMemAllocObject();
-    o->size = ValkeyModule_LoadSigned(rdb);
-    o->used = ValkeyModule_LoadSigned(rdb);
-    o->mask = ValkeyModule_LoadUnsigned(rdb);
+    o->size = NexCacheModule_LoadSigned(rdb);
+    o->used = NexCacheModule_LoadSigned(rdb);
+    o->mask = NexCacheModule_LoadUnsigned(rdb);
 
-    const ValkeyModuleString *key = ValkeyModule_GetKeyNameFromIO(rdb);
-    int dbid = ValkeyModule_GetDbIdFromIO(rdb);
+    const NexCacheModuleString *key = NexCacheModule_GetKeyNameFromIO(rdb);
+    int dbid = NexCacheModule_GetDbIdFromIO(rdb);
 
     if (o->size) {
         size_t size;
         char *tmpbuf;
         long long num = o->size;
-        struct MemBlock *head = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
-        tmpbuf = ValkeyModule_LoadStringBuffer(rdb, &size);
+        struct MemBlock *head = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
+        tmpbuf = NexCacheModule_LoadStringBuffer(rdb, &size);
         memcpy(head->block, tmpbuf, size > BLOCK_SIZE ? BLOCK_SIZE:size);
-        ValkeyModule_Free(tmpbuf);
+        NexCacheModule_Free(tmpbuf);
         struct MemBlock *block = head;
         while (--num) {
-            block->next = ValkeyModule_Calloc(1, sizeof(struct MemBlock));
+            block->next = NexCacheModule_Calloc(1, sizeof(struct MemBlock));
             block = block->next;
 
-            tmpbuf = ValkeyModule_LoadStringBuffer(rdb, &size);
+            tmpbuf = NexCacheModule_LoadStringBuffer(rdb, &size);
             memcpy(block->block, tmpbuf, size > BLOCK_SIZE ? BLOCK_SIZE:size);
-            ValkeyModule_Free(tmpbuf);
+            NexCacheModule_Free(tmpbuf);
         }
 
-        ValkeyModule_DictSet(mem_pool[dbid], (ValkeyModuleString *)key, head);
+        NexCacheModule_DictSet(mem_pool[dbid], (NexCacheModuleString *)key, head);
     }
      
     return o;
 }
 
-void MemAllocRdbSave(ValkeyModuleIO *rdb, void *value) {
+void MemAllocRdbSave(NexCacheModuleIO *rdb, void *value) {
     MemAllocObject *o = value;
-    ValkeyModule_SaveSigned(rdb, o->size);
-    ValkeyModule_SaveSigned(rdb, o->used);
-    ValkeyModule_SaveUnsigned(rdb, o->mask);
+    NexCacheModule_SaveSigned(rdb, o->size);
+    NexCacheModule_SaveSigned(rdb, o->used);
+    NexCacheModule_SaveUnsigned(rdb, o->mask);
 
-    const ValkeyModuleString *key = ValkeyModule_GetKeyNameFromIO(rdb);
-    int dbid = ValkeyModule_GetDbIdFromIO(rdb);
+    const NexCacheModuleString *key = NexCacheModule_GetKeyNameFromIO(rdb);
+    int dbid = NexCacheModule_GetDbIdFromIO(rdb);
 
     if (o->size) {
         int nokey;
-        struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[dbid], (ValkeyModuleString *)key, &nokey);
-        ValkeyModule_Assert(nokey == 0 && mem != NULL);
+        struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[dbid], (NexCacheModuleString *)key, &nokey);
+        NexCacheModule_Assert(nokey == 0 && mem != NULL);
 
         struct MemBlock *block = mem; 
         while (block) {
-            ValkeyModule_SaveStringBuffer(rdb, block->block, BLOCK_SIZE);
+            NexCacheModule_SaveStringBuffer(rdb, block->block, BLOCK_SIZE);
             block = block->next;
         }
     }
 }
 
-void MemAllocAofRewrite(ValkeyModuleIO *aof, ValkeyModuleString *key, void *value) {
+void MemAllocAofRewrite(NexCacheModuleIO *aof, NexCacheModuleString *key, void *value) {
     MemAllocObject *o = (MemAllocObject *)value;
     if (o->size) {
-        int dbid = ValkeyModule_GetDbIdFromIO(aof);
+        int dbid = NexCacheModule_GetDbIdFromIO(aof);
         int nokey;
         size_t i = 0, j = 0;
-        struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[dbid], (ValkeyModuleString *)key, &nokey);
-        ValkeyModule_Assert(nokey == 0 && mem != NULL);
+        struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[dbid], (NexCacheModuleString *)key, &nokey);
+        NexCacheModule_Assert(nokey == 0 && mem != NULL);
         size_t array_size = o->size * 2;
-        ValkeyModuleString ** string_array = ValkeyModule_Calloc(array_size, sizeof(ValkeyModuleString *));
+        NexCacheModuleString ** string_array = NexCacheModule_Calloc(array_size, sizeof(NexCacheModuleString *));
         while (mem) {
-            string_array[i] = ValkeyModule_CreateStringFromLongLong(NULL, j);
-            string_array[i + 1] = ValkeyModule_CreateString(NULL, mem->block, BLOCK_SIZE);
+            string_array[i] = NexCacheModule_CreateStringFromLongLong(NULL, j);
+            string_array[i + 1] = NexCacheModule_CreateString(NULL, mem->block, BLOCK_SIZE);
             mem = mem->next;
             i += 2;
             j++;
         }
-        ValkeyModule_EmitAOF(aof, "mem.allocandwrite", "slv", key, o->size, string_array, array_size);
+        NexCacheModule_EmitAOF(aof, "mem.allocandwrite", "slv", key, o->size, string_array, array_size);
         for (i = 0; i < array_size; i++) {
-            ValkeyModule_FreeString(NULL, string_array[i]);
+            NexCacheModule_FreeString(NULL, string_array[i]);
         }
-        ValkeyModule_Free(string_array);
+        NexCacheModule_Free(string_array);
     } else {
-        ValkeyModule_EmitAOF(aof, "mem.allocandwrite", "sl", key, o->size);
+        NexCacheModule_EmitAOF(aof, "mem.allocandwrite", "sl", key, o->size);
     }
 }
 
 void MemAllocFree(void *value) {
-    ValkeyModule_Free(value);
+    NexCacheModule_Free(value);
 }
 
-void MemAllocUnlink(ValkeyModuleString *key, const void *value) {
-    VALKEYMODULE_NOT_USED(key);
-    VALKEYMODULE_NOT_USED(value);
+void MemAllocUnlink(NexCacheModuleString *key, const void *value) {
+    NEXCACHEMODULE_NOT_USED(key);
+    NEXCACHEMODULE_NOT_USED(value);
 
     /* When unlink and unlink2 exist at the same time, we will only call unlink2. */
-    ValkeyModule_Assert(0);
+    NexCacheModule_Assert(0);
 }
 
-void MemAllocUnlink2(ValkeyModuleKeyOptCtx *ctx, const void *value) {
+void MemAllocUnlink2(NexCacheModuleKeyOptCtx *ctx, const void *value) {
     MemAllocObject *o = (MemAllocObject *)value;
 
-    const ValkeyModuleString *key = ValkeyModule_GetKeyNameFromOptCtx(ctx);
-    int dbid = ValkeyModule_GetDbIdFromOptCtx(ctx);
+    const NexCacheModuleString *key = NexCacheModule_GetKeyNameFromOptCtx(ctx);
+    int dbid = NexCacheModule_GetDbIdFromOptCtx(ctx);
     
     if (o->size) {
         void *oldval;
-        ValkeyModule_DictDel(mem_pool[dbid], (ValkeyModuleString *)key, &oldval);
-        ValkeyModule_Assert(oldval != NULL);
+        NexCacheModule_DictDel(mem_pool[dbid], (NexCacheModuleString *)key, &oldval);
+        NexCacheModule_Assert(oldval != NULL);
         MemBlockFree((struct MemBlock *)oldval);
     }
 }
 
-void MemAllocDigest(ValkeyModuleDigest *md, void *value) {
+void MemAllocDigest(NexCacheModuleDigest *md, void *value) {
     MemAllocObject *o = (MemAllocObject *)value;
-    ValkeyModule_DigestAddLongLong(md, o->size);
-    ValkeyModule_DigestAddLongLong(md, o->used);
-    ValkeyModule_DigestAddLongLong(md, o->mask);
+    NexCacheModule_DigestAddLongLong(md, o->size);
+    NexCacheModule_DigestAddLongLong(md, o->used);
+    NexCacheModule_DigestAddLongLong(md, o->mask);
 
-    int dbid = ValkeyModule_GetDbIdFromDigest(md);
-    const ValkeyModuleString *key = ValkeyModule_GetKeyNameFromDigest(md);
+    int dbid = NexCacheModule_GetDbIdFromDigest(md);
+    const NexCacheModuleString *key = NexCacheModule_GetKeyNameFromDigest(md);
     
     if (o->size) {
         int nokey;
-        struct MemBlock *mem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[dbid], (ValkeyModuleString *)key, &nokey);
-        ValkeyModule_Assert(nokey == 0 && mem != NULL);
+        struct MemBlock *mem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[dbid], (NexCacheModuleString *)key, &nokey);
+        NexCacheModule_Assert(nokey == 0 && mem != NULL);
 
         struct MemBlock *block = mem;
         while (block) {
-            ValkeyModule_DigestAddStringBuffer(md, (const char *)block->block, BLOCK_SIZE);
+            NexCacheModule_DigestAddStringBuffer(md, (const char *)block->block, BLOCK_SIZE);
             block = block->next;
         }
     }
 }
 
-void *MemAllocCopy2(ValkeyModuleKeyOptCtx *ctx, const void *value) {
+void *MemAllocCopy2(NexCacheModuleKeyOptCtx *ctx, const void *value) {
     const MemAllocObject *old = value;
     MemAllocObject *new = createMemAllocObject();
     new->size = old->size;
     new->used = old->used;
     new->mask = old->mask;
 
-    int from_dbid = ValkeyModule_GetDbIdFromOptCtx(ctx);
-    int to_dbid = ValkeyModule_GetToDbIdFromOptCtx(ctx);
-    const ValkeyModuleString *fromkey = ValkeyModule_GetKeyNameFromOptCtx(ctx);
-    const ValkeyModuleString *tokey = ValkeyModule_GetToKeyNameFromOptCtx(ctx);
+    int from_dbid = NexCacheModule_GetDbIdFromOptCtx(ctx);
+    int to_dbid = NexCacheModule_GetToDbIdFromOptCtx(ctx);
+    const NexCacheModuleString *fromkey = NexCacheModule_GetKeyNameFromOptCtx(ctx);
+    const NexCacheModuleString *tokey = NexCacheModule_GetToKeyNameFromOptCtx(ctx);
 
     if (old->size) {
         int nokey;
-        struct MemBlock *oldmem = (struct MemBlock *)ValkeyModule_DictGet(mem_pool[from_dbid], (ValkeyModuleString *)fromkey, &nokey);
-        ValkeyModule_Assert(nokey == 0 && oldmem != NULL);
+        struct MemBlock *oldmem = (struct MemBlock *)NexCacheModule_DictGet(mem_pool[from_dbid], (NexCacheModuleString *)fromkey, &nokey);
+        NexCacheModule_Assert(nokey == 0 && oldmem != NULL);
         struct MemBlock *newmem = MemBlockClone(oldmem);
-        ValkeyModule_Assert(newmem != NULL);
-        ValkeyModule_DictSet(mem_pool[to_dbid], (ValkeyModuleString *)tokey, newmem);
+        NexCacheModule_Assert(newmem != NULL);
+        NexCacheModule_DictSet(mem_pool[to_dbid], (NexCacheModuleString *)tokey, newmem);
     }   
 
     return new;
 }
 
-size_t MemAllocMemUsage2(ValkeyModuleKeyOptCtx *ctx, const void *value, size_t sample_size) {
-    VALKEYMODULE_NOT_USED(ctx);
-    VALKEYMODULE_NOT_USED(sample_size);
+size_t MemAllocMemUsage2(NexCacheModuleKeyOptCtx *ctx, const void *value, size_t sample_size) {
+    NEXCACHEMODULE_NOT_USED(ctx);
+    NEXCACHEMODULE_NOT_USED(sample_size);
     uint64_t size = 0;
     MemAllocObject *o = (MemAllocObject *)value;
 
@@ -669,22 +669,22 @@ size_t MemAllocMemUsage2(ValkeyModuleKeyOptCtx *ctx, const void *value, size_t s
     return size;
 }
 
-size_t MemAllocMemFreeEffort2(ValkeyModuleKeyOptCtx *ctx, const void *value) {
-    VALKEYMODULE_NOT_USED(ctx);
+size_t MemAllocMemFreeEffort2(NexCacheModuleKeyOptCtx *ctx, const void *value) {
+    NEXCACHEMODULE_NOT_USED(ctx);
     MemAllocObject *o = (MemAllocObject *)value;
     return o->size;
 }
 
-int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int argc) {
-    VALKEYMODULE_NOT_USED(argv);
-    VALKEYMODULE_NOT_USED(argc);
+int NexCacheModule_OnLoad(NexCacheModuleCtx *ctx, NexCacheModuleString **argv, int argc) {
+    NEXCACHEMODULE_NOT_USED(argv);
+    NEXCACHEMODULE_NOT_USED(argc);
 
-    if (ValkeyModule_Init(ctx, "datatype2", 1,VALKEYMODULE_APIVER_1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_Init(ctx, "datatype2", 1,NEXCACHEMODULE_APIVER_1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    ValkeyModuleTypeMethods tm = {
-        .version = VALKEYMODULE_TYPE_METHOD_VERSION,
+    NexCacheModuleTypeMethods tm = {
+        .version = NEXCACHEMODULE_TYPE_METHOD_VERSION,
         .rdb_load = MemAllocRdbLoad,
         .rdb_save = MemAllocRdbSave,
         .aof_rewrite = MemAllocAofRewrite,
@@ -698,63 +698,63 @@ int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx, ValkeyModuleString **argv, int arg
         .free_effort2 = MemAllocMemFreeEffort2,
     };
 
-    MemAllocType = ValkeyModule_CreateDataType(ctx, "mem_alloc", 0, &tm);
+    MemAllocType = NexCacheModule_CreateDataType(ctx, "mem_alloc", 0, &tm);
     if (MemAllocType == NULL) {
-        return VALKEYMODULE_ERR;
+        return NEXCACHEMODULE_ERR;
     }
 
-    /* This option tests skip command validation for ValkeyModule_EmitAOF */
-    ValkeyModule_SetModuleOptions(ctx, VALKEYMODULE_OPTIONS_SKIP_COMMAND_VALIDATION);
+    /* This option tests skip command validation for NexCacheModule_EmitAOF */
+    NexCacheModule_SetModuleOptions(ctx, NEXCACHEMODULE_OPTIONS_SKIP_COMMAND_VALIDATION);
 
-    if (ValkeyModule_CreateCommand(ctx, "mem.alloc", MemAlloc_RedisCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.alloc", MemAlloc_NexCacheCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "mem.free", MemFree_RedisCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.free", MemFree_NexCacheCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "mem.write", MemWrite_RedisCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.write", MemWrite_NexCacheCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "mem.read", MemRead_RedisCommand, "readonly", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.read", MemRead_NexCacheCommand, "readonly", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
-    if (ValkeyModule_CreateCommand(ctx, "mem.usage", MemUsage_RedisCommand, "readonly", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.usage", MemUsage_NexCacheCommand, "readonly", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
     /* used for internal aof rewrite */
-    if (ValkeyModule_CreateCommand(ctx, "mem.allocandwrite", MemAllocAndWrite_RedisCommand, "write deny-oom", 1, 1, 1) == VALKEYMODULE_ERR) {
-        return VALKEYMODULE_ERR;
+    if (NexCacheModule_CreateCommand(ctx, "mem.allocandwrite", MemAllocAndWrite_NexCacheCommand, "write deny-oom", 1, 1, 1) == NEXCACHEMODULE_ERR) {
+        return NEXCACHEMODULE_ERR;
     }
 
     for(int i = 0; i < MAX_DB; i++){
-        mem_pool[i] = ValkeyModule_CreateDict(NULL);
+        mem_pool[i] = NexCacheModule_CreateDict(NULL);
     }
 
-    ValkeyModule_SubscribeToServerEvent(ctx, ValkeyModuleEvent_FlushDB, flushdbCallback);
-    ValkeyModule_SubscribeToServerEvent(ctx, ValkeyModuleEvent_SwapDB, swapDbCallback);
+    NexCacheModule_SubscribeToServerEvent(ctx, NexCacheModuleEvent_FlushDB, flushdbCallback);
+    NexCacheModule_SubscribeToServerEvent(ctx, NexCacheModuleEvent_SwapDB, swapDbCallback);
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }
 
-int ValkeyModule_OnUnload(ValkeyModuleCtx *ctx) {
-    VALKEYMODULE_NOT_USED(ctx);
+int NexCacheModule_OnUnload(NexCacheModuleCtx *ctx) {
+    NEXCACHEMODULE_NOT_USED(ctx);
 
     for(int i = 0; i < MAX_DB; i++){
-        ValkeyModuleString *key;
+        NexCacheModuleString *key;
         void *tdata;
-        ValkeyModuleDictIter *iter = ValkeyModule_DictIteratorStartC(mem_pool[i], "^", NULL, 0);
-        while((key = ValkeyModule_DictNext(ctx, iter, &tdata)) != NULL) {
+        NexCacheModuleDictIter *iter = NexCacheModule_DictIteratorStartC(mem_pool[i], "^", NULL, 0);
+        while((key = NexCacheModule_DictNext(ctx, iter, &tdata)) != NULL) {
             MemBlockFree((struct MemBlock *)tdata);
-            ValkeyModule_FreeString(ctx, key);
+            NexCacheModule_FreeString(ctx, key);
         }
-        ValkeyModule_DictIteratorStop(iter);
-        ValkeyModule_FreeDict(NULL, mem_pool[i]);
+        NexCacheModule_DictIteratorStop(iter);
+        NexCacheModule_FreeDict(NULL, mem_pool[i]);
     }
 
-    return VALKEYMODULE_OK;
+    return NEXCACHEMODULE_OK;
 }

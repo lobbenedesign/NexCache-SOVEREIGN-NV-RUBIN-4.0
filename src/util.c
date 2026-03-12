@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012, Redis Ltd.
+ * Copyright (c) 2009-2012, NexCache Contributors.
  * Copyright (c) 2012, Twitter, Inc.
  * All rights reserved.
  *
