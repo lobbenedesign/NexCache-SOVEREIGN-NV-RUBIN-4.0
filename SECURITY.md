@@ -1,6 +1,16 @@
+# Security Policy
+
 ## Reporting a Vulnerability
 
-If you believe you've discovered a security vulnerability, please contact the Valkey team at security@lists.valkey.io.
-Please *DO NOT* create an issue.
-We follow a responsible disclosure procedure, so depending on the severity of the issue we may notify Valkey vendors about the issue before releasing it publicly.
-If you would like to be added to our list of vendors, please reach out to the Valkey team at maintainers@lists.valkey.io.
+If you believe you have discovered a security vulnerability in NexCache, please **DO NOT** open a public issue.
+
+Instead, please report the vulnerability directly to the lead maintainer:
+- **Email**: [giuseppelobbene@gmail.com](mailto:giuseppelobbene@gmail.com)
+
+We follow a responsible disclosure procedure. We will acknowledge your report and work with you to understand and resolve the issue before making it public.
+
+## Responsible Disclosure
+We value the efforts of security researchers. By reporting issues privately, you help us protect the community and the integrity of the software.
+
+---
+*NexCache — Rethink Memory, Accelerate AI.*

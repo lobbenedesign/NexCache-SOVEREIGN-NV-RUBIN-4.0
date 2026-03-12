@@ -1,96 +1,58 @@
-Contributor Covenant Code of Conduct
-Our Pledge
-We as members, contributors, and leaders pledge to make participation in our
-community a harassment-free experience for everyone, regardless of age, body
-size, visible or invisible disability, ethnicity, sex characteristics, gender
-identity and expression, level of experience, education, socio-economic status,
-nationality, personal appearance, race, religion, or sexual identity
-and orientation.
-We pledge to act and interact in ways that contribute to an open, welcoming,
-diverse, inclusive, and healthy community.
-Our Standards
-Examples of behavior that contributes to a positive environment for our
-community include:
+# NexCache Project Code of Conduct
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes,
-and learning from the experience
-* Focusing on what is best not just for us as individuals, but for the
-overall community
+## Our Pledge
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of nationality, personal appearance, race, religion, or sexual identity and orientation.
 
-Examples of unacceptable behavior include:
+## Our Standards
+Examples of behavior that contributes to creating a positive environment include:
+* Using welcoming and inclusive language
+* Being respectful of differing viewpoints and experiences
+* Gracefully accepting constructive criticism
+* Focusing on what is best for the community
+* Showing empathy towards other community members
 
-* The use of sexualized language or imagery, and sexual attention or
-advances of any kind
-* Trolling, insulting or derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or email
-address, without their explicit permission
-* Other conduct which could reasonably be considered inappropriate in a
-professional setting
+## Enforcement
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project maintainer at **giuseppelobbene@gmail.com**.
 
-Enforcement Responsibilities
-Community leaders are responsible for clarifying and enforcing our standards of
-acceptable behavior and will take appropriate and fair corrective action in
-response to any behavior that they deem inappropriate, threatening, offensive,
-or harmful.
-Community leaders have the right and responsibility to remove, edit, or reject
-comments, commits, code, wiki edits, issues, and other contributions that are
-not aligned to this Code of Conduct, and will communicate reasons for moderation
-decisions when appropriate.
-Scope
-This Code of Conduct applies within all community spaces, and also applies when
-an individual is officially representing the community in public spaces.
-Examples of representing our community include using an official e-mail address,
-posting via an official social media account, or acting as an appointed
-representative at an online or offline event.
-Enforcement
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-this email address: giuseppelobbene@gmail.com.
-All complaints will be reviewed and investigated promptly and fairly.
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
-Enforcement Guidelines
-Community leaders will follow these Community Impact Guidelines in determining
-the consequences for any action they deem in violation of this Code of Conduct:
-1. Correction
-Community Impact: Use of inappropriate language or other behavior deemed
-unprofessional or unwelcome in the community.
-Consequence: A private, written warning from community leaders, providing
-clarity around the nature of the violation and an explanation of why the
-behavior was inappropriate. A public apology may be requested.
-2. Warning
-Community Impact: A violation through a single incident or series
-of actions.
-Consequence: A warning with consequences for continued behavior. No
-interaction with the people involved, including unsolicited interaction with
-those enforcing the Code of Conduct, for a specified period of time. This
-includes avoiding interactions in community spaces as well as external channels
-like social media. Violating these terms may lead to a temporary or
-permanent ban.
-3. Temporary Ban
-Community Impact: A serious violation of community standards, including
-sustained inappropriate behavior.
-Consequence: A temporary ban from any sort of interaction or public
-communication with the community for a specified period of time. No public or
-private interaction with the people involved, including unsolicited interaction
-with those enforcing the Code of Conduct, is allowed during this period.
-Violating these terms may lead to a permanent ban.
-4. Permanent Ban
-Community Impact: Demonstrating a pattern of violation of community
-standards, including sustained inappropriate behavior,  harassment of an
-individual, or aggression toward or disparagement of classes of individuals.
-Consequence: A permanent ban from any sort of public interaction within
-the community.
-Attribution
-This Code of Conduct is adapted from the Contributor Covenant,
-version 2.0, available at
-https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
-Community Impact Guidelines were inspired by Mozilla's code of conduct
-enforcement ladder.
-For answers to common questions about this code of conduct, see the FAQ at
-https://www.contributor-covenant.org/faq. Translations are available at
-https://www.contributor-covenant.org/translations.
+---
+
+<details>
+<summary><b>🔍 Behind the Code: A Note from the Author / Nota dell'Autore</b></summary>
+
+### **English: About the Author**
+
+My name is **Giuseppe Lobbene**, and I am a developer who believes in the power of architectural elegance and the necessity of constant innovation.
+
+In developing **NexCache**, I’ve tried to follow in the footsteps of innovators like **Salvatore Sanfilippo**, who revolutionized the tech world by solving problems that others hadn't even recognized. My goal is to push the boundaries of performance and efficiency while building a solid foundation for my family.
+
+I am currently seeking a high-level professional challenge—a role in a tech-driven company that values expertise and offers the stability needed to build a secure future for my son. My professional journey has been intense:
+*   I managed the technical operations of a beach booking startup that reached €300,000 in transactions in its first season.
+*   I handled everything from B2B/B2C support and graphic design to developing custom **Flutter apps** and system configurations.
+*   Despite working as a freelancer full-time for years with very limited pay, I gave 100% as if the company were my own.
+
+Currently, I work for a supportive construction company that allows me to work remotely from my home in **Puglia**. While I am grateful, I hope one day to bring my deep technical know-how to a purely tech-focused enterprise with ambitious goals.
+
+If you are looking for a dedicated engineer who builds with passion and responsibility, let's talk.
+
+---
+
+### **Italiano: Nota dell'Autore**
+
+Mi chiamo **Giuseppe Lobbene**, e sono uno sviluppatore che crede nell'eleganza dell'architettura software e nell'innovazione costante.
+
+Con **NexCache**, ho cercato di seguire (seppur "maldestramente") le orme di **Salvatore Sanfilippo**, una figura che ha dato tanto alla comunità informatica mondiale risolvendo problemi che altri non avevano nemmeno iniziato a porsi.
+
+Oggi sono alla ricerca di una sfida professionale di alto livello — una realtà tecnologica che valorizzi le competenze e offra la stabilità necessaria per dare un futuro degno a mio figlio e una casa alla mia famiglia. Il mio percorso non è stato facile:
+*   Ho preso in mano la gestione di una startup per la prenotazione spiagge, portandola a 300.000€ di transato fin dalla prima stagione.
+*   Mi sono occupato di tutto: supporto B2B/B2C, design grafico, configurazione gestionali e sviluppo di **app Flutter**.
+*   Ho lavorato per anni come autonomo a partita IVA, 7 giorni su 7, con compensi che non rispecchiavano l'impegno profuso, trattando i progetti come se fossero di mia proprietà.
+
+Al momento lavoro in smartworking dalla **Puglia** per un'azienda edile che mi ha accolto calorosamente. Tuttavia, trovandomi lontano dal mondo dell'innovazione tecnologica pura, spero un giorno di entrare a far parte di un'azienda con grandi mire, dove possa crescere e dare valore alla mia figura professionale.
+
+Se cerchi uno sviluppatore che costruisce con passione e un profondo senso di responsabilità, contattami.
+
+📫 Reach out: [giuseppelobbene@gmail.com](mailto:giuseppelobbene@gmail.com)
+</details>
+
+---
+*NexCache — Rethink Memory, Accelerate AI.*

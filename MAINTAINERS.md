@@ -1,39 +1,15 @@
-## Overview
+# NexCache Maintainers
 
-This document contains a list of maintainers in this repo.
-See [GOVERNANCE.md](GOVERNANCE.md) that explains the function of this file.
+This document lists the individuals responsible for the maintenance and governance of the NexCache project.
 
-## Committee Chair
+## Lead Maintainer
 
-- **Madelyn Olson**
-  Term: March 28, 2024 – Present
+*   **Giuseppe Lobbene** (@giuseppelobbene-source)
+    *   Role: Project Creator & Lead Architect
+    *   Contact: [giuseppelobbene@gmail.com](mailto:giuseppelobbene@gmail.com)
 
-## Current Maintainers
+## About the Project
+NexCache is a personal project born out of a passion for high-performance computing and architectural innovation. For more information about the author and the project's vision, please refer to the [README.md](README.md).
 
-Maintainers listed in alphabetical order by their github ID.
-
-| Maintainer          | GitHub ID     | Affiliation |
-| ------------------- | ------------- | ----------- |
-| Binbin Zhu          | @enjoy-binbin | Tencent     |
-| Harkrishn Patro     | @hpatro       | Amazon      |
-| Lucas Yang          | @lucasyonge   | -           |
-| Madelyn Olson       | @madolson     | Amazon      |
-| Jacob Murphy        | @murphyjacob4 | Google      |
-| Ping Xie            | @pingxie      | Oracle      |
-| Ran Shidlansik      | @ranshid      | Amazon      |
-| Zhao Zhao           | @soloestoy    | Alibaba     |
-| Viktor Söderqvist   | @zuiderkwast  | Ericsson    |
-
-## Current Committers
-
-Committers listed in alphabetical order by their github ID.
-
-| Committer           | GitHub ID     | Affiliation |
-| ------------------- | ------------- | ----------- |
-| Jim Brunner         | @JimB123      | Amazon      |
-| Ricardo Dias        | @rjd15372     | Percona     |
-
-## Former Maintainers and Committers 
-
-| Name                | GitHub ID     | Role | Term | Affiliation |
-| ------------------- | ------------- | ---- | ---- | ----------- |
+---
+*NexCache — Rethink Memory, Accelerate AI.*
