@@ -1,4 +1,4 @@
-# NexCache VERA M3.2 (NVIDIA Rubin Architecture)
+# NexCache VERA M3.3 (NVIDIA Rubin Architecture)
 
 [Italiano](#italiano) | [English](#english)
 
@@ -8,7 +8,7 @@
 ## 🇮🇹 Versione Italiana
 
 ### Visione e Obiettivo del Progetto
-Benvenuti nel repository di **NexCache VERA M3.2**. Questo progetto è il culmine di una ricerca approfondita sull'architettura ad altissime prestazioni per motori In-Memory Data Store, specificamente ottimizzati per l'hardware di nuova generazione **NVIDIA Rubin-class**.
+Benvenuti nel repository di **NexCache VERA M3.3**. Questo progetto è il culmine di una ricerca approfondita sull'architettura ad altissime prestazioni per motori In-Memory Data Store, specificamente ottimizzati per l'hardware di nuova generazione **NVIDIA Rubin-class**.
 
 L'obiettivo è creare un engine che non sia solo "veloce", ma **architettonicamente superiore**, sfruttando le istruzioni vettoriali SVE2, l'allineamento a 256 byte (Rubin-Mode) e una topologia a 176 shard per eliminare ogni collo di bottiglia di sincronizzazione.
 
@@ -19,7 +19,7 @@ La mia storia riflette quella di molti professionisti in Italia: un paese meravi
 
 Oggi, la mia ricerca non è solo tecnologica ma di vita. Cerco una stabilità professionale che mi permetta di apprendere costantemente, restando al passo con l'innovazione, per garantire un futuro degno alla mia famiglia e al mio piccolo **Oliver**, nato da pochi mesi. Questo progetto è la mia "firma" nel mondo dell'IT: una prova tangibile che la passione, unita allo studio costante, può generare eccellenza tecnologica anche partendo da sfide personali difficili.
 
-### Architettura e Implementazione (VERA M3.2)
+### Architettura e Implementazione (VERA M3.3)
 Questo progetto introduce innovazioni critiche nel kernel di NexCache:
 
 *   **Rubin-Mode Alignment (256-byte):** Ogni struttura critica (Arena, Object, MPSC Queue) è allineata a 256 byte per coincidere perfettamente con la dimensione del settore di memoria del processore NVIDIA Rubin, eliminando il false sharing.
@@ -34,7 +34,7 @@ Questo progetto introduce innovazioni critiche nel kernel di NexCache:
 ## 🇺🇸 English Version
 
 ### Project Vision and Goal
-Welcome to the **NexCache VERA M3.2** repository. This project is the result of rigorous research into high-performance architectures for In-Memory Data Stores, specifically optimized for the next-generation **NVIDIA Rubin-class** hardware.
+Welcome to the **NexCache VERA M3.3** repository. This project is the result of rigorous research into high-performance architectures for In-Memory Data Stores, specifically optimized for the next-generation **NVIDIA Rubin-class** hardware.
 
 The goal is to build an engine that is not just "fast," but **architecturally superior**, utilizing SVE2 vector instructions, 256-byte alignment (Rubin-Mode), and a 176-shard topology to eliminate synchronization bottlenecks.
 
@@ -45,7 +45,7 @@ My story mirrors that of many IT professionals in Italy: a beautiful country whe
 
 Today, my quest is not just technological but vital. I am looking for a professional stability that allows me to constantly learn and stay ahead of innovation, to ensure a dignified future for my family and my little son **Oliver**, born just a few months ago. This project is my "signature" in the IT world: tangible proof that passion, combined with constant study, can generate technological excellence even when facing difficult personal challenges.
 
-### Architecture and Implementation (VERA M3.2)
+### Architecture and Implementation (VERA M3.3)
 This project introduces critical innovations into the NexCache kernel:
 
 *   **Rubin-Mode Alignment (256-byte):** Every critical structure (Arena, Object, MPSC Queue) is aligned to 256 bytes to perfectly match the memory sector size of the NVIDIA Rubin processor, eliminating false sharing.
