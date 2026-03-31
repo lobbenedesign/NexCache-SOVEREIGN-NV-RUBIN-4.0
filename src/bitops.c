@@ -192,45 +192,52 @@ long long popcountScalar(void *s, long count) {
 
 #if HAVE_ARM_NEON
 #include <arm_neon.h>
-
 /*  SIMD version of popcount for ARM NEON.
  *  Processes data in 64-byte NEON batches, falls back to scalar for tail. */
 long long popcountNEON(void *s, long n) {
     long long t = 0;
     uint8_t *p = (uint8_t *)s;
-    ;
     const uint8_t *e = p + n;
 
-    /* Process 64-byte blocks using unrolled loop (4 x 16-byte vectors) */
     for (; p <= e - 64; p += 64) {
-        /* Load 4 vector registers (16 bytes each) */
         uint8x16_t v0 = vld1q_u8(p);
         uint8x16_t v1 = vld1q_u8(p + 16);
         uint8x16_t v2 = vld1q_u8(p + 32);
         uint8x16_t v3 = vld1q_u8(p + 48);
-
-        /* Count bits in each byte and sum vectors */
         uint8x16_t s1 = vaddq_u8(vcntq_u8(v0), vcntq_u8(v1));
         uint8x16_t s2 = vaddq_u8(vcntq_u8(v2), vcntq_u8(v3));
         uint8x16_t s0 = vaddq_u8(s1, s2);
-
-        /* Sum all bytes in the final vector */
-        uint16x8_t sc = vpaddlq_u8(s0); // 16x u8 -> 8x u16 (pairwise add)
-        uint32_t t1 = vaddvq_u16(sc);
-        t += t1;
+        uint16x8_t sc = vpaddlq_u8(s0);
+        t += vaddvq_u16(sc);
     }
-
-    /* Process remaining 16-byte chunks */
     for (; p + 16 <= e; p += 16) {
         t += vaddvq_u8(vcntq_u8(vld1q_u8(p)));
     }
+    if (p < e) t += popcountScalar((void *)p, e - p);
+    return t;
+}
+#endif
 
-    /* Handle remaining bytes with scalar fallback */
-    if (p < e) {
-        size_t r = e - p;
-        t += popcountScalar((void *)p, r);
+#if HAVE_ARM_SVE2
+/*  G3-GODMODE: SVE2 version of popcount.
+ *  Uses svcntb to count set bits in a vector-length agnostic way. */
+long long popcountSVE2(void *s, long n) {
+    long long t = 0;
+    uint8_t *p = (uint8_t *)s;
+    long i = 0;
+
+    while (i < n) {
+        svbool_t pg = svwhilelt_b8_u32(i, n);
+        svuint8_t v = svld1_u8(pg, p + i);
+        
+        /* Count bits in each byte using svcnt_u8 (SVE) */
+        svuint8_t c = svcnt_u8(v);
+        
+        /* Sum across the vector */
+        t += svaddv_u8(pg, c);
+        
+        i += svcntb(); // Advance by vector byte length
     }
-
     return t;
 }
 #endif
@@ -248,7 +255,11 @@ long long serverPopcount(void *s, long count) {
 #endif
 #ifdef __aarch64__
     if (count >= 16) {
+#if HAVE_ARM_SVE2
+        return popcountSVE2(s, count);
+#else
         return popcountNEON(s, count);
+#endif
     }
 #endif
 

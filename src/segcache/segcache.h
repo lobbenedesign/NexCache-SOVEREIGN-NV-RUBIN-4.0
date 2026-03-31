@@ -23,17 +23,22 @@
 #ifndef NEXCACHE_SEGCACHE_H
 #define NEXCACHE_SEGCACHE_H
 
+#include "../config.h"
+#include <inttypes.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <pthread.h>
+#include <stdatomic.h>
+#include "../vera_lockfree.h"
 
 /* ── Configurazione ─────────────────────────────────────────── */
 #define SEG_DEFAULT_SIZE (1024 * 1024) /* 1MB per segmento */
 #define SEG_MAX_SEGMENTS 65536
 #define SEG_TTL_BUCKETS 1024  /* Bucket TTL: ogni bucket ≈ intervallo */
 #define SEG_TTL_GRANULARITY 1 /* Secondi di granularità per bucket */
-#define SEG_HASH_POWER 20     /* 2^20 = 1M bucket nella hash table */
-#define SEG_HASH_BUCKETS (1 << SEG_HASH_POWER)
+#define SEG_HASH_POWER 13     /* 2^13 = 8192 bucket PER SHARD */
+#define SEG_BUCKETS_PER_SHARD (1 << SEG_HASH_POWER)
+#define SEG_HASH_BUCKETS (SEG_BUCKETS_PER_SHARD * NEX_RCU_SHARDS)
 #define SEG_ITEMS_PER_BUCKET 8 /* Bulk-chaining: 8 slot per bucket */
 
 /* ── Item header (8 bytes totali — vs 56 Memcached, 64 NexCache) ─ */
@@ -62,6 +67,7 @@ typedef struct NexSegment {
     uint32_t evict_age;      /* Se molto vecchio, da evict */
     struct NexSegment *next; /* Lista per TTL bucket */
     struct NexSegment *prev;
+    mpsc_node_t pool_node; /* NEX-VERA: Zero-malloc segment pool node */
 } NexSegment;
 
 /* ── Hash table entry (bulk-chaining, 8 slot per bucket) ──────── */
@@ -95,29 +101,29 @@ typedef struct SegStats {
 
 /* ── NexSegcache (struttura principale) ─────────────────────── */
 typedef struct NexSegcache {
-    /* Pool di segmenti */
-    NexSegment *segments; /* Array pre-allocato di segmenti */
-    uint32_t n_segments;  /* Totale segmenti allocati */
-    uint32_t n_free;      /* Segmenti liberi */
-    uint32_t *free_list;  /* Stack di indici liberi */
+    /* NEX-VERA: Lock-Free Segment Pool (MPSC-GODMODE) */
+    NexSegment *segments; 
+    uint32_t n_segments;
+    _Atomic uint32_t n_free;
+    mpsc_queue_t free_queue;
 
-    /* Lista per TTL bucket: un segmento attivo per bucket */
-    NexSegment **ttl_buckets; /* Array SEG_TTL_BUCKETS di testa */
+    /* Liste TTL per shard: riduce contesa su inserimento */
+    NexSegment **ttl_shards[NEX_RCU_SHARDS]; /* Ogni shard ha i suoi SEG_TTL_BUCKETS */
 
-    /* Hash table bulk-chaining */
+    /* Hash table bulk-chaining (SHARDED: zero-contention) */
     SegHashBucket *hash_table;
-    uint32_t hash_mask;
+    uint32_t buckets_per_shard;
 
     /* Gestione memoria */
     size_t max_memory;
-    size_t used_memory;
+    _Atomic size_t used_memory;
 
-    /* Thread expiration */
-    pthread_t expire_thread;
-    pthread_mutex_t lock;
+    /* Multi-Lock Architecture */
+    pthread_mutex_t locks[NEX_RCU_SHARDS];
     int running;
 
-    SegStats stats;
+    /* Statistiche per shard (zero contesa in update) */
+    SegStats shard_stats[NEX_RCU_SHARDS];
 } NexSegcache;
 
 /* ── API ────────────────────────────────────────────────────── */

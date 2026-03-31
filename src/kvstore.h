@@ -19,7 +19,7 @@ typedef void (*kvstoreScanFunction)(void *privdata, void *entry, int didx);
 
 #define KVSTORE_INDEX_NOT_FOUND (-1)
 
-kvstore *kvstoreCreate(hashtableType *type, int num_hashtables_bits, int flags);
+kvstore *kvstoreCreate(hashtableType *type, int num_hashtables, int flags);
 void kvstoreEmpty(kvstore *kvs, void(callback)(hashtable *));
 void kvstoreRelease(kvstore *kvs);
 unsigned long long kvstoreSize(kvstore *kvs);

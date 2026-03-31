@@ -16,9 +16,9 @@ OPT?=-O3
 CLANG := $(findstring clang,$(shell sh -c '$(CC) --version | head -1'))
 ifeq ($(OPT),-O3)
         ifeq (clang,$(CLANG))
-                OPT+=-flto
+                OPT+=
         else
-                OPT+=-flto=auto -ffat-lto-objects
+                OPT+==auto -ffat-lto-objects
         endif
 endif
 

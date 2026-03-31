@@ -56,6 +56,8 @@
 #include "eval.h"
 
 #include "trace/trace_commands.h"
+#include "core/engine.h"
+#include "core/nexstorage.h"
 
 #include <time.h>
 #include <signal.h>
@@ -2850,17 +2852,16 @@ bool dbsHaveNoKeys(void) {
 }
 
 serverDb *createDatabase(int id) {
-    int slot_count_bits = 0;
+    int slot_count = 176; // G3-GODMODE: 176 shards for Vera workers
     int flags = KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND;
     if (server.cluster_enabled) {
         flags |= KVSTORE_FREE_EMPTY_HASHTABLES;
-        slot_count_bits = CLUSTER_SLOT_MASK_BITS;
     }
 
     serverDb *db = zmalloc(sizeof(serverDb));
-    db->keys = kvstoreCreate(&kvstoreKeysHashtableType, slot_count_bits, flags);
-    db->expires = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count_bits, flags);
-    db->keys_with_volatile_items = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count_bits, flags);
+    db->keys = kvstoreCreate(&kvstoreKeysHashtableType, slot_count, flags);
+    db->expires = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count, flags);
+    db->keys_with_volatile_items = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count, flags);
     if (clusterIsAnySlotImporting()) {
         clusterMarkImportingSlotsInDb(db);
     }
@@ -2891,7 +2892,7 @@ void initServer(void) {
     ThreadsManager_init();
     makeThreadKillable();
 
-    global_nexstorage = nexstorage_create("segcache", "max_memory=16777216");
+    global_nexstorage = nexstorage_create("segcache", "max_memory=1073741824");
     AnomalyConfig a_cfg = {0};
     global_anomaly_detector = anomaly_create(&a_cfg, NULL, NULL);
 
@@ -2980,9 +2981,9 @@ void initServer(void) {
     /* Note that server.pubsub_channels was chosen to be a kvstore (with only one dict, which
      * seems odd) just to make the code cleaner by making it be the same type as server.pubsubshard_channels
      * (which has to be kvstore), see pubsubtype.serverPubSubChannels */
-    server.pubsub_channels = kvstoreCreate(&kvstoreChannelHashtableType, 0, KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND);
+    server.pubsub_channels = kvstoreCreate(&kvstoreChannelHashtableType, 1, KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND);
     server.pubsub_patterns = dictCreate(&objToHashtableDictType);
-    server.pubsubshard_channels = kvstoreCreate(&kvstoreChannelHashtableType, server.cluster_enabled ? CLUSTER_SLOT_MASK_BITS : 0,
+    server.pubsubshard_channels = kvstoreCreate(&kvstoreChannelHashtableType, 176,
                                                 KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND | KVSTORE_FREE_EMPTY_HASHTABLES);
     server.pubsub_clients = 0;
     server.watching_clients = 0;
@@ -3206,6 +3207,10 @@ void InitServerLast(void) {
     /* Exclude current overhead memory to avoid double counting in the future. */
     server.initial_memory_usage = zmalloc_used_memory() - mh->overhead_total;
     freeMemoryOverheadData(mh);
+
+    /* G3-GODMODE: Initialize the sharded engine (Auto-detect for M1 / Force 176 for Rubin) */
+    NexEngine *engine = engine_create(0, server.port + 1000, NULL);
+    if (engine) engine_start(engine);
 }
 
 /* The purpose of this function is to try to "glue" consecutive range

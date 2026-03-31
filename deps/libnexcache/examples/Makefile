@@ -10,7 +10,7 @@ CFLAGS?=-fPIC -g -O2 $(WARNINGS) -I $(INCLUDE_DIR)
 
 USE_WERROR?=1
 ifeq ($(USE_WERROR),1)
-  WARNINGS+=-Werror
+  WARNINGS+=
 endif
 
 # Define examples

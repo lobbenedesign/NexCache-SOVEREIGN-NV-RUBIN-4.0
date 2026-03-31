@@ -64,6 +64,9 @@
 #if HAVE_ARM_NEON
 #include <arm_neon.h>
 #endif
+#if HAVE_ARM_SVE2
+#include <arm_sve.h>
+#endif
 
 /* The default hashing function uses the SipHash implementation in siphash.c. */
 
@@ -871,6 +874,32 @@ static int findKeyInBucketNeon(hashtable *ht, bucket *b, uint8_t h2, const void 
 }
 #endif
 
+#if HAVE_ARM_SVE2 && ENTRIES_PER_BUCKET <= 8
+/* G3-GODMODE: SVE2 Implementation for NVIDIA Rubin */
+static int findKeyInBucketSve2(hashtable *ht, bucket *b, uint8_t h2, const void *key, int table, int *pos_in_bucket, int *table_index) {
+    svbool_t pg = svwhilelt_b8_u32(0, ENTRIES_PER_BUCKET);
+    svuint8_t hash_vec = svld1_u8(pg, b->hashes);
+    svuint8_t h2_vec = svdup_n_u8(h2);
+    
+    /* Compare and get predicate */
+    svbool_t matches = svcmpeq_n_u8(pg, hash_vec, h2);
+    
+    /* Iterate over matching positions */
+    uint64_t mask = svget_bits_u8(matches); // SVE2 intrinsic to get bitmask
+    uint64_t valid_mask = (1ul << ENTRIES_PER_BUCKET) - 1ul;
+    mask &= valid_mask;
+
+    while (mask) {
+        int pos = __builtin_ctzll(mask);
+        if ((b->presence & (1 << pos)) &&
+            checkCandidateInBucket(ht, b, pos, key, table, pos_in_bucket, table_index))
+            return 1;
+        mask &= (mask - 1);
+    }
+    return 0;
+}
+#endif
+
 /* Finds an entry matching the key. If a match is found, returns a pointer to
  * the bucket containing the matching entry and points 'pos_in_bucket' to the
  * index within the bucket. Returns NULL if no matching entry was found.
@@ -895,7 +924,9 @@ static bucket *findBucket(hashtable *ht, uint64_t hash, const void *key, int *po
         }
         bucket *b = &ht->tables[table][bucket_idx];
         do {
-#if HAVE_X86_SIMD
+#if HAVE_ARM_SVE2 && ENTRIES_PER_BUCKET <= 8
+            if (findKeyInBucketSve2(ht, b, h2, key, table, pos_in_bucket, table_index)) return b;
+#elif HAVE_X86_SIMD
             /* All x86-64 CPUs have SSE2. */
             if (findKeyInBucketSSE2(ht, b, h2, key, table, pos_in_bucket, table_index)) return b;
 #elif HAVE_ARM_NEON && ENTRIES_PER_BUCKET <= 8

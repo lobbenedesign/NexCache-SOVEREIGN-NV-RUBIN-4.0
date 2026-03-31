@@ -27,8 +27,8 @@
 #define ARENA_LARGE_SIZE    (256UL* 1024 * 1024)   /* 256MB — oggetti grandi*/
 #define ARENA_DEFAULT_SIZE  ARENA_MEDIUM_SIZE
 
-/* Allineamento cache line CPU (x86-64/ARM: 64 byte) */
-#define ARENA_CACHE_LINE    64
+/* Allineamento Rubin Architecture (256 byte per settore hardware) */
+#define ARENA_CACHE_LINE    256
 #define ARENA_ALIGNMENT     ARENA_CACHE_LINE
 
 /* Quante volte il blocco cresce se pieno */

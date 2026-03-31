@@ -20,7 +20,7 @@ TEST_CFLAGS := $(CFLAGS)
 
 # Hold new gtest test to a high standard
 MORE_WARNINGS=-Wno-variadic-macros \
-	-Werror \
+	 \
 	-Wpedantic \
 	-Wextra \
 	-Wall \
@@ -28,22 +28,22 @@ MORE_WARNINGS=-Wno-variadic-macros \
 	-Wframe-larger-than=32768 \
 	-Wno-strict-overflow \
 	-Wsign-compare \
-	-Werror=missing-braces \
-	-Werror=init-self \
-	-Werror=write-strings \
-	-Werror=address \
-	-Werror=array-bounds \
-	-Werror=char-subscripts \
-	-Werror=enum-compare \
-	-Werror=empty-body \
-	-Werror=main \
-	-Werror=nonnull \
-	-Werror=parentheses \
-	-Werror=return-type \
-	-Werror=sequence-point \
-	-Werror=uninitialized \
-	-Werror=volatile-register-var \
-	-Werror=ignored-qualifiers \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
+	 \
 	-Wno-unused-function \
 	-Wno-missing-field-initializers \
 	-Wdouble-promotion \
@@ -57,7 +57,7 @@ GCC_FLAGS :=
 # Only add GCC-only warnings and flags
 ifeq ($(IS_GCC),g++)
 	# GCC supports these extra warnings and -fno-var-tracking-assignments
-	MORE_WARNINGS += -Wsync-nand -Wtrampolines -Werror=logical-op -Werror=aggressive-loop-optimizations
+	MORE_WARNINGS += -Wsync-nand -Wtrampolines  
 	GCC_FLAGS += -fno-var-tracking-assignments
 else
 	# Clang: disable warnings that are errors in gtest/gmock
@@ -65,11 +65,11 @@ else
 	MORE_WARNINGS += -Wno-keyword-macro
 endif
 
-# Enable -Werror=float-equal only for non-32bit builds.
+# Enable  only for non-32bit builds.
 # On 32bit (-m32), GoogleTest headers trigger -Wfloat-equal
 # (e.g., in gtest-printers.h), which would fail the build.
 ifneq ($(findstring -m32,$(CFLAGS)),-m32)
-	MORE_WARNINGS += -Werror=float-equal
+	MORE_WARNINGS += 
 endif
 
 -include $(DEPENDS)

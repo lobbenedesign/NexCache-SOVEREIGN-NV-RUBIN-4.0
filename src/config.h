@@ -338,7 +338,6 @@ void setproctitle(const char *fmt, ...);
 #define nexcache_set_thread_title(name) rename_thread(find_thread(0), name)
 #else
 #if (defined __APPLE__ && defined(MAC_OS_X_VERSION_MAX_ALLOWED) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070)
-int pthread_setname_np(const char *name);
 #include <pthread.h>
 #define nexcache_set_thread_title(name) pthread_setname_np(name)
 #else
@@ -408,10 +407,20 @@ void setcpuaffinity(const char *cpulist);
 #define HAVE_ARM_NEON 0
 #endif
 
+/* Check if we can compile ARM SVE2 code (NVIDIA VERA/RUBIN) */
+#if defined(__aarch64__) && defined(__ARM_FEATURE_SVE)
+#define HAVE_ARM_SVE2 1
+#else
+#define HAVE_ARM_SVE2 0
+#endif
+
 #if defined(__linux__) && defined(__GLIBC__) && (defined(__GNUC__) && (__GNUC__ > 4) || defined(__clang__) && (__clang_major__) > 5)
 #define HAVE_IFUNC 1
 #else
 #define HAVE_IFUNC 0
 #endif
+
+/* G3-GODMODE: NVIDIA Vera (Rubin) Architecture Constants */
+#define NEX_RCU_SHARDS 176
 
 #endif

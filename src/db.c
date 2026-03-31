@@ -230,7 +230,13 @@ void dbAdd(serverDb *db, robj *key, robj **valref) {
 
 /* Returns which dict index should be used with kvstore for a given key. */
 int getKVStoreIndexForKey(sds key) {
-    return server.cluster_enabled ? getKeySlot(key) : 0;
+    if (server.cluster_enabled) return getKeySlot(key);
+    /* DJB2 hash for 256-shard distribution on NVIDIA Vera */
+    uint32_t hash = 5381;
+    size_t len = sdslen(key);
+    const char *p = key;
+    while (len--) hash = ((hash << 5) + hash) + (*p++);
+    return (int)(hash % NEX_RCU_SHARDS); 
 }
 
 /* Returns the cluster hash slot for a given key, trying to use the cached slot that

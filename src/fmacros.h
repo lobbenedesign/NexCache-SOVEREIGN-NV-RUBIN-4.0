@@ -32,6 +32,12 @@
 
 #define _BSD_SOURCE
 
+#if defined(__APPLE__)
+#ifndef _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE
+#endif
+#endif
+
 #if defined(__linux__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

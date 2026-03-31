@@ -617,7 +617,7 @@ int nexcache_check_rdb(char *rdbfilename, FILE *fp) {
     rdb.update_cksum = rdbLoadProgressCallback;
     if (rioRead(&rdb, buf, 9) == 0) goto eoferr;
     buf[9] = '\0';
-    bool is_nexcache_magic = false, is_nexcache_magic = false;
+    bool is_nexcache_magic = false;
     if (memcmp(buf, "NEXCACHE0", 6) == 0) {
         is_nexcache_magic = true;
     } else if (memcmp(buf, "NEXCACHE", 6) == 0) {

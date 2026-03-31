@@ -304,7 +304,8 @@ static NexStorageResult scapi_get(void *backend,
                                   const char *key,
                                   uint32_t klen,
                                   NexEntry *out) {
-    static uint8_t buf[32767]; /* Max uint16_t = 65535, usiamo 32767 safe */
+    /* G3-GODMODE: Thread-Local Scratchpad for Zero-Contention Vera Lookups */
+    static _Thread_local uint8_t buf[65536];
     uint16_t vlen = 0;
     int rc = segcache_get((NexSegcache *)backend, key, (uint16_t)klen,
                           buf, (uint16_t)sizeof(buf), &vlen);

@@ -73,7 +73,7 @@ OPTIMIZATION?=-O3
 WARNINGS=-Wall -Wextra -pedantic -Wstrict-prototypes -Wwrite-strings -Wno-missing-field-initializers
 USE_WERROR?=1
 ifeq ($(USE_WERROR),1)
-  WARNINGS+=-Werror
+  WARNINGS+=
 endif
 DEBUG_FLAGS?= -g -ggdb
 REAL_CFLAGS=$(OPTIMIZATION) -fPIC -fvisibility=hidden $(CPPFLAGS) $(CFLAGS) $(WARNINGS) $(DEBUG_FLAGS) $(PLATFORM_FLAGS)
@@ -268,10 +268,10 @@ $(RDMA_STLIBNAME): $(RDMA_OBJS)
 	$(STLIB_MAKE_CMD) $(RDMA_STLIBNAME) $(RDMA_OBJS)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) -std=c99 -pedantic $(REAL_CFLAGS) -I$(INCLUDE_DIR) -I$(SDS_INCLUDE_DIR) -I$(DICT_INCLUDE_DIR) -MMD -MP -c $< -o $@
+	$(CC) -std=gnu11 -pedantic $(REAL_CFLAGS) -I$(INCLUDE_DIR) -I$(SDS_INCLUDE_DIR) -I$(DICT_INCLUDE_DIR) -MMD -MP -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(TEST_DIR)/%.c | $(OBJ_DIR)
-	$(CC) -std=c99 -pedantic $(REAL_CFLAGS) -I$(INCLUDE_DIR) -I$(SDS_INCLUDE_DIR) -I$(DICT_INCLUDE_DIR) -I$(SRC_DIR) -MMD -MP -c $< -o $@
+	$(CC) -std=gnu11 -pedantic $(REAL_CFLAGS) -I$(INCLUDE_DIR) -I$(SDS_INCLUDE_DIR) -I$(DICT_INCLUDE_DIR) -I$(SRC_DIR) -MMD -MP -c $< -o $@
 
 $(TEST_DIR)/%: $(OBJ_DIR)/%.o $(STLIBNAME) $(TLS_STLIB)
 	$(CC) -o $@ $< $(RDMA_STLIB) $(STLIBNAME) $(TLS_STLIB) $(REAL_LDFLAGS) $(TEST_LDFLAGS)

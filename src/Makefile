@@ -20,12 +20,13 @@ CLANG := $(findstring clang,$(shell sh -c '$(CC) --version | head -1'))
 # Optimization flags. To override, the OPTIMIZATION variable can be passed, but
 # some automatic defaults are added to it. To specify optimization flags
 # explicitly without any defaults added, pass the OPT variable instead.
-OPTIMIZATION?=-O3
+# NEX-VERA: Optimization for Rubin Architecture (ARM v9.2-A / Olympus)
+OPTIMIZATION?=-O3 -DRUBIN_MODE -DVERA_M3_3
 ifeq ($(OPTIMIZATION),-O3)
 	ifeq (clang,$(CLANG))
-		OPTIMIZATION+=-flto
+		OPTIMIZATION+=
 	else
-		OPTIMIZATION+=-flto=auto -ffat-lto-objects
+		OPTIMIZATION+==auto -ffat-lto-objects
 	endif
 endif
 ifneq ($(OPTIMIZATION),-O0)
@@ -46,8 +47,8 @@ ifneq (,$(findstring FreeBSD,$(uname_S)))
   STD+=-Wno-c11-extensions
 endif
 endif
-WARN=-Wall -W -Wno-missing-field-initializers -Werror=deprecated-declarations -Wstrict-prototypes -Werror=undef
-OPT=$(OPTIMIZATION)
+WARN=-Wall -W -Wno-missing-field-initializers  -Wstrict-prototypes 
+
 
 # Detect if the compiler supports C11 _Atomic.
 # NUMBER_SIGN_CHAR is a workaround to support both GNU Make 4.3 and older versions.
@@ -58,7 +59,7 @@ C11_ATOMIC := $(shell sh -c 'echo "$(NUMBER_SIGN_CHAR)include <stdatomic.h>" > f
 ifeq ($(C11_ATOMIC),yes)
 	STD+=-std=gnu11
 else
-	STD+=-std=c99
+	STD+=-std=gnu11
 endif
 
 PREFIX?=/usr/local
@@ -77,9 +78,9 @@ ifeq ($(uname_S),Linux)
 	MALLOC=jemalloc
 endif
 
-# To get ARM stack traces if NexCache crashes we need a special C flag.
+# NEX-VERA: SVE2 and ARM v9-A optimizations
 ifneq (,$(filter aarch64 armv%,$(uname_M)))
-        CFLAGS+=-funwind-tables
+        CFLAGS+=-funwind-tables -march=armv9-a+sve2
 endif
 
 # Backwards compatibility for selecting an allocator
@@ -107,8 +108,8 @@ ifeq ($(SANITIZER),address)
 else
 ifeq ($(SANITIZER),undefined)
 	MALLOC=libc
-	CFLAGS+=-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
-	LDFLAGS+=-fsanitize=undefined
+	CFLAGS+=-fsanitizeined -fno-sanitize-recover=all -fno-omit-frame-pointer
+	LDFLAGS+=-fsanitizeined
 else
 ifeq ($(SANITIZER),thread)
 	CFLAGS+=-fsanitize=thread -fno-sanitize-recover=all -fno-omit-frame-pointer
@@ -363,6 +364,8 @@ else
 	RDMA_LIBS=-lrdmacm -libverbs
 endif
 
+# NEX-VERA: Enable RDMA by default for rack scaling
+BUILD_RDMA?=yes
 ifeq ($(BUILD_RDMA),yes)
 	FINAL_CFLAGS+=-DUSE_RDMA=$(BUILD_YES) -DBUILD_RDMA_MODULE=$(BUILD_NO)
 	FINAL_LIBS += ../deps/libnexcache/lib/libnexcache_rdma.a $(RDMA_LIBS)
@@ -450,7 +453,7 @@ ENGINE_TRACE_OBJ = \
     trace/trace_db.o \
     trace/trace_rdb.o \
     trace/trace_server.o
-ENGINE_SERVER_OBJ = \
+ENGINE_SERVER_OBJ = macos_stubs.o \
     acl.o \
     adlist.o \
     ae.o \

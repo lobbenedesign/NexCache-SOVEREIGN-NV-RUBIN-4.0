@@ -1,3 +1,6 @@
+#include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
 /*
  * Copyright (c) 2009-2012, NexCache Contributors.
  * All rights reserved.
@@ -136,6 +139,7 @@ struct NexCacheModule;
 #define C_RETRY -2
 
 /* Static server configuration */
+#define NEX_RCU_SHARDS 176      /* NVIDIA Vera (Rubin) Logical Thread count */
 #define CONFIG_DEFAULT_HZ 10 /* Time interrupt calls/sec. */
 #define CONFIG_MIN_HZ 1
 #define CONFIG_MAX_HZ 500
@@ -849,7 +853,9 @@ typedef struct NexCacheModuleType moduleType;
  *                                                      +--- present because hasembval == 0
  */
 
-struct serverObject {
+/* NEX-VERA: SVI (Small-Value Inlining) Architecture 
+ * We align the object to 256 bytes (4 cache lines on Olympus) and inline up to 240 bytes. */
+struct __attribute__((aligned(256))) serverObject {
     unsigned type : 4;
     unsigned encoding : 4;
     unsigned lru : LRULFU_BITS;
@@ -857,10 +863,10 @@ struct serverObject {
     unsigned hasembkey : 1;
     unsigned hasembval : 1;
     unsigned refcount : OBJ_REFCOUNT_BITS;
-    void *val_ptr; /* Not always present. Use objectGetVal(obj) and
-                    * objectSetVal(obj, val) instead. */
+    void *val_ptr; /* Use for large values or non-string types */
+    char svi_payload[240]; /* SVI: In-place payload for 99% of GET/SET operations */
 };
-static_assert(sizeof(struct serverObject) <= 8 + sizeof(void *), "unexpected size - verify struct is packed correctly");
+static_assert(sizeof(struct serverObject) <= 256, "unexpected size - SVI VERA architecture requires 256 bytes per object");
 
 /* The string name for an object's type as listed above
  * Native types are checked against the OBJ_STRING, OBJ_LIST, OBJ_* defines,

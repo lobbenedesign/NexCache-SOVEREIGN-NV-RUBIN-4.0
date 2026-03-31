@@ -29,10 +29,11 @@
 #include <stdatomic.h>
 #include "../memory/arena.h"
 #include "../memory/tagged_ptr.h"
+#include "../vera_lockfree.h"
 #include "vll.h"
 
 /* ── Costanti engine ────────────────────────────────────────── */
-#define NEX_MAX_WORKERS 64
+#define NEX_MAX_WORKERS 176
 #define NEX_HASH_SLOTS 16384   /* Compatibile NexCache Cluster */
 #define NEX_CMD_RING_SIZE 4096 /* Elementi nel ring buffer (potenza 2) */
 #define NEX_CMD_RING_MASK (NEX_CMD_RING_SIZE - 1)
@@ -64,7 +65,7 @@ typedef enum NexCmdType {
 } NexCmdType;
 
 /* ── Struttura di un comando ────────────────────────────────── */
-typedef struct NexCmd {
+typedef struct __attribute__((aligned(256))) NexCmd {
     NexCmdType type;
     uint64_t client_id;    /* ID del client che ha inviato il comando */
     uint64_t issued_at_us; /* Timestamp emissione (µs) */
@@ -82,6 +83,9 @@ typedef struct NexCmd {
     /* Callback chiamata dal worker quando il comando è completato */
     void (*on_complete)(struct NexCmd *cmd, void *userdata);
     void *userdata;
+
+    /* NEX-VERA: MPSC Node (Vyukov-GODMODE) */
+    mpsc_node_t mpsc_node;
 } NexCmd;
 
 /* ── Istogramma latenze ─────────────────────────────────────── */
@@ -97,7 +101,7 @@ typedef struct LatencyHistogram {
 } LatencyHistogram;
 
 /* ── Struttura Worker Thread ────────────────────────────────── */
-typedef struct NexWorker {
+typedef struct __attribute__((aligned(256))) NexWorker {
     int id;           /* ID worker (0..num_workers-1) */
     pthread_t thread; /* Thread POSIX handle */
     int slot_start;   /* Primo slot gestito */
@@ -106,13 +110,9 @@ typedef struct NexWorker {
     /* Arena dedicata — zero lock, zero contesa */
     Arena *arena;
 
-    /* MPSC Lock-free Ring Buffer per i comandi in arrivo
-     * Produttori (networking thread) scrivono su cmd_head
-     * Il worker legge da cmd_tail
-     * Uso di atomics per sincronizzazione senza mutex */
-    _Atomic uint64_t cmd_head;           /* Produttori: dove scrivere */
-    _Atomic uint64_t cmd_tail;           /* Worker: dove leggere */
-    NexCmd *cmd_ring[NEX_CMD_RING_SIZE]; /* Ring buffer */
+    /* NEX-VERA: MPSC Lock-free Queue (Phase 3)
+     * Sostituisce il ring buffer con una coda di Vyukov scalabile per Rubin. */
+    mpsc_queue_t cmd_queue;
 
     /* Hash table locale per i dati di questo worker
      * Accesso senza lock (un solo writer: questo worker) */

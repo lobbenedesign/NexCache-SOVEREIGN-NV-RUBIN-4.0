@@ -31,22 +31,31 @@
 #include "cluster.h"
 #include "cluster_slot_stats.h"
 #include "cluster_migrateslots.h"
-#include "script.h"
 #include "intset.h"
 #include "sds.h"
-#include "fpconv_dtoa.h"
 #include "fmtargs.h"
 #include "io_threads.h"
 #include "module.h"
 #include "connection.h"
 #include "zmalloc.h"
+#include "vera_simd.h"
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <math.h>
 #include <ctype.h>
 #include <stdatomic.h>
 #include <stdbool.h>
+
+/* NEX-VERA: SVE2 Vectorized Detection of RESP Delimiters 
+ * Utilizza vera_simd.h per alta velocità su hardware Rubin. */
+static inline const char *vera_sve2_find_delimiter(const char *s, size_t n) {
+    const uint8_t delims[4] = {'\r', '\n', '$', '*'};
+    return vera_find_any(s, n, delims, 4);
+}
+
+/* NEX-VERA M3.3: Phase 3 - Vyukov Lock-Free MPSC Queue 
+ * Eliminates mutex contention for 'fire-and-forget' command propagation. */
+#include "vera_lockfree.h"
 
 /* This struct is used to encapsulate filtering criteria for operations on clients
  * such as identifying specific clients to kill or retrieve. Each field in the struct
@@ -3353,7 +3362,11 @@ void parseInlineBuffer(client *c) {
     int is_replicated = c->read_flags & READ_FLAGS_REPLICATED;
 
     /* Search for end of line */
-    newline = strchr(c->querybuf + c->qb_pos, '\n');
+    /* NEX-VERA: SVE2 Hyper-Parser Path */
+#ifdef __ARM_FEATURE_SVE
+    newline = (char*)vera_sve2_find_delimiter(c->querybuf + c->qb_pos, sdslen(c->querybuf) - c->qb_pos);
+#endif
+    if (!newline) newline = strchr(c->querybuf + c->qb_pos, '\n');
 
     /* Nothing to do without a \r\n */
     if (newline == NULL) {
@@ -3551,7 +3564,11 @@ static int parseMultibulk(client *c,
         serverAssertWithInfo(c, NULL, *argc == 0);
 
         /* Multi bulk length cannot be read without a \r\n */
+#ifdef __ARM_FEATURE_SVE
+        newline = (char*)vera_sve2_find_delimiter(c->querybuf + c->qb_pos, sdslen(c->querybuf) - c->qb_pos);
+#else
         newline = memchr(c->querybuf + c->qb_pos, '\r', sdslen(c->querybuf) - c->qb_pos);
+#endif
         if (newline == NULL) {
             if (sdslen(c->querybuf) - c->qb_pos > PROTO_INLINE_MAX_SIZE) {
                 return READ_FLAGS_ERROR_BIG_MULTIBULK;
@@ -3631,7 +3648,11 @@ static int parseMultibulk(client *c,
     while (c->multibulklen) {
         /* Read bulk length if unknown */
         if (c->bulklen == -1) {
+#ifdef __ARM_FEATURE_SVE
+            newline = (char*)vera_sve2_find_delimiter(c->querybuf + c->qb_pos, sdslen(c->querybuf) - c->qb_pos);
+#else
             newline = memchr(c->querybuf + c->qb_pos, '\r', sdslen(c->querybuf) - c->qb_pos);
+#endif
             if (newline == NULL) {
                 if (sdslen(c->querybuf) - c->qb_pos > PROTO_INLINE_MAX_SIZE) {
                     return READ_FLAGS_ERROR_BIG_BULK_COUNT;

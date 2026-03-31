@@ -28,14 +28,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "fmacros.h"
 #include "config.h"
-#include "solarisfixes.h"
+#include "zmalloc.h"
 #include "serverassert.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 
 #ifdef __linux__
@@ -59,11 +58,16 @@ void zlibc_free(void *ptr) {
 #ifdef HAVE_MALLOC_SIZE
 #define PREFIX_SIZE (0)
 #else
+/* NEX-VERA: Per NVIDIA Rubin, usiamo allineamento a 256 byte per settori hardware. */
+#ifdef RUBIN_MODE
+#define PREFIX_SIZE 256
+#else
 /* Use at least 8 bytes alignment on all systems. */
 #if SIZE_MAX < 0xffffffffffffffffull
 #define PREFIX_SIZE 8
 #else
 #define PREFIX_SIZE (sizeof(size_t))
+#endif
 #endif
 #endif
 

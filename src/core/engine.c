@@ -9,9 +9,23 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "nexstorage.h"
 #include <errno.h>
 #include <time.h>
 #include <sched.h>
+#ifdef __APPLE__
+#include <mach/thread_policy.h>
+#include <mach/thread_act.h>
+#endif
+
+/* G3-GODMODE: Hardware-hinted CPU Yield for Rubin (NVIDIA Vera) / Apple Silicon */
+#if defined(__aarch64__)
+#define CPU_YIELD() __asm__ volatile("yield" ::: "memory")
+#elif defined(__x86_64__)
+#define CPU_YIELD() __asm__ volatile("pause" ::: "memory")
+#else
+#define CPU_YIELD() sched_yield()
+#endif
 
 /* CRC16 per compatibilità NexCache Cluster */
 static const uint16_t crc16tab[256] = {
@@ -44,6 +58,7 @@ static uint16_t crc16_fast(const char *buf, int len) {
 
 /* ── Variabile globale engine ───────────────────────────────── */
 NexEngine *g_engine = NULL;
+extern NexStorage *global_nexstorage;
 
 /* ── Funzione worker thread ─────────────────────────────────── */
 
@@ -89,21 +104,40 @@ static void *worker_thread_main(void *arg) {
             w->id, w->slot_start, w->slot_end - 1);
 
     while (w->running) {
-        /* Leggi dalla MPSC queue */
-        uint64_t tail = atomic_load_explicit(&w->cmd_tail, memory_order_acquire);
-        uint64_t head = atomic_load_explicit(&w->cmd_head, memory_order_acquire);
+        /* NEX-VERA: Vyukov MPSC Dequeue (GODMODE) */
+        mpsc_node_t *node = mpsc_dequeue(&w->cmd_queue);
 
-        if (tail == head) {
-            /* Coda vuota — sleep brevissimo per non sprecare CPU */
-            struct timespec ts = {.tv_sec = 0, .tv_nsec = 100};
-            nanosleep(&ts, NULL);
-            continue;
+        if (!node) {
+            /* G3-GODMODE: Adaptive Dynamic Spinning (Rubin Auto-Optimizer) */
+            static _Thread_local int current_spin_limit = 5000;
+            static _Thread_local int empty_cycles = 0;
+            
+            int spin = 0;
+            while (spin < current_spin_limit) {
+                CPU_YIELD();
+                node = mpsc_dequeue(&w->cmd_queue);
+                if (node) break;
+                spin++;
+            }
+
+            if (!node) {
+                /* Coda vuota — riduci gradualmente lo spin se siamo troppo inattivi */
+                if (++empty_cycles > 1000) {
+                    if (current_spin_limit > 500) current_spin_limit -= 100;
+                    empty_cycles = 0;
+                }
+                struct timespec ts = {.tv_sec = 0, .tv_nsec = 50};
+                nanosleep(&ts, NULL);
+                continue;
+            } else {
+                /* Coda tornata attiva — resetta o aumenta aggressività spin */
+                if (current_spin_limit < 20000) current_spin_limit += 50;
+                empty_cycles = 0;
+            }
         }
 
-        /* Preleva prossimo comando */
-        NexCmd *cmd = w->cmd_ring[tail & NEX_CMD_RING_MASK];
-        atomic_store_explicit(&w->cmd_tail, tail + 1, memory_order_release);
-
+        /* Preleva prossimo comando (GODMODE) */
+        NexCmd *cmd = (NexCmd *)node->data;
         if (!cmd) continue;
 
         uint64_t start_us = us_now();
@@ -111,30 +145,52 @@ static void *worker_thread_main(void *arg) {
         /* ── Dispatch del comando ── */
         switch (cmd->type) {
         case NEX_CMD_GET:
-            /* TODO: implementa GET dalla dict locale */
-            if (cmd->reply_buf) {
-                const char *nil = "$-1\r\n";
-                strncpy(cmd->reply_buf, nil, cmd->reply_cap - 1);
-                cmd->reply_len = strlen(nil);
+            if (global_nexstorage && cmd->argc >= 2) {
+                NexEntry entry;
+                NexStorageResult res = nexstorage_get(global_nexstorage, cmd->argv[1], (uint32_t)cmd->argl[1], &entry);
+                if (res == NEXS_OK) {
+                    if (cmd->reply_buf) {
+                        int n = snprintf(cmd->reply_buf, cmd->reply_cap, "$%u\r\n", (uint32_t)entry.value_len);
+                        if ((size_t)n + entry.value_len + 2 <= cmd->reply_cap) {
+                            memcpy(cmd->reply_buf + n, entry.value, entry.value_len);
+                            memcpy(cmd->reply_buf + n + entry.value_len, "\r\n", 2);
+                            cmd->reply_len = (size_t)n + entry.value_len + 2;
+                        }
+                    }
+                    atomic_fetch_add(&w->cache_hits, 1);
+                } else {
+                    if (cmd->reply_buf) {
+                        const char *nil = "$-1\r\n";
+                        strncpy(cmd->reply_buf, nil, cmd->reply_cap - 1);
+                        cmd->reply_len = strlen(nil);
+                    }
+                    atomic_fetch_add(&w->cache_misses, 1);
+                }
             }
-            atomic_fetch_add(&w->cache_misses, 1);
             break;
 
         case NEX_CMD_SET:
-            /* TODO: implementa SET nella dict locale */
-            if (cmd->reply_buf) {
-                const char *ok = "+OK\r\n";
-                strncpy(cmd->reply_buf, ok, cmd->reply_cap - 1);
-                cmd->reply_len = strlen(ok);
+            if (global_nexstorage && cmd->argc >= 3) {
+                NexStorageResult res = nexstorage_set(global_nexstorage, 
+                    cmd->argv[1], (uint32_t)cmd->argl[1],
+                    (const uint8_t*)cmd->argv[2], (uint32_t)cmd->argl[2],
+                    NEXDT_STRING, -1);
+                if (cmd->reply_buf) {
+                    const char *ok = (res == NEXS_OK) ? "+OK\r\n" : "-ERR storage error\r\n";
+                    strncpy(cmd->reply_buf, ok, cmd->reply_cap - 1);
+                    cmd->reply_len = strlen(ok);
+                }
             }
             break;
 
         case NEX_CMD_DEL:
-            /* TODO: implementa DEL */
-            if (cmd->reply_buf) {
-                const char *r = ":0\r\n";
-                strncpy(cmd->reply_buf, r, cmd->reply_cap - 1);
-                cmd->reply_len = strlen(r);
+            if (global_nexstorage && cmd->argc >= 2) {
+                NexStorageResult res = nexstorage_del(global_nexstorage, cmd->argv[1], (uint32_t)cmd->argl[1]);
+                if (cmd->reply_buf) {
+                    const char *r = (res == NEXS_OK) ? ":1\r\n" : ":0\r\n";
+                    strncpy(cmd->reply_buf, r, cmd->reply_cap - 1);
+                    cmd->reply_len = strlen(r);
+                }
             }
             break;
 
@@ -229,10 +285,8 @@ NexEngine *engine_create(int num_workers, int port, const char *bind_addr) {
             return NULL;
         }
 
-        /* Inizializza MPSC queue */
-        atomic_init(&w->cmd_head, 0);
-        atomic_init(&w->cmd_tail, 0);
-        memset(w->cmd_ring, 0, sizeof(w->cmd_ring));
+        /* Inizializza MPSC queue (Flow-GODMODE) */
+        mpsc_init(&w->cmd_queue);
 
         /* Inizializza stats atomiche */
         atomic_init(&w->cmds_processed, 0);
@@ -241,7 +295,7 @@ NexEngine *engine_create(int num_workers, int port, const char *bind_addr) {
         atomic_init(&w->cache_hits, 0);
         atomic_init(&w->cache_misses, 0);
 
-        w->cpu_affinity = -1; /* auto */
+        w->cpu_affinity = i; /* Pin to core i for Rubin */
     }
 
     engine->started_at_us = us_now();
@@ -282,13 +336,21 @@ int engine_start(NexEngine *engine) {
             return -1;
         }
 
-        /* CPU affinity opzionale (Linux only) */
+        /* CPU affinity (Linux & MacOS support) */
 #ifdef __linux__
         if (w->cpu_affinity >= 0) {
             cpu_set_t cpuset;
             CPU_ZERO(&cpuset);
             CPU_SET(w->cpu_affinity, &cpuset);
             pthread_setaffinity_np(w->thread, sizeof(cpuset), &cpuset);
+        }
+#elif defined(__APPLE__)
+        if (w->cpu_affinity >= 0) {
+            thread_affinity_policy_data_t policy = { w->cpu_affinity };
+            thread_policy_set(pthread_mach_thread_np(w->thread),
+                              THREAD_AFFINITY_POLICY,
+                              (thread_policy_t)&policy,
+                              THREAD_AFFINITY_POLICY_COUNT);
         }
 #endif
     }
@@ -301,9 +363,12 @@ int engine_start(NexEngine *engine) {
 /* ── engine_worker_for_key ──────────────────────────────────── */
 int engine_worker_for_key(NexEngine *engine, const char *key, size_t keylen) {
     if (!engine || !key || keylen == 0) return 0;
-    uint16_t slot = crc16_fast(key, (int)keylen) % NEX_HASH_SLOTS;
-    int slots_per_worker = NEX_HASH_SLOTS / engine->num_workers;
-    return (int)(slot / slots_per_worker);
+    /* G3-GODMODE: DJB2 Alignment with kvstore shards */
+    uint32_t hash = 5381;
+    const char *p = key;
+    size_t len = keylen;
+    while (len--) hash = ((hash << 5) + hash) + (*p++);
+    return (int)(hash % engine->num_workers);
 }
 
 /* ── engine_dispatch_cmd ────────────────────────────────────── */
@@ -313,17 +378,9 @@ int engine_dispatch_cmd(NexEngine *engine, NexCmd *cmd, const char *key, size_t 
     int worker_id = engine_worker_for_key(engine, key, keylen);
     NexWorker *w = &engine->workers[worker_id];
 
-    /* Prova a scrivere nel ring buffer (MPSC lock-free) */
-    uint64_t head = atomic_load_explicit(&w->cmd_head, memory_order_relaxed);
-    uint64_t tail = atomic_load_explicit(&w->cmd_tail, memory_order_acquire);
-
-    if (head - tail >= NEX_CMD_RING_SIZE) {
-        /* Ring buffer pieno — back-pressure */
-        return -1;
-    }
-
-    w->cmd_ring[head & NEX_CMD_RING_MASK] = cmd;
-    atomic_store_explicit(&w->cmd_head, head + 1, memory_order_release);
+    /* Prova a scrivere nella MPSC Lock-Free Queue (GODMODE) */
+    cmd->mpsc_node.data = cmd;
+    mpsc_enqueue(&w->cmd_queue, &cmd->mpsc_node);
 
     atomic_fetch_add(&engine->total_commands, 1);
     return 0;
