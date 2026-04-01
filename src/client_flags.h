@@ -1,11 +1,13 @@
 #include <stdint.h>
 
 /* NEX-VERA M3.3: ABI-Shielded 128-bit Client Flags.
- * Using packed union to enforce absolute stability across platforms. */
+ * Flag list verified via grep of all *.c source files.
+ * DO NOT reorder fields - offset stability is critical. */
 #pragma pack(push, 1)
 typedef struct ClientFlags {
     union {
         struct {
+            /* --- WORD 0 (bits 0-63) --- */
             uint64_t primary : 1;
             uint64_t replica : 1;
             uint64_t monitor : 1;
@@ -35,6 +37,7 @@ typedef struct ClientFlags {
             uint64_t reply_skip_next : 1;
             uint64_t reply_skip : 1;
             uint64_t lua_debug : 1;
+            uint64_t lua_debug_sync : 1;
             uint64_t pushing : 1;
             uint64_t module_auth_has_result : 1;
             uint64_t module_prevent_aof_prop : 1;
@@ -50,7 +53,7 @@ typedef struct ClientFlags {
             uint64_t repl_rdb_channel : 1;
             uint64_t dont_cache_primary : 1;
             uint64_t fake : 1;
-            /* Missing flags identified by lint */
+            /* --- WORD 1 (bits 64-127) --- */
             uint64_t module : 1;
             uint64_t tracking : 1;
             uint64_t tracking_broken_redir : 1;
