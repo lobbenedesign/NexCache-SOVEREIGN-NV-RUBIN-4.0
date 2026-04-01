@@ -1369,7 +1369,7 @@ typedef struct client {
     robj **original_argv;       /* Arguments of original command if arguments were rewritten. */
     /* Client flags and state indicators */
     /* Client flags and state indicators */
-    struct ClientFlags flag;
+    /* Client flags and state indicators moved to the end to preserve ABI offsets of following fields */
     uint16_t write_flags;            /* Client Write flags - used to communicate the client write state. */
     volatile uint8_t io_read_state;  /* Indicate the IO read state of the client */
     volatile uint8_t io_write_state; /* Indicate the IO write state of the client */
@@ -1422,6 +1422,7 @@ typedef struct client {
 #ifdef LOG_REQ_RES
     clientReqResInfo reqres;
 #endif
+    struct ClientFlags flag; /* 128-bit ABI Shielded flags */
 } client;
 
 /* When a command generates a lot of discrete elements to the client output buffer, it is much faster to
