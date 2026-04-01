@@ -1381,7 +1381,7 @@ typedef struct client {
     robj **original_argv;       /* Arguments of original command if arguments were rewritten. */
     /* Client flags and state indicators */
     union {
-        uint64_t raw_flag;
+        unsigned __int128 raw_flag;
         struct ClientFlags flag;
     };
     uint16_t write_flags;            /* Client Write flags - used to communicate the client write state. */
