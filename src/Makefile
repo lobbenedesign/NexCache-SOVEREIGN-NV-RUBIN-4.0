@@ -231,6 +231,7 @@ ifeq ($(uname_S),Haiku)
 	FINAL_LIBS+= -lpthread
 else
 	# All the other OSes (notably Linux)
+	FINAL_CFLAGS+= -D_GNU_SOURCE
 	FINAL_LDFLAGS+= -rdynamic
 	FINAL_LIBS+=-ldl -pthread -lrt
 endif
