@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 /*
  * Copyright (c) 2009-2020, NexCache Contributors.
  * All rights reserved.
