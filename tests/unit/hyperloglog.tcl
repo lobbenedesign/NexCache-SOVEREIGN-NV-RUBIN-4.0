@@ -1,4 +1,4 @@
-start_server {tags {"hll large-memory"}} {
+start_server {tags {"hll"}} {
     test {CVE-2025-32023: Sparse HLL XZERO overflow triggers crash} {
         # Build a valid HLL header for sparse encoding
         set hll [binary format cccc 72 89 76 76] ; # "HYLL"

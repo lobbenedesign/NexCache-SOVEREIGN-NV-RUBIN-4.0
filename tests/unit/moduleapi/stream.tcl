@@ -160,7 +160,7 @@ start_server {tags {"modules"}} {
 
 run_solo {stream-large-memory} {
     set testmodule [file normalize tests/modules/stream.so]
-    start_server {tags {"modules large-memory"}} {
+    start_server {tags {"modules"}} {
         r module load $testmodule
         
         test {Module stream XADD big fields doesn't create empty key} {
