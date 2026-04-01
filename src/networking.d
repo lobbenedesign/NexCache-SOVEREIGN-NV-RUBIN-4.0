@@ -7,5 +7,5 @@ networking.o: networking.c server.h fmacros.h config.h solarisfixes.h \
   quicklist.h expire.h rax.h memory_prefetch.h vset.h entry.h lrulfu.h \
   nexcachemodule.h zipmap.h ziplist.h sha1.h endianconv.h crc64.h \
   stream.h listpack.h rdb.h cluster.h cluster_slot_stats.h \
-  cluster_legacy.h cluster_migrateslots.h script.h scripting_engine.h \
-  intset.h ../deps/fpconv/fpconv_dtoa.h fmtargs.h io_threads.h module.h
+  cluster_legacy.h cluster_migrateslots.h intset.h fmtargs.h \
+  io_threads.h module.h vera_simd.h vera_lockfree.h

@@ -11,5 +11,5 @@ server.o: server.c server.h fmacros.h config.h solarisfixes.h rio.h sds.h \
   ../deps/hdr_histogram/hdr_histogram.h syscheck.h threads_mngr.h \
   fmtargs.h io_threads.h tls.h module.h eval.h core/engine.h \
   core/../memory/arena.h core/../memory/tagged_ptr.h \
-  core/../memory/arch_probe.h core/vll.h core/nexstorage.h \
-  observability/anomaly.h asciilogo.h
+  core/../memory/arch_probe.h core/../vera_lockfree.h core/vll.h \
+  core/nexstorage.h observability/anomaly.h asciilogo.h

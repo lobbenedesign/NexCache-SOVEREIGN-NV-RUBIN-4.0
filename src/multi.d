@@ -7,4 +7,5 @@ multi.o: multi.c server.h fmacros.h config.h solarisfixes.h rio.h sds.h \
   memory_prefetch.h vset.h entry.h lrulfu.h nexcachemodule.h zipmap.h \
   ziplist.h sha1.h endianconv.h crc64.h stream.h listpack.h rdb.h \
   core/vll.h core/engine.h core/../memory/arena.h \
-  core/../memory/tagged_ptr.h core/../memory/arch_probe.h
+  core/../memory/tagged_ptr.h core/../memory/arch_probe.h \
+  core/../vera_lockfree.h
