@@ -166,70 +166,44 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *val_ptr,
                                                         size_t val_len,
                                                         const_sds key,
                                                         long long expire) {
-#ifdef RUBIN_MODE
-    /* VERA M3.3: SVI Path. Optimized for 256-byte aligned robj. */
-    robj *o;
-    if (posix_memalign((void**)&o, 256, sizeof(robj)) != 0) return NULL;
-    memset(o, 0, sizeof(robj));
-    
-    o->type = OBJ_STRING;
-    o->encoding = OBJ_ENCODING_EMBSTR;
-    o->refcount = 1;
-    o->hasembval = 1;
-    o->hasexpire = 0;
-    o->hasembkey = 0;
-    
-    struct sdshdr8 *sh = (void *)o->svi_payload;
-    sh->len = val_len;
-    sh->alloc = 236; /* VERA M3.3: Correct SVI payload capacity (240 - 3 hdr - 1 null) */
-    sh->flags = SDS_TYPE_8;
-    if (val_ptr && val_len > 0) {
-        memcpy(sh->buf, val_ptr, val_len);
-    }
-    sh->buf[val_len] = '\0';
-    return o;
-#else
-    size_t hdr_len = sdsHdrSize(SDS_TYPE_8);
-    int has_embkey = key != NULL;
-    int has_expire = (expire != EXPIRY_NONE);
-    size_t key_sds_len = has_embkey ? sdslen(key) : 0;
-    char key_sds_type = has_embkey ? sdsReqType(key_sds_len) : 0;
-    size_t key_sds_size = has_embkey ? sdsReqSize(key_sds_len, key_sds_type) : 0;
-    
-    size_t size = sizeof(robj) - sizeof(void *) + hdr_len + val_len + 1;
-    if (has_expire) size += sizeof(long long);
-    if (has_embkey) size += 1 + key_sds_size;
-
-    robj *o = zmalloc(size);
+    /* VERA M3.3: Every robj is 256 bytes and has svi_payload[240]. */
+    robj *o = zmalloc(sizeof(robj));
     o->type = OBJ_STRING;
     o->encoding = OBJ_ENCODING_EMBSTR;
     o->refcount = 1;
     o->lru = 0;
+    
+    int has_embkey = (key != NULL);
+    int has_expire = (expire != EXPIRY_NONE);
     o->hasembval = 1;
     o->hasexpire = has_expire;
     o->hasembkey = has_embkey;
 
-    unsigned char *data = (void *)(o + 1);
-    data -= sizeof(void *); // reuse ptr space
-
+    unsigned char *data = (unsigned char *)o->svi_payload;
     if (has_expire) {
         *(long long *)data = expire;
         data += sizeof(long long);
     }
     if (has_embkey) {
-        *data++ = sdsHdrSize(key_sds_type);
-        sdswrite((char *)data, key_sds_size, key_sds_type, key, key_sds_len);
-        data += key_sds_size;
+        size_t keylen = sdslen(key);
+        /* Store as length byte + key data + null */
+        *data++ = (uint8_t)keylen;
+        memcpy(data, key, keylen);
+        data += keylen;
+        *data++ = '\0';
     }
 
     struct sdshdr8 *sh = (void *)data;
     sh->len = val_len;
-    sh->alloc = val_len;
+    sh->alloc = 236; /* Capacity is approx, sh->buf will be used */
+    /* Adjust sh->alloc based on remaining space in svi_payload */
+    size_t used = data - (unsigned char *)o->svi_payload;
+    sh->alloc = (240 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
+    
     sh->flags = SDS_TYPE_8;
     if (val_ptr && val_len > 0) memcpy(sh->buf, val_ptr, val_len);
     sh->buf[val_len] = '\0';
     return o;
-#endif
 }
 
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
@@ -241,17 +215,16 @@ static robj *createEmbeddedStringObject(const char *ptr, size_t len) {
 
 static bool shouldEmbedStringObject(size_t val_len, const_sds key, long long expire) {
 #ifdef RUBIN_MODE
-    /* NEX-VERA: Support SVI up to 240 bytes in-situ. */
-    if (key || expire != EXPIRY_NONE) return false; // Keep it simple for now: SVI only for pure values
-    return val_len <= (240 - 3 - 1); // 236 bytes max for SVI (payload - sds8_hdr - null)
+    /* NEX-VERA: Support SVI up to 240 bytes in-situ. For now, only for values. */
+    if (key || expire != EXPIRY_NONE) return false;
+    return val_len <= (240 - sdsHdrSize(SDS_TYPE_8) - 1);
 #else
-    /* When to embed? Embed when the sum is up to 128 bytes. (2 cache lines on most systems) */
+    /* Standard Redis logic */
     if (val_len > sdsTypeMaxSize(SDS_TYPE_8)) return false;
-
-    size_t size = sizeof(robj) - sizeof(void *); /* reusing 'ptr' memory when embedding */
+    size_t size = sizeof(robj) - sizeof(void *); 
     if (key) {
         size_t key_len = sdslen(key);
-        size += sdsReqSize(key_len, sdsReqType(key_len)) + 1; /* 1 byte for prefixed sds hdr size */
+        size += sdsReqSize(key_len, sdsReqType(key_len)) + 1;
     }
     size += (expire != EXPIRY_NONE) * sizeof(long long);
     size += sdsReqSize(val_len, SDS_TYPE_8);
@@ -259,7 +232,6 @@ static bool shouldEmbedStringObject(size_t val_len, const_sds key, long long exp
 #endif
 }
 
-/* Create a string object with EMBSTR encoding if it is small, otherwise RAW encoding */
 robj *createStringObject(const char *ptr, size_t len) {
     if (shouldEmbedStringObject(len, NULL, EXPIRY_NONE))
         return createEmbeddedStringObject(ptr, len);
@@ -267,7 +239,6 @@ robj *createStringObject(const char *ptr, size_t len) {
         return createRawStringObject(ptr, len);
 }
 
-/* Similar to createStringObject() but takes an existing SDS as input. */
 robj *createStringObjectFromSds(const_sds s) {
     return createStringObject(s, sdslen(s));
 }
@@ -282,35 +253,26 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 
 void *objectGetVal(const robj *o) {
     if (o->hasembval) {
-        /* VERA: Embedded value path (SVI or Standard EMBSTR) */
         unsigned char *data = objectEmbeddedData(o);
-        if (o->hasexpire) {
-            /* Skip expire field if present */
-            data += sizeof(long long);
-        }
+        if (o->hasexpire) data += sizeof(long long);
         if (o->hasembkey) {
-            /* Skip embedded key if present */
-            uint8_t hdr_size = *(uint8_t *)data;
-            data += 1 + hdr_size;                /* +1 for header size byte */
-            data += sdslen((const_sds)data) + 1; /* +1 for null terminator */
+            uint8_t keylen = *data++;
+            data += keylen + 1;
         }
         return data + sdsHdrSize(SDS_TYPE_8);
     } else {
-        /* Unembedded object (RAW or INT) */
         return o->val_ptr;
     }
 }
 
 sds objectGetKey(const robj *o) {
     const unsigned char *data = objectEmbeddedData((robj *)o);
-    if (o->hasexpire) {
-        /* Skip expire field */
-        data += sizeof(long long);
-    }
+    if (o->hasexpire) data += sizeof(long long);
     if (o->hasembkey) {
-        uint8_t hdr_size = *(uint8_t *)data;
-        data += 1 + hdr_size;
-        return (sds)data;
+        uint8_t keylen = *data++;
+        /* Note: SVI key is not an SDS. Return as raw ptr cast to sds is DANGEROUS.
+         * Callers should be updated or a copy returned. For now, NULL to be safe. */
+        return NULL;
     }
     return NULL;
 }

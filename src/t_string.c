@@ -260,10 +260,13 @@ void setCommand(client *c) {
         decrRefCount(key);
         decrRefCount(val);
 
-        if (res == NEXS_OK)
+        if (res == NEXS_OK) {
+            dbDelete(c->db, c->argv[1]);
+            notifyKeyspaceEvent(NOTIFY_STRING, "set", c->argv[1], c->db->id);
             addReply(c, shared.ok);
-        else
+        } else {
             addReplyError(c, "ERR NexStorage internal error");
+        }
         return;
     }
 
