@@ -282,20 +282,21 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 
 void *objectGetVal(const robj *o) {
     if (o->hasembval) {
+        /* VERA: Embedded value path (SVI or Standard EMBSTR) */
         unsigned char *data = objectEmbeddedData(o);
         if (o->hasexpire) {
-            /* Skip expire field */
+            /* Skip expire field if present */
             data += sizeof(long long);
         }
         if (o->hasembkey) {
-            /* Skip embedded key */
+            /* Skip embedded key if present */
             uint8_t hdr_size = *(uint8_t *)data;
             data += 1 + hdr_size;                /* +1 for header size byte */
             data += sdslen((const_sds)data) + 1; /* +1 for null terminator */
         }
-        assert(o->encoding == OBJ_ENCODING_EMBSTR);
         return data + sdsHdrSize(SDS_TYPE_8);
     } else {
+        /* Unembedded object (RAW or INT) */
         return o->val_ptr;
     }
 }
