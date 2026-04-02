@@ -858,7 +858,7 @@ typedef struct NexCacheModuleType moduleType;
 
 /* NEX-VERA: SVI (Small-Value Inlining) Architecture 
  * We align the object to 256 bytes (4 cache lines on Olympus) and inline up to 240 bytes. */
-struct __attribute__((aligned(256))) serverObject {
+struct __attribute__((aligned(64))) serverObject {
     unsigned type : 4;
     unsigned encoding : 4;
     unsigned lru : LRULFU_BITS;

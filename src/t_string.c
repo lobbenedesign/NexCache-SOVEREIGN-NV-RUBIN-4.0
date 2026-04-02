@@ -247,10 +247,13 @@ void setCommand(client *c) {
         robj *key = getDecodedObject(c->argv[1]);
         robj *val = getDecodedObject(c->argv[2]);
 
-        mstime_t ttl_ms = 0;
+        mstime_t ttl_ms = -1; /* -1 means no expire in Rubin Engine */
         if (expire) {
             getExpireMillisecondsOrReply(c, expire, flags, unit, &ttl_ms);
-            /* Handle absolute vs relative expire here properly in a real impl */
+            /* If it's a relative expire (PX/EX), calculate remaining TTL in ms */
+            if (!(flags & (ARGS_PXAT | ARGS_EXAT))) {
+                ttl_ms -= commandTimeSnapshot();
+            }
         }
 
         NexStorageResult res = nexstorage_set(global_nexstorage,

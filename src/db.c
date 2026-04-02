@@ -102,7 +102,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
         if (res == NEXS_OK) {
             val = createStringObject((const char *)entry.value, entry.value_len);
             dbAdd(db, key, &val);
-            if (entry.ttl_ms >= 0) {
+            if (entry.ttl_ms > 0) {
                 setExpire(NULL, db, key, mstime() + entry.ttl_ms);
             }
             /* Tracking hits/misses for promoted keys */
