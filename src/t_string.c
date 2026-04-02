@@ -35,6 +35,7 @@
 #include "server.h"
 #include <math.h> /* isnan(), isinf() */
 #include "core/nexstorage.h"
+#include "kvstore.h"
 
 /* Forward declarations */
 int getGenericCommand(client *c);
@@ -253,15 +254,19 @@ void setCommand(client *c) {
         }
 
         NexStorageResult res = nexstorage_set(global_nexstorage,
-                                              objectGetVal(key), sdslen(objectGetVal(key)),
-                                              objectGetVal(val), sdslen(objectGetVal(val)),
+                                              key->ptr, sdslen(key->ptr),
+                                              val->ptr, sdslen(val->ptr),
                                               NEXDT_STRING,
                                               ttl_ms);
         decrRefCount(key);
         decrRefCount(val);
 
         if (res == NEXS_OK) {
-            dbDelete(c->db, c->argv[1]);
+            /* VERA: Invalidate ONLY the local Redis cache. 
+             * Do NOT use dbDelete as it would trigger a nexstorage_del call. */
+            kvstoreHashtableDelete(c->db->keys, getKVStoreIndexForKey(c->argv[1]->ptr), c->argv[1]->ptr);
+            kvstoreHashtableDelete(c->db->expires, getKVStoreIndexForKey(c->argv[1]->ptr), c->argv[1]->ptr);
+            
             notifyKeyspaceEvent(NOTIFY_STRING, "set", c->argv[1], c->db->id);
             addReply(c, shared.ok);
         } else {

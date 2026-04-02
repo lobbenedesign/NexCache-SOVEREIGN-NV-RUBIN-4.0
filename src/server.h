@@ -866,7 +866,7 @@ struct __attribute__((aligned(256))) serverObject {
     unsigned hasembkey : 1;
     unsigned hasembval : 1;
     unsigned refcount : OBJ_REFCOUNT_BITS;
-    void *val_ptr; /* Use for large values or non-string types */
+    void *ptr; /* Use for large values or non-string types */
     char svi_payload[240]; /* SVI: In-place payload for 99% of GET/SET operations */
 };
 static_assert(sizeof(struct serverObject) <= 256, "unexpected size - SVI VERA architecture requires 256 bytes per object");
