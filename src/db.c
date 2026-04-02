@@ -1976,7 +1976,7 @@ long long getExpireWithDictIndex(serverDb *db, robj *key, int dict_index) {
  * is associated with this key (i.e. the key is non volatile) */
 long long getExpire(serverDb *db, robj *key) {
     void *expire_ptr = NULL;
-    if (kvstoreHashtableFind(db->expires, getKVStoreIndexForKey(key->ptr), key->ptr, &expire_ptr)) {
+    if (kvstoreHashtableFind(db->expires, getKVStoreIndexForKey(objectGetVal(key)), objectGetVal(key), &expire_ptr)) {
         return (long long)((robj *)expire_ptr)->ptr;
     }
 

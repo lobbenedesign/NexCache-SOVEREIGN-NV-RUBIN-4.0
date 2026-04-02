@@ -1,2 +1,1 @@
-zmalloc.o: zmalloc.c fmacros.h config.h solarisfixes.h serverassert.h \
-  zmalloc.h
+zmalloc.o: zmalloc.c config.h zmalloc.h serverassert.h
