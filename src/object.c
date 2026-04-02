@@ -79,7 +79,7 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     memset(o, 0, alloc_size);
     bufsize = alloc_size;
 #else
-    robj *o = zmalloc_usable(min_size, &bufsize);
+    robj *o = zcalloc_usable(min_size, &bufsize);
 #endif
     o->type = type;
     o->encoding = OBJ_ENCODING_RAW;

@@ -2858,7 +2858,7 @@ serverDb *createDatabase(int id) {
         flags |= KVSTORE_FREE_EMPTY_HASHTABLES;
     }
 
-    serverDb *db = zmalloc(sizeof(serverDb));
+    serverDb *db = zcalloc(sizeof(serverDb));
     db->keys = kvstoreCreate(&kvstoreKeysHashtableType, slot_count, flags);
     db->expires = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count, flags);
     db->keys_with_volatile_items = kvstoreCreate(&kvstoreExpiresHashtableType, slot_count, flags);
