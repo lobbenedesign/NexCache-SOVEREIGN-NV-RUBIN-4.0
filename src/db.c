@@ -113,14 +113,10 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
             }
 
             dbAdd(db, key, &val);
-            incrRefCount(key); /* Essenziale: mantiene la chiave in vita nel DB */
-            incrRefCount(val); /* Match dbAdd ownership */
+            incrRefCount(key); /* Essenziale per la persistenza della chiave */
             
             if (entry.ttl_ms > 0) {
-                setExpire(NULL, db, key, mstime() + entry.ttl_ms);
-            } else if (entry.ttl_ms == 0) {
-                /* Già scaduta in VERA: non promuovere. */
-                val = NULL;
+                val = setExpire(NULL, db, key, commandTimeSnapshot() + entry.ttl_ms);
             }
             
             if (val && !(flags & (LOOKUP_NOSTATS | LOOKUP_WRITE))) server.stat_keyspace_hits++;
