@@ -118,8 +118,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
             if (entry.ttl_ms > 0) {
                 setExpire(NULL, db, key, mstime() + entry.ttl_ms);
             } else if (entry.ttl_ms == 0) {
-                /* Già scaduta in VERA: non promuovere, cancella locale */
-                dbDelete(db, key);
+                /* Già scaduta in VERA: non promuovere. */
                 val = NULL;
             }
             
