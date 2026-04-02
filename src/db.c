@@ -113,6 +113,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
             }
 
             dbAdd(db, key, &val);
+            incrRefCount(key); /* Essenziale: mantiene la chiave in vita nel DB */
             incrRefCount(val); /* Match dbAdd ownership */
             
             if (entry.ttl_ms > 0) {
