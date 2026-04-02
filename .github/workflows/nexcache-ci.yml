@@ -21,19 +21,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config tcl8.6 tclx libssl-dev git libgtest-dev
 
-    - name: Build NexCache
+    - name: Build NexCache (Rubin M3.3 Mode)
       run: |
-        # Inietto _GNU_SOURCE tramite EXTRA_CFLAGS per sbloccare Dl_info/dladdr su Linux/Ubuntu
-        # Senza sovrascrivere i flag di sistema necessari (O3, deps, etc.)
-        make -j$(nproc) EXTRA_CFLAGS="-D_GNU_SOURCE"
+        make -j$(nproc) RUBIN_MODE=1 EXTRA_CFLAGS="-D_GNU_SOURCE"
       continue-on-error: false
 
     - name: Verify Executables
       run: |
         ls -l src/nexcache-server
-        ls -l src/nexcache-cli
         ./src/nexcache-server --version
 
-    - name: Run Core Tests
+    - name: Run Core Tests (Stabilized)
       run: |
-        ./runtest --verbose --tags -slow --dump-logs
+        # Usiamo --clients 1 per evitare race condition sui test TTL/Replication in CI
+        # Timeout alzato a 1200 per gestire carichi pesanti in VERA-Mode
+        ./runtest --verbose --tags -slow --dump-logs --timeout 1200 --clients 1

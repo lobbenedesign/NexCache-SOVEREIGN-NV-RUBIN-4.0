@@ -1983,7 +1983,9 @@ long long getExpire(serverDb *db, robj *key) {
     if (global_nexstorage) {
         NexEntry entry;
         if (nexstorage_get(global_nexstorage, key->ptr, sdslen(key->ptr), &entry) == NEXS_OK) {
+            if (entry.ttl_ms == 0) return mstime() - 1; /* Scaduta: forza eliminazione */
             if (entry.ttl_ms > 0) return mstime() + entry.ttl_ms;
+            return -1; /* Permanente */
         }
     }
     return -1;
