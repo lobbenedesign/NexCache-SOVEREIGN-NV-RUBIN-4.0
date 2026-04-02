@@ -74,8 +74,10 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     size_t bufsize = 0;
 #ifdef RUBIN_MODE
     robj *o;
-    if (posix_memalign((void**)&o, 256, sizeof(robj)) != 0) return NULL;
-    bufsize = 256;
+    size_t alloc_size = ((min_size + 255) / 256) * 256;
+    if (posix_memalign((void**)&o, 256, alloc_size) != 0) return NULL;
+    memset(o, 0, alloc_size);
+    bufsize = alloc_size;
 #else
     robj *o = zmalloc_usable(min_size, &bufsize);
 #endif

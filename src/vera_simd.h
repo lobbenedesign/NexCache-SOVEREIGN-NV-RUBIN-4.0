@@ -14,7 +14,7 @@
 /* NEX-VERA: SVE2-optimized multi-char delimiter finding.
  * Scans for any character in 'delims' (up to 16 chars) in 's' up to 'n' bytes. */
 static inline const char *vera_sve2_find_any(const char *s, size_t n, const uint8_t *delims, size_t dlen) {
-    svuint8_t v_delims = svld1_u8(svptrue_b8(), delims);
+    svuint8_t v_delims = svld1_u8(svwhilelt_b8(0U, (uint32_t)dlen), (const uint8_t*)delims);
     for (size_t i = 0; i < n; i += svcntb()) {
         svbool_t pg = svwhilelt_b8((uint32_t)i, (uint32_t)n);
         svuint8_t data = svld1_u8(pg, (const uint8_t*)(s + i));
