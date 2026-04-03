@@ -112,8 +112,12 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
                 val = createStringObject((const char *)entry.value, entry.value_len);
             }
 
-            dbAdd(db, key, &val);
-            incrRefCount(key); /* Essenziale per la persistenza della chiave */
+            /* NEX-VERA: Promozione silenziosa per evitare deadlock ricorsivi (No alerts/signals) */
+            int dict_index = getKVStoreIndexForKey(objectGetVal(key));
+            val = objectSetKeyAndExpire(val, objectGetVal(key), -1);
+            initObjectLRUOrLFU(val);
+            kvstoreHashtableAdd(db->keys, dict_index, val);
+            incrRefCount(key); /* Persistenza chiave */
             
             if (entry.ttl_ms > 0) {
                 val = setExpire(NULL, db, key, commandTimeSnapshot() + entry.ttl_ms);
