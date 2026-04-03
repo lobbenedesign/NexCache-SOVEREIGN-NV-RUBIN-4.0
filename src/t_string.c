@@ -242,42 +242,6 @@ void setCommand(client *c) {
         return;
     }
 
-    if (global_nexstorage) {
-        /* Narrow-waist architecture route */
-        robj *key = getDecodedObject(c->argv[1]);
-        robj *val = getDecodedObject(c->argv[2]);
-
-        mstime_t ttl_ms = -1; /* -1 means no expire in Rubin Engine */
-        if (expire) {
-            getExpireMillisecondsOrReply(c, expire, flags, unit, &ttl_ms);
-            /* If it's a relative expire (PX/EX), calculate remaining TTL in ms */
-            if (!(flags & (ARGS_PXAT | ARGS_EXAT))) {
-                ttl_ms -= commandTimeSnapshot();
-            }
-        }
-
-        NexStorageResult res = nexstorage_set(global_nexstorage,
-                                              key->ptr, sdslen(key->ptr),
-                                              val->ptr, sdslen(val->ptr),
-                                              NEXDT_STRING,
-                                              ttl_ms);
-        decrRefCount(key);
-        decrRefCount(val);
-
-        if (res == NEXS_OK) {
-            /* VERA: Invalidate ONLY the local Redis cache. 
-             * Do NOT use dbDelete as it would trigger a nexstorage_del call. */
-            kvstoreHashtableDelete(c->db->keys, getKVStoreIndexForKey(c->argv[1]->ptr), c->argv[1]->ptr);
-            kvstoreHashtableDelete(c->db->expires, getKVStoreIndexForKey(c->argv[1]->ptr), c->argv[1]->ptr);
-            
-            notifyKeyspaceEvent(NOTIFY_STRING, "set", c->argv[1], c->db->id);
-            addReply(c, shared.ok);
-        } else {
-            addReplyError(c, "ERR NexStorage internal error");
-        }
-        return;
-    }
-
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     setGenericCommand(c, flags, c->argv[1], c->argv[2], expire, unit, NULL, NULL, comparison);
 }
@@ -332,24 +296,6 @@ int getGenericCommand(client *c) {
 }
 
 void getCommand(client *c) {
-    if (global_nexstorage) {
-        /* Narrow-waist architecture route */
-        robj *key = getDecodedObject(c->argv[1]);
-        NexEntry entry;
-
-        NexStorageResult res = nexstorage_get(global_nexstorage, objectGetVal(key), sdslen(objectGetVal(key)), &entry);
-        decrRefCount(key);
-
-        if (res == 1 /* NEXS_NOT_FOUND */) {
-            addReplyNull(c);
-        } else if (res == 0 /* NEXS_OK */) {
-            addReplyBulkCBuffer(c, entry.value, entry.value_len);
-        } else {
-            addReplyError(c, "ERR internal NexStorage error");
-        }
-        return;
-    }
-
     getGenericCommand(c);
 }
 

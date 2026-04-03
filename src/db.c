@@ -101,23 +101,27 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
         NexEntry entry;
         NexStorageResult res = nexstorage_get(global_nexstorage, objectGetVal(key), sdslen(objectGetVal(key)), &entry);
         if (res == NEXS_OK) {
-            /* Fix: Rispettiamo il tipo originale di NexStorage (Vera M3.3 precision) */
-            if (entry.type == NEXDT_STRING) {
+            /* NEX-VERA: Creazione oggetto con tipo consapevole */
+            int type = OBJ_STRING;
+            if (entry.type == 4) type = OBJ_ZSET;      /* NEXDT_ZSET */
+            else if (entry.type == 2) type = OBJ_HASH; /* NEXDT_HASH */
+            else if (entry.type == 1) type = OBJ_LIST; /* NEXDT_LIST */
+            else if (entry.type == 3) type = OBJ_SET;  /* NEXDT_SET */
+
+            if (type == OBJ_STRING) {
                 val = createStringObject((const char *)entry.value, entry.value_len);
-            } else if (entry.type == NEXDT_ZSET) {
-                /* Per ora promuoviamo come stringa opaca se non siamo sicuri, 
-                 * ma il fix GEO richiede che il tipo sia coerente. */
-                val = createRawStringObject((const char *)entry.value, entry.value_len);
             } else {
-                val = createStringObject((const char *)entry.value, entry.value_len);
+                /* Per i tipi complessi promuoviamo lo stub per il checkType.
+                 * NOTA: L'integrazione completa dei dati complessi richiede piani di volo specifici. */
+                val = createObject(type, NULL);
             }
 
-            /* NEX-VERA: Promozione silenziosa per evitare deadlock ricorsivi (No alerts/signals) */
+            /* NEX-VERA: Promozione silenziosa e atomica per prevenire ricorsioni */
             int dict_index = getKVStoreIndexForKey(objectGetVal(key));
             val = objectSetKeyAndExpire(val, objectGetVal(key), -1);
             initObjectLRUOrLFU(val);
             kvstoreHashtableAdd(db->keys, dict_index, val);
-            incrRefCount(key); /* Persistenza chiave */
+            incrRefCount(key); /* Mantieni viva la chiave promoted */
             
             if (entry.ttl_ms > 0) {
                 val = setExpire(NULL, db, key, commandTimeSnapshot() + entry.ttl_ms);
