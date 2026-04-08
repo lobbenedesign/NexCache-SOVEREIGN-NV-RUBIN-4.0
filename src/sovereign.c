@@ -15,6 +15,11 @@ static uint64_t hash_sds(sds key) {
 
 static uint64_t hash_key(robj *key) {
     if (!key) return 0;
+    if (key->encoding == OBJ_ENCODING_INT) {
+        char buf[32];
+        int len = ll2string(buf, sizeof(buf), (long)key->ptr);
+        return dictGenHashFunction(buf, len);
+    }
     return hash_sds(objectGetVal(key));
 }
 
@@ -56,7 +61,17 @@ const char* Sovereign_GetDNAName(void) {
 #define FILTER_SIZE (1024 * 1024)
 static uint8_t *sovereign_filter = NULL;
 
-void Sovereign_UpdateFilter(sds key) {
+void Sovereign_UpdateFilter(robj *key) {
+    if (!sovereign_filter) {
+        sovereign_filter = zcalloc(FILTER_SIZE / 8);
+    }
+    uint64_t h = hash_key(key);
+    uint32_t bit = h % FILTER_SIZE;
+    sovereign_filter[bit / 8] |= (1 << (bit % 8));
+}
+
+/* Version for raw SDS (used in RDB load) */
+void Sovereign_UpdateFilterSds(sds key) {
     if (!sovereign_filter) {
         sovereign_filter = zcalloc(FILTER_SIZE / 8);
     }
