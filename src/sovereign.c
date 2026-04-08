@@ -8,6 +8,15 @@
 
 hw_dna_t server_dna = HW_GENERIC;
 
+#define FILTER_SIZE (1024 * 1024)
+static uint8_t *sovereign_filter = NULL;
+
+void Sovereign_Init(void) {
+    if (!sovereign_filter) {
+        sovereign_filter = zcalloc(FILTER_SIZE / 8);
+    }
+}
+
 static uint64_t hash_sds(sds key) {
     if (!key) return 0;
     return dictGenHashFunction(key, sdslen(key));
@@ -58,13 +67,9 @@ const char* Sovereign_GetDNAName(void) {
 }
 
 /* Pillar 1: Speculative Filter Implementation */
-#define FILTER_SIZE (1024 * 1024)
-static uint8_t *sovereign_filter = NULL;
 
 void Sovereign_UpdateFilter(robj *key) {
-    if (!sovereign_filter) {
-        sovereign_filter = zcalloc(FILTER_SIZE / 8);
-    }
+    Sovereign_Init();
     uint64_t h = hash_key(key);
     uint32_t bit = h % FILTER_SIZE;
     sovereign_filter[bit / 8] |= (1 << (bit % 8));
@@ -72,9 +77,7 @@ void Sovereign_UpdateFilter(robj *key) {
 
 /* Version for raw SDS (used in RDB load) */
 void Sovereign_UpdateFilterSds(sds key) {
-    if (!sovereign_filter) {
-        sovereign_filter = zcalloc(FILTER_SIZE / 8);
-    }
+    Sovereign_Init();
     uint64_t h = hash_sds(key);
     uint32_t bit = h % FILTER_SIZE;
     sovereign_filter[bit / 8] |= (1 << (bit % 8));

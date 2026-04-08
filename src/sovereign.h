@@ -30,6 +30,7 @@ typedef enum {
 
 extern hw_dna_t server_dna;
 
+void Sovereign_Init(void);
 void Sovereign_SenseDNA(void);
 const char* Sovereign_GetDNAName(void);
 

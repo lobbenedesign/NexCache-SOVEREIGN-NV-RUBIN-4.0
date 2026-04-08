@@ -7420,6 +7420,7 @@ __attribute__((weak)) int main(int argc, char **argv) {
     server.sentinel_mode = checkForSentinelMode(argc, argv, exec_name);
     initServerConfig();
     Sovereign_SenseDNA();
+    Sovereign_Init();
     server.pid = getpid();
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
                   basic networking code and client creation depends on it. */
