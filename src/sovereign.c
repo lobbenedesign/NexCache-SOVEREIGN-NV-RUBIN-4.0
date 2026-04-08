@@ -114,6 +114,9 @@ void Sovereign_GardenerLoop(void) {
             void *entry;
             if (kvstoreHashtableRandomEntry(db->keys, slot, &entry)) {
                 robj *val = entry;
+                /* Skip shared objects to avoid global state corruption */
+                if (val->refcount == OBJ_SHARED_REFCOUNT) continue;
+                
                 if (val->vitality > 0) {
                     val->vitality--; /* Gradual decay */
                 }

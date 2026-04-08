@@ -90,6 +90,7 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     o->hasembkey = has_embkey;
     o->hasembval = 0;
     o->ptr = val;
+    o->vitality = 255; /* Sovereign: Initial maximum vitality */
 
     /* If the allocation has enough space for an expire field, add it even if we
      * don't need it now. Then we don't need to realloc if it's needed later. */
@@ -180,6 +181,7 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     o->hasembval = 1;
     o->hasexpire = has_expire;
     o->hasembkey = has_embkey;
+    o->vitality = 255; /* Sovereign: Initial maximum vitality */
 
     unsigned char *data = (unsigned char *)o->svi_payload;
     if (has_expire) {
@@ -200,9 +202,9 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
 
     struct sdshdr8 *sh = (void *)data;
     sh->len = val_len;
-    /* Adjust sh->alloc based on remaining space in svi_payload */
+    /* Adjust sh->alloc based on remaining space in svi_payload (239 bytes) */
     size_t used = data - (unsigned char *)o->svi_payload;
-    sh->alloc = (240 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
+    sh->alloc = (239 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
     
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
@@ -219,9 +221,9 @@ static robj *createEmbeddedStringObject(const char *ptr, size_t len) {
 
 static bool shouldEmbedStringObject(size_t val_len, const_sds key, long long expire) {
 #ifdef RUBIN_MODE
-    /* NEX-VERA: Support SVI up to 240 bytes in-situ. For now, only for values. */
+    /* NEX-VERA: Support SVI up to 239 bytes in-situ. For now, only for values. */
     if (key || expire != EXPIRY_NONE) return false;
-    return val_len <= (240 - sdsHdrSize(SDS_TYPE_8) - 1);
+    return val_len <= (239 - sdsHdrSize(SDS_TYPE_8) - 1);
 #else
     /* Standard Redis logic */
     if (val_len > sdsTypeMaxSize(SDS_TYPE_8)) return false;
