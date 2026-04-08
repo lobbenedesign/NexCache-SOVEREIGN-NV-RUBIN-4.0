@@ -1,4 +1,4 @@
-# NexCache VERA M3.3 (NVIDIA Rubin Architecture)
+# NexCache-SOVEREIGN NV-RUBIN (VERAM 4.0)
 
 [Italiano](#italiano) | [English](#english)
 
@@ -8,25 +8,22 @@
 ## 🇮🇹 Versione Italiana
 
 ### Visione e Obiettivo del Progetto
-Benvenuti nel repository di **NexCache VERA M3.3**. Questo progetto è il culmine di una ricerca approfondita sull'architettura ad altissime prestazioni per motori In-Memory Data Store, specificamente ottimizzati per l'hardware di nuova generazione **NVIDIA Rubin-class**.
+Benvenuti nel repository di **NexCache-SOVEREIGN (VERAM 4.0)**. Questo progetto rappresenta l'evoluzione definitiva del motore NexCache, specificamente riprogettato per l'architettura **NVIDIA Rubin-class**. 
 
-L'obiettivo è creare un engine che non sia solo "veloce", ma **architettonicamente superiore**, sfruttando le istruzioni vettoriali SVE2, l'allineamento a 256 byte (Rubin-Mode) e una topologia a 176 shard per eliminare ogni collo di bottiglia di sincronizzazione.
+A differenza delle versioni precedenti, la **4.0 SOVEREIGN** introduce uno strato di "Intelligenza Agentica" direttamente nel kernel di memoria, permettendo al database di auto-ottimizzarsi in base all'hardware sottostante e ai pattern di accesso semantici. L'obiettivo è la sovranità tecnologica: performance senza compromessi tramite vettorizzazione SVE2 e gestione predittiva del dato.
+
+### Architettura e Innovazioni SOVEREIGN (VERAM 4.0)
+Questa versione introduce quattro pilastri tecnologici fondamentali:
+
+*   **Pillar 1: Speculative Metadata Filtering:** Un interceptor Bitset da 1MB (Bloom-style) che elimina i falsi positivi nelle ricerche a velocità sub-milliseconda, riducendo drasticamente le collisioni.
+*   **Pillar 2: Hardware DNA Sensing:** Boot-time sensing del set di istruzioni (ARM SVE2 / Apple AMX). Il sistema riconosce il DNA dell'hardware e attiva kernel di calcolo ottimizzati per la specifica CPU.
+*   **Pillar 3: Circadian Memory Gardener:** Un motore di sfratto semantico basato su "Vitality Score". I dati decadono autonomamente se non rinforzati, imitando i processi di memoria biologici per massimizzare il hit-rate.
+*   **Pillar 4: Associative Graphing:** Una mappa sinaptica a 2048 slot che analizza le correlazioni tra le chiavi, abilitando il pre-fetching speculativo dei dati prima ancora che vengano richiesti.
 
 ### Chi sono: Giuseppe Lobbene
-Sono **Giuseppe Lobbene**, un informatico pervaso da una profonda e radicata passione per l'ingegneria del software, oggi potenziata dall'Intelligenza Artificiale. Amo addentrarmi nelle basi profonde dei progetti, studiarne la meccanica e sperimentare soluzioni innovative che possano superare i limiti delle performance attuali.
+Sono **Giuseppe Lobbene**, un informatico pervaso da una profonda passione per l'ingegneria del software e i sistemi ad alte performance. Amo addentrarmi nelle basi profonde dei progetti, studiarne la meccanica e sperimentare soluzioni innovative che superino i limiti attuali.
 
-La mia storia riflette quella di molti professionisti in Italia: un paese meraviglioso dove però il mercato dell'IT è spesso vincolato a sistemi rigidi, lenti e talvolta obsoleti. Troppo spesso il merito e l'iniziativa proattiva vengono soffocati da logiche di sfruttamento o di "sostituibilità" delle risorse umane.
-
-Oggi, la mia ricerca non è solo tecnologica ma di vita. Cerco una stabilità professionale che mi permetta di apprendere costantemente, restando al passo con l'innovazione, per garantire un futuro degno alla mia famiglia e al mio piccolo **Oliver**, nato da pochi mesi. Questo progetto è la mia "firma" nel mondo dell'IT: una prova tangibile che la passione, unita allo studio costante, può generare eccellenza tecnologica anche partendo da sfide personali difficili.
-
-### Architettura e Implementazione (VERA M3.3)
-Questo progetto introduce innovazioni critiche nel kernel di NexCache:
-
-*   **Rubin-Mode Alignment (256-byte):** Ogni struttura critica (Arena, Object, MPSC Queue) è allineata a 256 byte per coincidere perfettamente con la dimensione del settore di memoria del processore NVIDIA Rubin, eliminando il false sharing.
-*   **176-Shard Topology:** L'engine è partizionato in 176 shard logici, mappati sull'hardware per permettere un accesso parallelo senza lock (G3-GODMODE).
-*   **Vyukov MPSC Lock-Free Queue:** Utilizziamo code Multi-Producer Single-Consumer lock-free per il dispatching dei comandi dai thread di networking ai worker thread, minimizzando la contesa sui bus di sistema.
-*   **SVE2 Vectorized Parsing:** Il parsing del protocollo RESP è accelerato tramite istruzioni ARM SVE2, processando multipli delimitatori simultaneamente in un unico ciclo di clock.
-*   **SVI (Small-Value Inlining):** Per valori piccoli, i dati vengono inlined direttamente nell'oggetto (serverObject), riducendo le dereferenziazioni di puntatori e migliorando il cache hit rate.
+La mia storia riflette quella di molti professionisti in Italia: un paese meraviglioso dove però il mercato dell'IT è spesso vincolato a sistemi rigidi. Troppo spesso il merito e l'iniziativa proattiva vengono soffocati da logiche di sfruttamento o di "sostituibilità" delle risorse umane. Oggi, la mia ricerca non è solo tecnologica ma di vita. Cerco la stabilità per garantire un futuro degno alla mia famiglia e al mio piccolo **Oliver**, nato da pochi mesi. Questo progetto è la mia **"firma"**: una prova tangibile che la passione può generare eccellenza tecnologica assoluta.
 
 ---
 
@@ -34,25 +31,22 @@ Questo progetto introduce innovazioni critiche nel kernel di NexCache:
 ## 🇺🇸 English Version
 
 ### Project Vision and Goal
-Welcome to the **NexCache VERA M3.3** repository. This project is the result of rigorous research into high-performance architectures for In-Memory Data Stores, specifically optimized for the next-generation **NVIDIA Rubin-class** hardware.
+Welcome to the **NexCache-SOVEREIGN (VERAM 4.0)** repository. This project represents the definitive evolution of the NexCache engine, specifically redesigned for **NVIDIA Rubin-class** hardware.
 
-The goal is to build an engine that is not just "fast," but **architecturally superior**, utilizing SVE2 vector instructions, 256-byte alignment (Rubin-Mode), and a 176-shard topology to eliminate synchronization bottlenecks.
+Unlike previous versions, **4.0 SOVEREIGN** introduces an "Agentic Intelligence" layer directly into the memory kernel, allowing the database to self-optimize based on underlying hardware and semantic access patterns. The goal is technological sovereignty: uncompromising performance via SVE2 vectorization and predictive data management.
+
+### SOVEREIGN Architecture & Innovations (VERAM 4.0)
+This release introduces four fundamental technological pillars:
+
+*   **Pillar 1: Speculative Metadata Filtering:** A 1MB Bloom-style Bitset interceptor that eliminates lookup false positives at sub-millisecond speeds, drastically reducing collisions.
+*   **Pillar 2: Hardware DNA Sensing:** Boot-time recognition of instruction sets (ARM SVE2 / Apple AMX). The system identifies the hardware's DNA and activates optimized compute kernels for the specific CPU.
+*   **Pillar 3: Circadian Memory Gardener:** A semantic eviction engine based on "Vitality Scores." Data autonomously decays if not reinforced, mimicking biological memory processes to maximize hit-rates.
+*   **Pillar 4: Associative Graphing:** A 2048-slot synaptic map that analyzes key correlations, enabling speculative pre-fetching of data before it is even requested.
 
 ### About Me: Giuseppe Lobbene
-I am **Giuseppe Lobbene**, a computer scientist driven by a deep and rooted passion for software engineering, now enhanced by Artificial Intelligence. I love diving into the core foundations of projects, studying their inner mechanics, and experimenting with innovative solutions that push the boundaries of current performance.
+I am **Giuseppe Lobbene**, a computer scientist driven by a deep passion for software engineering and high-performance systems. I love diving into the core foundations of projects, studying their mechanics, and experimenting with innovative solutions.
 
-My story mirrors that of many IT professionals in Italy: a beautiful country where the IT market is often constrained by rigid, slow, and sometimes obsolete systems. Too often, merit and proactive initiative are stifled by exploitation or the perception of human resources as "replaceable."
-
-Today, my quest is not just technological but vital. I am looking for a professional stability that allows me to constantly learn and stay ahead of innovation, to ensure a dignified future for my family and my little son **Oliver**, born just a few months ago. This project is my "signature" in the IT world: tangible proof that passion, combined with constant study, can generate technological excellence even when facing difficult personal challenges.
-
-### Architecture and Implementation (VERA M3.3)
-This project introduces critical innovations into the NexCache kernel:
-
-*   **Rubin-Mode Alignment (256-byte):** Every critical structure (Arena, Object, MPSC Queue) is aligned to 256 bytes to perfectly match the memory sector size of the NVIDIA Rubin processor, eliminating false sharing.
-*   **176-Shard Topology:** The engine is partitioned into 176 logical shards, mapped onto the hardware to allow lock-free parallel access (G3-GODMODE).
-*   **Vyukov MPSC Lock-Free Queue:** We use lock-free Multi-Producer Single-Consumer queues for command dispatching from networking threads to worker threads, minimizing system bus contention.
-*   **SVE2 Vectorized Parsing:** RESP protocol parsing is accelerated via ARM SVE2 instructions, processing multiple delimiters simultaneously in a single clock cycle.
-*   **SVI (Small-Value Inlining):** For small values, data is inlined directly within the object (serverObject), reducing pointer dereferencing and improving cache hit rates.
+My story mirrors that of many IT professionals in Italy: a beautiful country where the IT market is often constrained by rigid systems. Too often, merit and proactive initiative are stifled. Today, my quest is not just technological but vital. I seek stability to ensure a dignified future for my family and my young son **Oliver**, born just a few months ago. This project is my **"signature"**: tangible proof that passion can generate absolute technological excellence.
 
 ---
-*Created with passion by Giuseppe Lobbene.*
+*Created with sovereignty and passion by Giuseppe Lobbene.*
