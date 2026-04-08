@@ -127,6 +127,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
             val = objectSetKeyAndExpire(val, objectGetVal(decoded_key), -1);
             initObjectLRUOrLFU(val);
             kvstoreHashtableAdd(db->keys, dict_index, val);
+            Sovereign_UpdateFilter(objectGetVal(decoded_key));
             incrRefCount(key); /* Mantieni viva la chiave promoted */
 
             if (decoded_key != key) decrRefCount(decoded_key);
@@ -259,6 +260,7 @@ static void dbAddInternal(serverDb *db, robj *key, robj **valref, int update_if_
     kvstoreHashtableAdd(db->keys, dict_index, val);
     signalKeyAsReady(db, key, val->type);
     notifyKeyspaceEvent(NOTIFY_NEW, "new", key, db->id);
+    Sovereign_UpdateFilter(objectGetVal(key));
     *valref = val;
 }
 
@@ -328,6 +330,7 @@ int dbAddRDBLoad(serverDb *db, sds key, robj **valref) {
     val = objectSetKeyAndExpire(val, key, -1);
     kvstoreHashtableInsertAtPosition(db->keys, dict_index, val, &pos);
     initObjectLRUOrLFU(val);
+    Sovereign_UpdateFilter(key);
 
     /* Track hash objects containing volatile items, created by rdbLoadObject (which lacks DB context). */
     dbTrackKeyWithVolatileItems(db, val);

@@ -8,9 +8,14 @@
 
 hw_dna_t server_dna = HW_GENERIC;
 
+static uint64_t hash_sds(sds key) {
+    if (!key) return 0;
+    return dictGenHashFunction(key, sdslen(key));
+}
+
 static uint64_t hash_key(robj *key) {
     if (!key) return 0;
-    return dictGenHashFunction(objectGetVal(key), sdslen(objectGetVal(key)));
+    return hash_sds(objectGetVal(key));
 }
 
 void Sovereign_SenseDNA(void) {
@@ -51,12 +56,11 @@ const char* Sovereign_GetDNAName(void) {
 #define FILTER_SIZE (1024 * 1024)
 static uint8_t *sovereign_filter = NULL;
 
-void Sovereign_UpdateFilter(robj *key, robj *val) {
-    UNUSED(val);
+void Sovereign_UpdateFilter(sds key) {
     if (!sovereign_filter) {
         sovereign_filter = zcalloc(FILTER_SIZE / 8);
     }
-    uint64_t h = hash_key(key);
+    uint64_t h = hash_sds(key);
     uint32_t bit = h % FILTER_SIZE;
     sovereign_filter[bit / 8] |= (1 << (bit % 8));
 }

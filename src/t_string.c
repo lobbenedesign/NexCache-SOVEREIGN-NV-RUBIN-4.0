@@ -166,9 +166,6 @@ void setGenericCommand(client *c,
         addReply(c, ok_reply ? ok_reply : shared.ok);
     }
 
-    /* Sovereign Pillar 1: Speculative Metadata Filtering */
-    Sovereign_UpdateFilter(key, val);
-
     /* Propagate without the GET argument (Isn't needed if we had expire since in that case we completely re-written the
      * command argv) */
     if ((flags & ARGS_SET_GET) && !expire) {

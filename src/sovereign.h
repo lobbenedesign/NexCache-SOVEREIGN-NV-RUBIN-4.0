@@ -16,7 +16,7 @@ typedef struct {
     uint8_t  vitality;
 } sovereignMetadata;
 
-void Sovereign_UpdateFilter(robj *key, robj *val);
+void Sovereign_UpdateFilter(sds key);
 int Sovereign_SpeculativeMiss(robj *key);
 
 /* Pillar 2: Hardware DNA Sensing */
