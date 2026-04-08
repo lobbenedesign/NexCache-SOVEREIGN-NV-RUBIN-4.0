@@ -20,8 +20,8 @@ CLANG := $(findstring clang,$(shell sh -c '$(CC) --version | head -1'))
 # Optimization flags. To override, the OPTIMIZATION variable can be passed, but
 # some automatic defaults are added to it. To specify optimization flags
 # explicitly without any defaults added, pass the OPT variable instead.
-# NEX-VERA: Optimization for Rubin Architecture (ARM v9.2-A / Olympus)
-OPTIMIZATION?=-O3 -DRUBIN_MODE -DVERA_M3_3
+# NEX-VERA: Optimization for NVIDIA Rubin Architecture (ARM v9.2-A / Olympus)
+OPTIMIZATION?=-O3 -DRUBIN_MODE -DVERA_M4_0
 ifeq ($(OPTIMIZATION),-O3)
 	ifeq (clang,$(CLANG))
 		OPTIMIZATION+=
@@ -534,6 +534,7 @@ ENGINE_SERVER_OBJ = macos_stubs.o \
     sds.o \
     sentinel.o \
     server.o \
+    sovereign.o \
     setcpuaffinity.o \
     setproctitle.o \
     sha1.o \

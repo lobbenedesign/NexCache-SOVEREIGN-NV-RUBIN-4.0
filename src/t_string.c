@@ -35,7 +35,7 @@
 #include "server.h"
 #include <math.h> /* isnan(), isinf() */
 #include "core/nexstorage.h"
-#include "kvstore.h"
+#include "sovereign.h"
 
 /* Forward declarations */
 int getGenericCommand(client *c);
@@ -165,6 +165,9 @@ void setGenericCommand(client *c,
     if (!(flags & ARGS_SET_GET)) {
         addReply(c, ok_reply ? ok_reply : shared.ok);
     }
+
+    /* Sovereign Pillar 1: Speculative Metadata Filtering */
+    Sovereign_UpdateFilter(key, val);
 
     /* Propagate without the GET argument (Isn't needed if we had expire since in that case we completely re-written the
      * command argv) */
@@ -504,6 +507,9 @@ void mgetCommand(client *c) {
 
     addReplyArrayLen(c, c->argc - 1);
     for (j = 1; j < c->argc; j++) {
+        /* Pillar 4: Neural Association Inference */
+        if (j < c->argc - 1) Sovereign_LinkKeys(c->argv[j], c->argv[j+1]);
+        
         robj *o = lookupKeyRead(c->db, c->argv[j]);
         if (o == NULL) {
             addReplyNull(c);

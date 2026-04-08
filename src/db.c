@@ -38,6 +38,7 @@
 #include "module.h"
 #include "vector.h"
 #include "expire.h"
+#include "sovereign.h"
 
 /*-----------------------------------------------------------------------------
  * C-level DB API
@@ -82,6 +83,8 @@ static robj *dbFindWithDictIndex(serverDb *db, sds key, int dict_index);
 extern NexStorage *global_nexstorage;
 
 robj *lookupKey(serverDb *db, robj *key, int flags) {
+    if (Sovereign_SpeculativeMiss(key)) return NULL;
+    Sovereign_PrefetchAssociates(key);
     int dict_index = getKVStoreIndexForKey(objectGetVal(key));
     robj *val = dbFindWithDictIndex(db, objectGetVal(key), dict_index);
     if (val) {
@@ -144,6 +147,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
             flags |= LOOKUP_NOTOUCH;
         if (!hasActiveChildProcess() && !(flags & LOOKUP_NOTOUCH)) {
             val->lru = lrulfu_touch(val->lru);
+            Sovereign_ReinforceSynapse(val); /* Pillar 3: Strengthen synaptic weight on hit */
         }
         /* Only increment hits if it wasn't already handled by promotion */
         if (!(flags & (LOOKUP_NOSTATS | LOOKUP_WRITE))) {

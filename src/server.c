@@ -42,12 +42,11 @@
 #include "latency.h"
 #include "mt19937-64.h"
 #include "functions.h"
-#include "hdr_histogram.h"
+#include "../deps/hdr_histogram/hdr_histogram.h"
 #include "syscheck.h"
 #include "threads_mngr.h"
 #include "fmtargs.h"
 #include "io_threads.h"
-#include "tls.h"
 #include "sds.h"
 #include "module.h"
 #include "scripting_engine.h"
@@ -58,6 +57,7 @@
 #include "trace/trace_commands.h"
 #include "core/engine.h"
 #include "core/nexstorage.h"
+#include "sovereign.h"
 
 #include <time.h>
 #include <signal.h>
@@ -1588,6 +1588,11 @@ long long serverCron(struct aeEventLoop *eventLoop, long long id, void *clientDa
 
     /* Handle background operations on databases. */
     databasesCron();
+
+    /* Pillar 3: Cognitive Memory Gardening */
+    run_with_period(100) {
+        Sovereign_GardenerLoop();
+    }
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
@@ -7414,6 +7419,7 @@ __attribute__((weak)) int main(int argc, char **argv) {
     if (exec_name == NULL) exec_name = argv[0];
     server.sentinel_mode = checkForSentinelMode(argc, argv, exec_name);
     initServerConfig();
+    Sovereign_SenseDNA();
     server.pid = getpid();
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
                   basic networking code and client creation depends on it. */

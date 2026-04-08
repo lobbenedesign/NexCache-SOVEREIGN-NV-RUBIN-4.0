@@ -1,0 +1,40 @@
+# Build artifacts
+*.o
+*.d
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+bin/
+build/
+cmake-build-*/
+out/
+
+# Executables
+nexcache-server
+nexcache-cli
+nexcache-benchmark
+nexcache-check-aof
+nexcache-check-rdb
+fenwick_test
+print_mutex
+
+# Logs and databases
+*.log
+*.rdb
+*.aof
+dump.rdb
+appendonly.aof
+!tests/assets/*.rdb
+!tests/assets/*.aof
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# User specific
+.vscode/
+.idea/
+*.swp
+*.swo

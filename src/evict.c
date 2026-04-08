@@ -32,8 +32,8 @@
 
 #include "server.h"
 #include "bio.h"
-#include "script.h"
 #include "cluster_migrateslots.h"
+#include "sovereign.h"
 #include <math.h>
 
 /* ----------------------------------------------------------------------------
@@ -131,6 +131,9 @@ int evictionPoolPopulate(serverDb *db, kvstore *samplekvs, struct evictionPoolEn
         } else if (server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL) {
             /* In this case the sooner the expire the better. */
             idle = ULLONG_MAX - objectGetExpire(o);
+        } else if (server.maxmemory_policy == MAXMEMORY_SOVEREIGN_CIRCADIAN) {
+            /* Pillar 3: Inverted vitality score for eviction candidacy. */
+            idle = Sovereign_GetEvictionScore(o);
         } else {
             serverPanic("Unknown eviction policy in evictionPoolPopulate()");
         }

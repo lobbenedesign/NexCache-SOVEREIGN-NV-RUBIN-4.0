@@ -3,8 +3,8 @@
  * readable text like log messages and SERVER_NAME is used in INFO fields and
  * similar. */
 #define SERVER_NAME "nexcache"
-#define SERVER_TITLE "NexCache"
-#define NEXCACHE_VERSION "1.0.0"
+#define SERVER_TITLE "NexCache SOVEREIGN NV-RUBIN"
+#define NEXCACHE_VERSION "4.0.0-SOVEREIGN"
 #define NEXCACHE_VERSION_NUM 0x00010000
 
 /* The release stage is used in order to provide release status information.

@@ -8,6 +8,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NEXCACHE_SERVER_CFLAGS}")
 message(STATUS "CFLAGS: ${CMAKE_C_FLAGS}")
 
 get_nexcache_server_linker_option(NEXCACHE_SERVER_LDFLAGS)
+include_directories(${CMAKE_SOURCE_DIR}/deps/hdr_histogram)
 list(APPEND SERVER_LIBS "fpconv")
 list(APPEND SERVER_LIBS "hdr_histogram")
 nexcache_build_and_install_bin(nexcache-server "${NEXCACHE_SERVER_SRCS}" "${NEXCACHE_SERVER_LDFLAGS}" "${SERVER_LIBS}"

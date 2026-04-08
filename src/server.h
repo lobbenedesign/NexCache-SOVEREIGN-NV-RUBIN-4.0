@@ -600,6 +600,7 @@ typedef enum {
 #define MAXMEMORY_ALLKEYS_LFU ((5 << 8) | MAXMEMORY_FLAG_LFU | MAXMEMORY_FLAG_ALLKEYS)
 #define MAXMEMORY_ALLKEYS_RANDOM ((6 << 8) | MAXMEMORY_FLAG_ALLKEYS)
 #define MAXMEMORY_NO_EVICTION (7 << 8)
+#define MAXMEMORY_SOVEREIGN_CIRCADIAN (8 << 8)
 
 /* Units */
 #define UNIT_SECONDS 0
@@ -866,7 +867,8 @@ struct __attribute__((aligned(64))) serverObject {
     unsigned hasembval : 1;
     unsigned refcount : OBJ_REFCOUNT_BITS;
     void *ptr; /* Use for large values or non-string types */
-    char svi_payload[240]; /* SVI: In-place payload for 99% of GET/SET operations */
+    uint8_t vitality; /* Sovereign: Semantic vitality score */
+    char svi_payload[239]; /* SVI: In-place payload for 99% of GET/SET operations */
 };
 static_assert(sizeof(struct serverObject) <= 256, "unexpected size - SVI VERA architecture requires 256 bytes per object");
 

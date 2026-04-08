@@ -36,17 +36,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "fmacros.h"
 
 #include <string.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <pthread.h>
 
+#include <assert.h>
 #include "zmalloc.h"
 #include "kvstore.h"
-#include "serverassert.h"
-#include "dict.h"
 #include "monotonic.h"
 #include <stdatomic.h>
 
@@ -107,6 +105,7 @@ hashtableType intHashtableType = {.instant_rehashing = 1};
 /* Get the hash table pointer based on hashtable-index.
  * May be NULL if no keys have been added. */
 hashtable *kvstoreGetHashtable(kvstore *kvs, int didx) {
+    if (didx < 0 || didx >= kvs->num_hashtables) return NULL;
     return kvs->hashtables[didx];
 }
 
@@ -150,6 +149,7 @@ static int getAndClearHashtableIndexFromCursor(kvstore *kvs, unsigned long long 
 }
 
 int kvstoreIsImporting(kvstore *kvs, int didx) {
+    if (kvs->num_hashtables == 1) return 0;
     assert(didx < kvs->num_hashtables);
     return hashtableFind(kvs->importing, (void *)(intptr_t)didx, NULL);
 }
@@ -178,7 +178,8 @@ static void cumulativeKeyCountAdd(kvstore *kvs, int didx, long delta) {
 
     /* Update the BIT */
     int idx = didx + 1; /* Unlike hashtable indices, BIT is 1-based, so we need to add 1. */
-    while (idx <= kvs->num_hashtables) {
+    int max_idx = 1 << kvs->num_hashtables_bits;
+    while (idx <= max_idx) {
         if (delta < 0) {
             assert(kvs->hashtable_size_index[idx] >= (unsigned long long)labs(delta));
         }
@@ -233,8 +234,12 @@ static void freeHashtableIfNeeded(kvstore *kvs, int didx) {
 void kvstoreHashtableRehashingStarted(hashtable *ht) {
     kvstoreHashtableMetadata *metadata = (kvstoreHashtableMetadata *)hashtableMetadata(ht);
     kvstore *kvs = metadata->kvs;
+    if (kvs->num_hashtables == 1) return;
+
+    pthread_mutex_lock(&kvs->global_lock);
     listAddNodeTail(kvs->rehashing, ht);
     metadata->rehashing_node = listLast(kvs->rehashing);
+    pthread_mutex_unlock(&kvs->global_lock);
 
     size_t from, to;
     hashtableRehashingInfo(ht, &from, &to);
@@ -249,10 +254,14 @@ void kvstoreHashtableRehashingStarted(hashtable *ht) {
 void kvstoreHashtableRehashingCompleted(hashtable *ht) {
     kvstoreHashtableMetadata *metadata = (kvstoreHashtableMetadata *)hashtableMetadata(ht);
     kvstore *kvs = metadata->kvs;
+    if (kvs->num_hashtables == 1) return;
+
+    pthread_mutex_lock(&kvs->global_lock);
     if (metadata->rehashing_node) {
         listDelNode(kvs->rehashing, metadata->rehashing_node);
         metadata->rehashing_node = NULL;
     }
+    pthread_mutex_unlock(&kvs->global_lock);
 
     size_t from, to;
     hashtableRehashingInfo(ht, &from, &to);
@@ -330,10 +339,10 @@ void kvstoreEmpty(kvstore *kvs, void(callback)(hashtable *)) {
         freeHashtableIfNeeded(kvs, didx);
     }
 
-    hashtableEmpty(kvs->importing, NULL);
+    if (kvs->importing) hashtableEmpty(kvs->importing, NULL);
     kvs->importing_key_count = 0;
 
-    listEmpty(kvs->rehashing);
+    if (kvs->rehashing) listEmpty(kvs->rehashing);
 
     kvs->key_count = 0;
     kvs->non_empty_hashtables = 0;
@@ -356,9 +365,9 @@ void kvstoreRelease(kvstore *kvs) {
     }
     zfree(kvs->locks);
     zfree(kvs->hashtables);
-    hashtableRelease(kvs->importing);
+    if (kvs->importing) hashtableRelease(kvs->importing);
 
-    listRelease(kvs->rehashing);
+    if (kvs->rehashing) listRelease(kvs->rehashing);
     if (kvs->hashtable_size_index) zfree(kvs->hashtable_size_index);
 
     zfree(kvs);
@@ -391,7 +400,7 @@ size_t kvstoreMemUsage(kvstore *kvs) {
     mem += kvs->overhead_hashtable_lut;
 
     /* Values are hashtable* shared with kvs->hashtables */
-    mem += listLength(kvs->rehashing) * sizeof(listNode);
+    if (kvs->rehashing) mem += listLength(kvs->rehashing) * sizeof(listNode);
 
     if (kvs->hashtable_size_index) mem += sizeof(unsigned long long) * (kvs->num_hashtables + 1);
 
@@ -651,6 +660,7 @@ void kvstoreIteratorRelease(kvstoreIterator *kvs_it) {
 }
 
 static int kvstoreIteratorNextImportingHashtableIndex(kvstoreIterator *kvs_it) {
+    if (kvs_it->kvs->num_hashtables == 1) return KVSTORE_INDEX_NOT_FOUND;
     if (kvs_it->importing_iter == NULL) {
         kvs_it->importing_iter = hashtableCreateIterator(kvs_it->kvs->importing, 0);
     }
@@ -734,7 +744,7 @@ void kvstoreTryResizeHashtables(kvstore *kvs, int limit) {
  * The function returns the amount of microsecs spent if some rehashing was
  * performed, otherwise 0 is returned. */
 uint64_t kvstoreIncrementallyRehash(kvstore *kvs, uint64_t threshold_us) {
-    if (listLength(kvs->rehashing) == 0) return 0;
+    if (!kvs->rehashing || listLength(kvs->rehashing) == 0) return 0;
 
     /* Our goal is to rehash as many hash tables as we can before reaching threshold_us,
      * after each hash table completes rehashing, it removes itself from the list. */
@@ -763,6 +773,7 @@ size_t kvstoreOverheadHashtableRehashing(kvstore *kvs) {
 }
 
 unsigned long kvstoreHashtableRehashingCount(kvstore *kvs) {
+    if (!kvs->rehashing) return 0;
     return listLength(kvs->rehashing);
 }
 
@@ -931,20 +942,27 @@ void **kvstoreHashtableTwoPhasePopFindRef(kvstore *kvs, int didx, const void *ke
 }
 
 void kvstoreHashtableTwoPhasePopDelete(kvstore *kvs, int didx, void *position) {
+    pthread_mutex_lock(&kvs->locks[didx]);
     hashtable *ht = kvstoreGetHashtable(kvs, didx);
     hashtableTwoPhasePopDelete(ht, position);
     cumulativeKeyCountAdd(kvs, didx, -1);
     freeHashtableIfNeeded(kvs, didx);
+    pthread_mutex_unlock(&kvs->locks[didx]);
 }
 
 bool kvstoreHashtablePop(kvstore *kvs, int didx, const void *key, void **popped) {
+    pthread_mutex_lock(&kvs->locks[didx]);
     hashtable *ht = kvstoreGetHashtable(kvs, didx);
-    if (!ht) return false;
+    if (!ht) {
+        pthread_mutex_unlock(&kvs->locks[didx]);
+        return false;
+    }
     bool ret = hashtablePop(ht, key, popped);
     if (ret) {
         cumulativeKeyCountAdd(kvs, didx, -1);
         freeHashtableIfNeeded(kvs, didx);
     }
+    pthread_mutex_unlock(&kvs->locks[didx]);
     return ret;
 }
 
@@ -968,6 +986,7 @@ bool kvstoreHashtableDelete(kvstore *kvs, int didx, const void *key) {
  * are not included in hashtable metrics and are excluded from scanning and
  * random key lookup. */
 void kvstoreSetIsImporting(kvstore *kvs, int didx, int is_importing) {
+    if (kvs->num_hashtables == 1) return;
     assert(didx < kvs->num_hashtables);
 
     hashtable *ht = kvstoreGetHashtable(kvs, didx);
