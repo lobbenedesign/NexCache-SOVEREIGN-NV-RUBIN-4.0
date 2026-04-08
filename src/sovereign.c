@@ -48,8 +48,14 @@ void Sovereign_SenseDNA(void) {
 #elif defined(__aarch64__)
     /* Simplified check for ARM SVE2 (e.g., on Rubin/Grace) */
     server_dna = HW_ARM_SVE2; 
-#elif defined(__x86_64__)
-    server_dna = HW_AVX512;
+#elif defined(__x86_64__) || defined(_M_X64)
+    if (__builtin_cpu_supports("avx512f")) {
+        server_dna = HW_INTEL_AVX512;
+    } else if (__builtin_cpu_supports("avx2")) {
+        server_dna = HW_INTEL_AVX2;
+    } else {
+        server_dna = HW_GENERIC;
+    }
 #else
     server_dna = HW_GENERIC;
 #endif
@@ -59,10 +65,11 @@ void Sovereign_SenseDNA(void) {
 
 const char* Sovereign_GetDNAName(void) {
     switch(server_dna) {
-        case HW_APPLE_AMX: return "Apple AMX (Matrix Acceleration)";
-        case HW_ARM_SVE2:  return "NVIDIA Rubin/Grace (ARM SVE2)";
-        case HW_AVX512:    return "Intel/AMD AVX-512";
-        default:           return "Generic x86/ARM";
+        case HW_APPLE_AMX:    return "Apple AMX (Matrix Acceleration)";
+        case HW_ARM_SVE2:     return "NVIDIA Rubin/Grace (ARM SVE2)";
+        case HW_INTEL_AVX512: return "Intel/AMD AVX-512";
+        case HW_INTEL_AVX2:   return "Intel/AMD AVX2";
+        default:              return "Generic Hardware (Standard Mode)";
     }
 }
 

@@ -23,7 +23,8 @@ int Sovereign_SpeculativeMiss(robj *key);
 /* Pillar 2: Hardware DNA Sensing */
 typedef enum {
     HW_GENERIC,
-    HW_AVX512,
+    HW_INTEL_AVX2,
+    HW_INTEL_AVX512,
     HW_ARM_SVE2,
     HW_APPLE_AMX
 } hw_dna_t;

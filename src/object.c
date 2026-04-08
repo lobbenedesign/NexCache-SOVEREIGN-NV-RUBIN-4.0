@@ -169,8 +169,15 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
                                                         size_t val_len,
                                                         const_sds key,
                                                         long long expire) {
-    /* VERA M3.3: Every robj is 256 bytes and has svi_payload[240]. */
-    robj *o = zcalloc(sizeof(robj));
+    /* VERA M3.3: Every robj is 256 bytes and has svi_payload[239].
+     * Alignment is critical for Rubin SIMD operations. */
+    robj *o;
+#ifdef RUBIN_MODE
+    if (posix_memalign((void**)&o, 256, 256) != 0) return NULL;
+    memset(o, 0, 256);
+#else
+    o = zcalloc(sizeof(robj));
+#endif
     o->type = OBJ_STRING;
     o->encoding = OBJ_ENCODING_EMBSTR;
     o->refcount = 1;
