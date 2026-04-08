@@ -25,7 +25,7 @@ static uint64_t hash_sds(sds key) {
 static uint64_t hash_key(robj *key) {
     if (!key) return 0;
     if (key->encoding == OBJ_ENCODING_INT) {
-        char buf[32];
+        char buf[64];
         int len = ll2string(buf, sizeof(buf), (long)key->ptr);
         return dictGenHashFunction(buf, len);
     }
@@ -115,12 +115,14 @@ void Sovereign_GardenerLoop(void) {
      */
     for (int j = 0; j < server.dbnum; j++) {
         serverDb *db = server.db[j];
-        if (!db || kvstoreSize(db->keys) == 0) continue;
+        if (!db || !db->keys) continue;
+        
+        int num_shards = kvstoreNumHashtables(db->keys);
+        if (num_shards == 0) continue;
 
-        /* Sample a few keys to decay their vitality */
+        /* Sample a few keys per DB to decay their vitality */
         for (int i = 0; i < 16; i++) {
-            int slot = kvstoreGetFairRandomHashtableIndex(db->keys);
-            if (slot == KVSTORE_INDEX_NOT_FOUND) break;
+            int slot = rand() % num_shards;
             void *entry;
             if (kvstoreHashtableRandomEntry(db->keys, slot, &entry)) {
                 robj *val = entry;
