@@ -225,9 +225,14 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     uint8_t vh_len = (uint8_t)sdsHdrSize(SDS_TYPE_8);
     struct sdshdr8 *sh = (void *)data;
     sh->len = val_len;
-    /* Capacity is the rest of svi_payload (232 bytes max payload area) */
+    /* Capacity is the rest of svi_payload (232 bytes total) */
     size_t used_so_far = (unsigned char *)data - (unsigned char *)o->svi_payload;
-    sh->alloc = (232 - used_so_far) - vh_len - 1;
+    if (used_so_far + vh_len + 1 > 232) {
+        /* Should not happen due to shouldEmbedStringObject, but let's be safe */
+        sh->alloc = 0;
+    } else {
+        sh->alloc = (232 - used_so_far) - vh_len - 1;
+    }
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
     sh->buf[val_len] = '\0';
@@ -247,9 +252,22 @@ static robj *createEmbeddedStringObject(const char *ptr, size_t len) {
 
 static bool shouldEmbedStringObject(size_t val_len, const_sds key, long long expire) {
 #ifdef RUBIN_MODE
-    /* NEX-VERA: Support SVI up to 232 bytes in-situ. For now, only for values. */
-    if (key || expire != EXPIRY_NONE) return false;
-    return val_len <= (232 - sdsHdrSize(SDS_TYPE_8) - 1);
+    /* NEX-VERA: Every robj is 256 bytes. svi_payload is 232 bytes.
+     * We must account for:
+     * - Expire: 8 bytes (if present)
+     * - Key Header: 1 byte + 3 bytes (sdshdr8) + keylen + 1 byte (null)
+     * - Value Header: 3 bytes (sdshdr8)
+     * - Worst-case padding for both key and value: 7 + 7 = 14 bytes
+     */
+    size_t overhead = 0;
+    if (expire != EXPIRY_NONE) overhead += 8;
+    if (key) {
+        overhead += 1 + 3 + sdslen(key) + 1 + 7; /* include padding */
+    }
+    overhead += 3 + 7; /* value header + padding */
+    
+    if (val_len + overhead > 232) return false;
+    return true;
 #else
     /* Standard Redis logic */
     if (val_len > sdsTypeMaxSize(SDS_TYPE_8)) return false;
