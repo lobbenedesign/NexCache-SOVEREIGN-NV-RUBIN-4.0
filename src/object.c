@@ -198,29 +198,33 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     }
     
     if (has_embkey) {
-        size_t keylen = sdslen(key);
-        /* Align KEY CONTENT to 8-byte boundary 
-         * Path: [8-aligned-base] + 5 (metadata) + 3 (header) = [8-aligned-content]
+        /* Align KEY CONTENT to 8-byte boundary (offset 32) 
+         * Path: [8-aligned-base] + 8 = [8-aligned-content]
+         * Metadata: 1 byte (khlen) + 3 bytes (sdshdr8) = 4 bytes.
+         * Metadata must start at 32 - 4 = 28.
          */
-        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 5); 
-        if ((uintptr_t)data < (uintptr_t)o->svi_payload + 5) data = (unsigned char*)o->svi_payload + 5;
+        uintptr_t base = (uintptr_t)data & ~7;
+        data = (unsigned char*)(base + 8); 
+        if ((uintptr_t)data < (uintptr_t)o->svi_payload + 8) data = (unsigned char*)o->svi_payload + 8;
 
         uint8_t khlen = 3; /* SDS_TYPE_8 header size */
-        *(data-2) = khlen; /* Store it at aligned+3, header starts at aligned+5 */
+        *(data-4) = khlen; /* Store it at aligned+4 (offset 28) */
         
-        struct sdshdr8 *sk = (void *)(data - 3);
-        sk->len = keylen;
-        sk->alloc = keylen;
+        struct sdshdr8 *sk = (void *)(data - 3); /* Header at aligned+5 (offset 29) */
+        size_t kl = sdslen(key);
+        sk->len = kl;
+        sk->alloc = kl;
         sk->flags = SDS_TYPE_8;
-        memcpy(sk->buf, key, keylen);
-        sk->buf[keylen] = '\0';
+        memcpy(sk->buf, key, kl);
+        sk->buf[kl] = '\0';
         
-        data = (unsigned char*)sk->buf + keylen + 1;
+        data = (unsigned char*)sk->buf + kl + 1;
     }
 
     /* Align VALUE CONTENT to 8-byte boundary */
-    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 5);
-    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 5) data = (unsigned char*)o->svi_payload + 5;
+    uintptr_t v_base = (uintptr_t)data;
+    data = (unsigned char*)(((v_base + 7) & ~7) + 8);
+    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 8) data = (unsigned char*)o->svi_payload + 8;
 
     /* Initialize SDS header for the value */
     struct sdshdr8 *sh = (void *)((char*)data - 3);
