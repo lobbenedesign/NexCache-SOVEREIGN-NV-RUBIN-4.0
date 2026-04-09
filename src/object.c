@@ -78,9 +78,8 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
 #ifdef RUBIN_MODE
     robj *o;
     size_t alloc_size = ((min_size + 255) / 256) * 256;
-    o = zmalloc(alloc_size);
+    o = zcalloc(alloc_size);
     if (!o) return NULL;
-    memset(o, 0, alloc_size);
     bufsize = alloc_size;
 #else
     robj *o = zcalloc_usable(min_size, &bufsize);
@@ -175,9 +174,8 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
      * Alignment is critical for Rubin SIMD operations. */
     robj *o;
 #ifdef RUBIN_MODE
-    o = zmalloc(256);
+    o = zcalloc(256);
     if (!o) return NULL;
-    memset(o, 0, 256);
 #else
     o = zcalloc(sizeof(robj));
 #endif

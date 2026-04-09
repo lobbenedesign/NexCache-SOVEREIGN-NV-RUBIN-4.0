@@ -862,10 +862,10 @@ struct __attribute__((aligned(64))) serverObject {
     unsigned type : 4;
     unsigned encoding : 4;
     unsigned lru : LRULFU_BITS;
+    unsigned refcount : OBJ_REFCOUNT_BITS;
     unsigned hasexpire : 1;
     unsigned hasembkey : 1;
     unsigned hasembval : 1;
-    unsigned refcount : OBJ_REFCOUNT_BITS;
     void *ptr; /* Use for large values or non-string types */
     uint8_t vitality; /* Sovereign: Semantic vitality score */
     char svi_payload[239]; /* SVI: In-place payload for 99% of GET/SET operations */
