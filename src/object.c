@@ -78,11 +78,7 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
 #ifdef RUBIN_MODE
     robj *o;
     size_t alloc_size = ((min_size + 255) / 256) * 256;
-    if (server_dna == HW_ARM_SVE2) {
-        if (posix_memalign((void**)&o, 256, alloc_size) != 0) return NULL;
-    } else {
-        o = zmalloc(alloc_size);
-    }
+    o = zmalloc(alloc_size);
     memset(o, 0, alloc_size);
     bufsize = alloc_size;
 #else
@@ -178,13 +174,8 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
      * Alignment is critical for Rubin SIMD operations. */
     robj *o;
 #ifdef RUBIN_MODE
-    if (server_dna == HW_ARM_SVE2) {
-        if (posix_memalign((void**)&o, 256, 256) != 0) return NULL;
-        memset(o, 0, 256);
-    } else {
-        o = zmalloc(256);
-        memset(o, 0, 256);
-    }
+    o = zmalloc(256);
+    memset(o, 0, 256);
 #else
     o = zcalloc(sizeof(robj));
 #endif
