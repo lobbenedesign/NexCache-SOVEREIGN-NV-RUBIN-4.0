@@ -1589,10 +1589,10 @@ long long serverCron(struct aeEventLoop *eventLoop, long long id, void *clientDa
     /* Handle background operations on databases. */
     databasesCron();
 
-    /* Pillar 3: Cognitive Memory Gardening */
-    run_with_period(100) {
+    /* Pillar 3: Cognitive Memory Gardening (Temporarily disabled for stability audit) */
+    /* run_with_period(100) {
         Sovereign_GardenerLoop();
-    }
+    } */
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
