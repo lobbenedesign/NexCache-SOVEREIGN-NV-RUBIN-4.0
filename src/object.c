@@ -79,6 +79,7 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     robj *o;
     size_t alloc_size = ((min_size + 255) / 256) * 256;
     o = zmalloc(alloc_size);
+    if (!o) return NULL;
     memset(o, 0, alloc_size);
     bufsize = alloc_size;
 #else
@@ -175,6 +176,7 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     robj *o;
 #ifdef RUBIN_MODE
     o = zmalloc(256);
+    if (!o) return NULL;
     memset(o, 0, 256);
 #else
     o = zcalloc(sizeof(robj));
@@ -290,13 +292,15 @@ void *objectGetVal(const robj *o) {
 }
 
 sds objectGetKey(const robj *o) {
-    if (o->hasembkey) {
-        const unsigned char *data = objectEmbeddedData((robj *)o);
-        if (o->hasexpire) data += sizeof(long long);
-        uint8_t hlen = *data++;
-        return (sds)(data + hlen);
-    }
-    return NULL;
+    if (!o->hasembkey) return NULL;
+#ifdef RUBIN_MODE
+    const unsigned char *data = (unsigned char *)o->svi_payload;
+#else
+    const unsigned char *data = objectEmbeddedData((robj *)o);
+#endif
+    if (o->hasexpire) data += sizeof(long long);
+    uint8_t hlen = *data++;
+    return (sds)(data + hlen);
 }
 
 /* Return the expire time in ms of the specified robj, or EXPIRY_NONE if no expire
