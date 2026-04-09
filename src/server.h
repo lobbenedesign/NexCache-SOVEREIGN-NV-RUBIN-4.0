@@ -868,7 +868,8 @@ struct __attribute__((aligned(64))) serverObject {
     unsigned hasembval : 1;
     void *ptr; /* Use for large values or non-string types */
     uint8_t vitality; /* Sovereign: Semantic vitality score */
-    char svi_payload[239]; /* SVI: In-place payload for 99% of GET/SET operations */
+    uint8_t padding[7]; /* Structural alignment to ensure svi_payload @ 8-byte boundary */
+    char svi_payload[232]; /* SVI: In-place payload, aligned to 8-byte boundary */
 };
 static_assert(sizeof(struct serverObject) <= 256, "unexpected size - SVI VERA architecture requires 256 bytes per object");
 

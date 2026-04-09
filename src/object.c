@@ -206,13 +206,17 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
         memcpy(sk->buf, key, keylen);
         sk->buf[keylen] = '\0';
         data += sdsHdrSize(SDS_TYPE_8) + keylen + 1;
+        /* Align the next header to an 8-byte boundary for hardware performance and safety */
+        uintptr_t current = (uintptr_t)data;
+        uintptr_t aligned = (current + 7) & ~7;
+        data += (aligned - current);
     }
 
     struct sdshdr8 *sh = (void *)data;
     sh->len = val_len;
-    /* Adjust sh->alloc based on remaining space in svi_payload (239 bytes) */
+    /* Adjust sh->alloc based on remaining space in svi_payload (232 bytes) */
     size_t used = data - (unsigned char *)o->svi_payload;
-    sh->alloc = (239 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
+    sh->alloc = (232 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
     
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
@@ -233,9 +237,9 @@ static robj *createEmbeddedStringObject(const char *ptr, size_t len) {
 
 static bool shouldEmbedStringObject(size_t val_len, const_sds key, long long expire) {
 #ifdef RUBIN_MODE
-    /* NEX-VERA: Support SVI up to 239 bytes in-situ. For now, only for values. */
+    /* NEX-VERA: Support SVI up to 232 bytes in-situ. For now, only for values. */
     if (key || expire != EXPIRY_NONE) return false;
-    return val_len <= (239 - sdsHdrSize(SDS_TYPE_8) - 1);
+    return val_len <= (232 - sdsHdrSize(SDS_TYPE_8) - 1);
 #else
     /* Standard Redis logic */
     if (val_len > sdsTypeMaxSize(SDS_TYPE_8)) return false;
