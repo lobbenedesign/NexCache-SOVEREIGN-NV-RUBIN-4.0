@@ -110,10 +110,20 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
         data += sizeof(long long);
     }
 
-    /* Copy embedded key. */
+    /* Copy embedded key. Content must be at offset 8 (no expire) or 16 (expire) 
+     * to ensure the SDS buf (starts at data+0) is 8-byte aligned. */
     if (o->hasembkey) {
-        *data++ = sdsHdrSize(key_sds_type);
-        sdswrite(data, key_sds_size, key_sds_type, key, key_sds_len);
+        data = (char *)o->svi_payload + 8;
+        if (o->hasexpire) data += 8;
+
+        uint8_t khlen = sdsHdrSize(key_sds_type);
+        *(data - 4) = khlen;
+        struct sdshdr8 *sk = (void *)(data - 3);
+        sk->len = key_sds_len;
+        sk->alloc = key_sds_len;
+        sk->flags = key_sds_type;
+        memcpy(sk->buf, key, key_sds_len);
+        sk->buf[key_sds_len] = '\0';
     }
 
     return o;
@@ -306,18 +316,10 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 
 void *objectGetVal(const robj *o) {
 #ifdef RUBIN_MODE
-    /* In Rubin-mode, if the object is integer-encoded, o->ptr contains the value.
-     * Callers must handle this. If it's an embedded string, we must return
-     * the pointer to the data inside svi_payload. */
+    /* In Rubin-mode, o->ptr is carefully synchronized during creation to point
+     * to the hardware-aligned content (offset 32), even for embedded objects.
+     * We only return NULL if it's integer-encoded, as callers must decant it. */
     if (o->encoding == OBJ_ENCODING_INT) return NULL;
-    if (o->encoding == OBJ_ENCODING_EMBSTR) {
-        unsigned char *data = (unsigned char *)o->svi_payload;
-        if (o->hasexpire) data += sizeof(long long);
-        
-        /* Value content starts at (aligned-to-8 + 8) */
-        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 8);
-        return data;
-    }
     return o->ptr;
 #else
     if (o->encoding == OBJ_ENCODING_EMBSTR) {
@@ -331,14 +333,9 @@ sds objectGetKey(const robj *o) {
     if (!o || !o->hasembkey) return NULL;
 #ifdef RUBIN_MODE
     /* Skip to content-aligned pointers */
-    unsigned char *data = (unsigned char *)o->svi_payload;
-    if (o->hasexpire) {
-        data += sizeof(long long);
-    }
-    
-    /* Key content is always at (aligned-to-8 + 8) because of 5-byte metadata + 3-byte hdr */
-    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 8);
-    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 8) data = (unsigned char*)o->svi_payload + 8;
+    /* Key content is at offset 8 (no expire) or 16 (expire) */
+    unsigned char *data = (unsigned char *)o->svi_payload + 8;
+    if (o->hasexpire) data += 8;
     
     return (sds)data;
 #else

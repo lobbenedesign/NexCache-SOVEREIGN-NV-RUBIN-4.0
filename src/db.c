@@ -85,8 +85,9 @@ extern NexStorage *global_nexstorage;
 robj *lookupKey(serverDb *db, robj *key, int flags) {
     if (Sovereign_SpeculativeMiss(key)) return NULL;
     Sovereign_PrefetchAssociates(key);
-    int dict_index = getKVStoreIndexForKey(objectGetVal(key));
-    robj *val = dbFindWithDictIndex(db, objectGetVal(key), dict_index);
+    robj *decoded_key = (key->encoding == OBJ_ENCODING_INT) ? getDecodedObject(key) : key;
+    int dict_index = getKVStoreIndexForKey(objectGetVal(decoded_key));
+    robj *val = dbFindWithDictIndex(db, objectGetVal(decoded_key), dict_index);
     if (val) {
         /* Standard Redis lookup handling ... */
         int is_ro_replica = server.primary_host && server.repl_replica_ro;
@@ -102,7 +103,8 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
         /* VERA FAST-PATH: Promotion on miss.
          * If the key exists in NexStorage but not in Redis DB, bring it in. */
         NexEntry entry;
-        NexStorageResult res = nexstorage_get(global_nexstorage, objectGetVal(key), sdslen(objectGetVal(key)), &entry);
+        sds key_sds = objectGetVal(decoded_key);
+        NexStorageResult res = nexstorage_get(global_nexstorage, key_sds, sdslen(key_sds), &entry);
         if (res == NEXS_OK) {
             /* NEX-VERA: Creazione oggetto con tipo consapevole (Mapping corretto) */
             int type = OBJ_STRING;
@@ -118,9 +120,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
                 val = createObject(type, NULL);
             }
 
-            /* NEX-VERA: Protezione codifica chiave (Evita Segfault su chiavi INT) */
-            robj *decoded_key = key;
-            if (key->encoding == OBJ_ENCODING_INT) decoded_key = getDecodedObject(key);
+            /* NEX-VERA: Protezione codifica chiave (Già decodificata sopra, riutilizziamo) */
 
             /* NEX-VERA: Promozione silenziosa e atomica per prevenire ricorsioni */
             int dict_index = getKVStoreIndexForKey(objectGetVal(decoded_key));
@@ -136,7 +136,10 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
                 val = setExpire(NULL, db, key, commandTimeSnapshot() + entry.ttl_ms);
             }
             
-            if (val && !(flags & (LOOKUP_NOSTATS | LOOKUP_WRITE))) server.stat_keyspace_hits++;
+            if (val && !(flags & (LOOKUP_NOSTATS | LOOKUP_WRITE))) {
+                server.stat_keyspace_hits++;
+                flags |= LOOKUP_NOSTATS; /* Don't increment hits again below */
+            }
         }
     }
 
@@ -160,6 +163,7 @@ robj *lookupKey(serverDb *db, robj *key, int flags) {
         if (!(flags & (LOOKUP_NOSTATS | LOOKUP_WRITE))) server.stat_keyspace_misses++;
     }
 
+    if (decoded_key != key) decrRefCount(decoded_key);
     return val;
 }
 
@@ -238,29 +242,35 @@ void dbUpdateObjectWithVolatileItemsTracking(serverDb *db, robj *o) {
  * If the update_if_existing argument is false, the program is aborted
  * if the key already exists, otherwise, it can fall back to dbOverwrite. */
 static void dbAddInternal(serverDb *db, robj *key, robj **valref, int update_if_existing) {
-    int dict_index = getKVStoreIndexForKey(objectGetVal(key));
+    robj *decoded_key = (key->encoding == OBJ_ENCODING_INT) ? getDecodedObject(key) : key;
+    sds key_sds = objectGetVal(decoded_key);
+    int dict_index = getKVStoreIndexForKey(key_sds);
     void **oldref = NULL;
     if (update_if_existing) {
-        oldref = kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(key));
+        oldref = kvstoreHashtableFindRef(db->keys, dict_index, key_sds);
         if (oldref != NULL) {
             dbSetValue(db, key, valref, 1, oldref);
+            if (decoded_key != key) decrRefCount(decoded_key);
             return;
         }
     } else {
-        debugServerAssertWithInfo(NULL, key, kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(key)) == NULL);
+        debugServerAssertWithInfo(NULL, key, kvstoreHashtableFindRef(db->keys, dict_index, key_sds) == NULL);
     }
 
     /* Not existing. Convert val to nexcache object and insert. */
     robj *val = *valref;
-    val = objectSetKeyAndExpire(val, objectGetVal(key), -1);
-    /* Track hash object if it has volatile fields (for active expiry).
-     * For example, this is needed when a hash is moved to a new DB (e.g. MOVE). */
+    val = objectSetKeyAndExpire(val, key_sds, -1);
+    *valref = val;
+
+    /* Track hash object if it has volatile fields (for active expiry). */
     dbTrackKeyWithVolatileItems(db, val);
     initObjectLRUOrLFU(val);
     kvstoreHashtableAdd(db->keys, dict_index, val);
+
     signalKeyAsReady(db, key, val->type);
     notifyKeyspaceEvent(NOTIFY_NEW, "new", key, db->id);
-    Sovereign_UpdateFilter(key);
+    Sovereign_UpdateFilter(decoded_key);
+    if (decoded_key != key) decrRefCount(decoded_key);
     *valref = val;
 }
 
@@ -363,10 +373,11 @@ int dbAddRDBLoad(serverDb *db, sds key, robj **valref) {
  *
  * The program is aborted if the key was not already present. */
 static void dbSetValue(serverDb *db, robj *key, robj **valref, int overwrite, void **oldref) {
+    robj *decoded_key = (key->encoding == OBJ_ENCODING_INT) ? getDecodedObject(key) : key;
     robj *val = *valref;
     if (oldref == NULL) {
-        int dict_index = getKVStoreIndexForKey(objectGetVal(key));
-        oldref = kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(key));
+        int dict_index = getKVStoreIndexForKey(objectGetVal(decoded_key));
+        oldref = kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(decoded_key));
     }
     serverAssertWithInfo(NULL, key, oldref != NULL);
     robj *old = *oldref;
@@ -1935,8 +1946,11 @@ robj *setExpire(client *c, serverDb *db, robj *key, long long when) {
     /* Reuse the object from the main dict in the expire dict. When setting
      * expire in an robj, it's potentially reallocated. We need to updates the
      * pointer(s) to it. */
-    int dict_index = getKVStoreIndexForKey(objectGetVal(key));
-    void **valref = kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(key));
+    robj *decoded_key = (key->encoding == OBJ_ENCODING_INT) ? getDecodedObject(key) : key;
+    int dict_index = getKVStoreIndexForKey(objectGetVal(decoded_key));
+    void **valref = kvstoreHashtableFindRef(db->keys, dict_index, objectGetVal(decoded_key));
+    if (decoded_key != key) decrRefCount(decoded_key);
+
     serverAssertWithInfo(NULL, key, valref != NULL);
     val = *valref;
     long long old_when = objectGetExpire(val);

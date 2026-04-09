@@ -175,6 +175,7 @@ start_server {tags {"geo"}} {
     test {GEOADD update with CH option} {
         assert_equal 1 [r geoadd nyc CH 40.747533 -73.9454966 "lic market"]
         lassign [lindex [r geopos nyc "lic market"] 0] x1 y1
+        puts "DEBUG: x1=$x1 y1=$y1"
         assert {abs($x1) - 40.747 < 0.001}
         assert {abs($y1) - 73.945 < 0.001}
     } {}

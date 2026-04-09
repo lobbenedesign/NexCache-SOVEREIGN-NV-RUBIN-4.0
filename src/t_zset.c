@@ -134,27 +134,38 @@ static inline size_t zslGetNodeAllocSize(int level) {
 static zskiplistNode *zslCreateNode(int height, double score, const_sds ele) {
     size_t ele_sds_len = sdslen(ele);
     char ele_sds_type = sdsReqType(ele_sds_len);
-    size_t ele_sds_size = sdsReqSize(ele_sds_len, ele_sds_type);
-    /* Allocate enough space for the node, levels, and the element sds.
-     * We include one extra byte representing the sds header size,
-     * which is the offset into the embedded sds data where the
-     * string content starts. */
+    uint8_t hdr_size = sdsHdrSize(ele_sds_type);
     size_t node_size = zslGetNodeAllocSize(height);
-    zskiplistNode *zn = zmalloc(node_size + 1 + ele_sds_size);
+
+    /* Alignment Harmony: Ensure the SDS string buf starts at an 8-byte boundary.
+     * We store hdr_size at node_size, then find the first 8-byte boundary
+     * that can fit the header and the buffer. */
+    uintptr_t sds_buf_offset = (uintptr_t)(node_size + 1 + hdr_size + 7) & ~7;
+    size_t total_size = sds_buf_offset + ele_sds_len + 1;
+
+    zskiplistNode *zn = zmalloc(total_size);
     zn->score = score;
     zslSetNodeHeight(zn, height);
-    char *data = ((char *)zn) + node_size;
-    *data++ = sdsHdrSize(ele_sds_type);
-    sdswrite(data, ele_sds_size, ele_sds_type, ele, ele_sds_len);
+
+    /* Store header size at the base node offset. */
+    char *data = (char *)zn + node_size;
+    *data = hdr_size;
+
+    /* Write SDS starting so that its buf is at sds_buf_offset. */
+    sdswrite((char *)zn + sds_buf_offset - hdr_size, total_size - (sds_buf_offset - hdr_size),
+             ele_sds_type, ele, ele_sds_len);
+
     return zn;
 }
 
 /* Helper function to return the element string from a skip list node. */
 sds zslGetNodeElement(const zskiplistNode *x) {
-    char *data = ((char *)x) + zslGetNodeAllocSize(zslGetNodeHeight(x));
-    int hdr_size = *data;
-    data += 1 + hdr_size;
-    return (sds)data;
+    size_t node_size = zslGetNodeAllocSize(zslGetNodeHeight(x));
+    char *data = ((char *)x) + node_size;
+    uint8_t hdr_size = (uint8_t)*data;
+    /* Aligned offset calculation matching CreateNode */
+    uintptr_t sds_buf_offset = (uintptr_t)(node_size + 1 + hdr_size + 7) & ~7;
+    return (sds)((char *)x + sds_buf_offset);
 }
 
 /* Helper function to set the height of skiplist. */

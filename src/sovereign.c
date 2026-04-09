@@ -29,7 +29,9 @@ static uint64_t hash_key(robj *key) {
         int len = ll2string(buf, sizeof(buf), (long)key->ptr);
         return dictGenHashFunction(buf, len);
     }
-    return hash_sds(objectGetVal(key));
+    sds s = objectGetVal(key);
+    if (!s) return 0;
+    return hash_sds(s);
 }
 
 void Sovereign_SenseDNA(void) {

@@ -387,8 +387,15 @@ int dictSdsKeyCompare(const void *key1, const void *key2) {
     return memcmp(key1, key2, l1) == 0;
 }
 
+uint64_t hashtableSdsHash(const void *key) {
+    if (key == NULL) return 0;
+    return hashtableGenHashFunction((const char *)key, sdslen((char *)key));
+}
+
 /* Returns 0 when keys match */
 int hashtableSdsKeyCompare(const void *key1, const void *key2) {
+    if (key1 == key2) return 0;
+    if (!key1 || !key2) return 1; /* One is NULL, and they are not equal */
     const sds sds1 = (const sds)key1, sds2 = (const sds)key2;
     return sdslen(sds1) != sdslen(sds2) || sdscmp(sds1, sds2);
 }
@@ -567,7 +574,7 @@ hashtableType objectHashtableType = {
 
 /* Set hashtable type. Items are SDS strings */
 hashtableType setHashtableType = {
-    .hashFunction = dictSdsHash,
+    .hashFunction = hashtableSdsHash,
     .keyCompare = hashtableSdsKeyCompare,
     .entryDestructor = dictSdsDestructor};
 
@@ -578,14 +585,11 @@ const void *zsetHashtableGetKey(const void *element) {
 
 /* Sorted sets hash (note: a skiplist is used in addition to the hash table) */
 hashtableType zsetHashtableType = {
-    .hashFunction = dictSdsHash,
+    .hashFunction = hashtableSdsHash,
     .entryGetKey = zsetHashtableGetKey,
     .keyCompare = hashtableSdsKeyCompare,
 };
 
-uint64_t hashtableSdsHash(const void *key) {
-    return hashtableGenHashFunction((const char *)key, sdslen((char *)key));
-}
 
 const void *hashtableObjectGetKey(const void *entry) {
     return objectGetKey(entry);
