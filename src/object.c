@@ -78,7 +78,11 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
 #ifdef RUBIN_MODE
     robj *o;
     size_t alloc_size = ((min_size + 255) / 256) * 256;
-    if (posix_memalign((void**)&o, 256, alloc_size) != 0) return NULL;
+    if (server_dna == HW_ARM_SVE2) {
+        if (posix_memalign((void**)&o, 256, alloc_size) != 0) return NULL;
+    } else {
+        o = zmalloc(alloc_size);
+    }
     memset(o, 0, alloc_size);
     bufsize = alloc_size;
 #else
@@ -222,6 +226,10 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
     sh->buf[val_len] = '\0';
+
+    /* Critical: Set o->ptr to the SDS string for compatibility with common macros */
+    o->ptr = sh->buf;
+
     return o;
 }
 
@@ -271,6 +279,10 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 }
 
 void *objectGetVal(const robj *o) {
+#ifdef RUBIN_MODE
+    /* In Rubin-mode, o->ptr is always initialized even for embedded objects */
+    return o->ptr;
+#else
     if (o->hasembval) {
         unsigned char *data = objectEmbeddedData(o);
         if (o->hasexpire) data += sizeof(long long);
@@ -283,6 +295,7 @@ void *objectGetVal(const robj *o) {
     } else {
         return o->ptr;
     }
+#endif
 }
 
 sds objectGetKey(const robj *o) {
