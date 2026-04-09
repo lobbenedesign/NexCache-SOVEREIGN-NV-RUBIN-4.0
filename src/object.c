@@ -306,10 +306,18 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 
 void *objectGetVal(const robj *o) {
 #ifdef RUBIN_MODE
-    /* In Rubin-mode, o->ptr is initialized for embedded and raw objects. 
-     * However, if the object is integer-encoded, o->ptr contains the value,
-     * not a pointer. Callers must handle this. */
+    /* In Rubin-mode, if the object is integer-encoded, o->ptr contains the value.
+     * Callers must handle this. If it's an embedded string, we must return
+     * the pointer to the data inside svi_payload. */
     if (o->encoding == OBJ_ENCODING_INT) return NULL;
+    if (o->encoding == OBJ_ENCODING_EMBSTR) {
+        unsigned char *data = (unsigned char *)o->svi_payload;
+        if (o->hasexpire) data += sizeof(long long);
+        
+        /* Value content starts at (aligned-to-8 + 8) */
+        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 8);
+        return data;
+    }
     return o->ptr;
 #else
     if (o->encoding == OBJ_ENCODING_EMBSTR) {
