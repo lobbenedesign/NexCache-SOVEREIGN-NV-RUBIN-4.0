@@ -278,31 +278,30 @@ void *objectGetVal(const robj *o) {
     /* In Rubin-mode, o->ptr is always initialized even for embedded objects */
     return o->ptr;
 #else
-    if (o->hasembval) {
-        unsigned char *data = objectEmbeddedData(o);
-        if (o->hasexpire) data += sizeof(long long);
-        if (o->hasembkey) {
-            uint8_t hlen = *data++;
-            struct sdshdr8 *sk = (void *)data;
-            data += hlen + sk->len + 1;
-        }
-        return data + sdsHdrSize(SDS_TYPE_8);
-    } else {
-        return o->ptr;
+    if (o->encoding == OBJ_ENCODING_EMBSTR) {
+        return (char *)(o + 1) + sdsHdrSize(SDS_TYPE_8);
     }
+    return o->ptr;
 #endif
 }
 
 sds objectGetKey(const robj *o) {
-    if (!o->hasembkey) return NULL;
+    if (!o || !o->hasembkey) return NULL;
 #ifdef RUBIN_MODE
-    const unsigned char *data = (unsigned char *)o->svi_payload;
-#else
-    const unsigned char *data = objectEmbeddedData((robj *)o);
-#endif
-    if (o->hasexpire) data += sizeof(long long);
+    unsigned char *data = (unsigned char *)o->svi_payload;
+    if (o->hasexpire) {
+        data += sizeof(long long);
+    }
+    /* Note: if hasexpire is true, data is at offset 8 of svi_payload.
+     * svi_payload starts at offset 24 of robj, so data is at offset 32.
+     * Both 24 and 32 are 8-byte aligned, so the SDS header starts at 
+     * an aligned address. After this, hlen is read. */
     uint8_t hlen = *data++;
     return (sds)(data + hlen);
+#else
+    /* Non-Rubin mode doesn't support embedded keys yet */
+    return NULL;
+#endif
 }
 
 /* Return the expire time in ms of the specified robj, or EXPIRY_NONE if no expire
