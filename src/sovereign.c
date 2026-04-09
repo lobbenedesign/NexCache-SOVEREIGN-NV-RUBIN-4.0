@@ -111,8 +111,13 @@ void Sovereign_ReinforceSynapse(robj *val) {
 void Sovereign_GardenerLoop(void) {
     /*
      * Semantic Decay: Over time, vitality decreases if not reinforced.
-     * We sample some random keys from each DB and apply decay.
+     * Safety: If we are close to maxmemory, we pause the gardener to let 
+     * the standard eviction engine handle the pressure without interference.
      */
+    if (server.maxmemory > 0 && zmalloc_used_memory() > (server.maxmemory * 0.9)) {
+        return;
+    }
+
     for (int j = 0; j < server.dbnum; j++) {
         serverDb *db = server.db[j];
         if (!db || !db->keys) continue;
@@ -120,13 +125,13 @@ void Sovereign_GardenerLoop(void) {
         int num_shards = kvstoreNumHashtables(db->keys);
         if (num_shards == 0) continue;
 
-        /* Sample a few keys per DB to decay their vitality */
-        for (int i = 0; i < 16; i++) {
+        /* Sample fewer keys per DB to reduce overhead in CI environments */
+        int samples = (server_dna == HW_GENERIC) ? 4 : 16;
+        for (int i = 0; i < samples; i++) {
             int slot = rand() % num_shards;
             void *entry;
             if (kvstoreHashtableRandomEntry(db->keys, slot, &entry)) {
                 robj *val = entry;
-                /* Skip shared objects to avoid global state corruption */
                 if (val->refcount == OBJ_SHARED_REFCOUNT) continue;
                 
                 if (val->vitality > 0) {

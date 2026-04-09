@@ -38,6 +38,7 @@
 #include "zmalloc.h"
 #include "sds.h"
 #include "module.h"
+#include "sovereign.h"
 #include <math.h>
 #include <ctype.h>
 
@@ -173,8 +174,13 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
      * Alignment is critical for Rubin SIMD operations. */
     robj *o;
 #ifdef RUBIN_MODE
-    if (posix_memalign((void**)&o, 256, 256) != 0) return NULL;
-    memset(o, 0, 256);
+    if (server_dna == HW_ARM_SVE2) {
+        if (posix_memalign((void**)&o, 256, 256) != 0) return NULL;
+        memset(o, 0, 256);
+    } else {
+        o = zmalloc(256);
+        memset(o, 0, 256);
+    }
 #else
     o = zcalloc(sizeof(robj));
 #endif
