@@ -859,17 +859,26 @@ typedef struct NexCacheModuleType moduleType;
 /* NEX-VERA: SVI (Small-Value Inlining) Architecture 
  * We align the object to 256 bytes (4 cache lines on Olympus) and inline up to 240 bytes. */
 struct __attribute__((aligned(64))) serverObject {
+    /* Offset 0: 32-bit header (type, encoding, SVI flags, LRU) */
     unsigned type : 4;
     unsigned encoding : 4;
-    unsigned lru : LRULFU_BITS;
-    unsigned refcount : OBJ_REFCOUNT_BITS;
     unsigned hasexpire : 1;
     unsigned hasembkey : 1;
     unsigned hasembval : 1;
-    void *ptr; /* Use for large values or non-string types */
-    uint8_t vitality; /* Sovereign: Semantic vitality score */
-    uint8_t padding[7]; /* Structural alignment to ensure svi_payload @ 8-byte boundary */
-    char svi_payload[232]; /* SVI: In-place payload, aligned to 8-byte boundary */
+    unsigned lru : 21; /* Rubin uses 21-bit precision for circadian signals */
+
+    /* Offset 4: Standard 32-bit refcount for maximum binary compatibility */
+    int refcount;
+
+    /* Offset 8: 64-bit pointer */
+    void *ptr;
+
+    /* Offset 16: Metadata and Alignment Padding */
+    uint8_t vitality;
+    uint8_t padding[7]; /* Align svi_payload to 8-byte boundary (offset 24) */
+
+    /* Offset 24: High-performance SVI Payload */
+    char svi_payload[232];
 };
 static_assert(sizeof(struct serverObject) <= 256, "unexpected size - SVI VERA architecture requires 256 bytes per object");
 
