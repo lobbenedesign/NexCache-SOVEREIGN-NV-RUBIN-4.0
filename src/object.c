@@ -198,26 +198,36 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     }
     if (has_embkey) {
         size_t keylen = sdslen(key);
-        *data++ = (uint8_t)sdsHdrSize(SDS_TYPE_8);
+        /* Align key header to 8-byte boundary */
+        uintptr_t current = (uintptr_t)data;
+        uintptr_t aligned = (current + 7) & ~7;
+        data += (aligned - current);
+
+        uint8_t khlen = (uint8_t)sdsHdrSize(SDS_TYPE_8);
+        *data++ = khlen; /* Store header size for reading skip */
+        
         struct sdshdr8 *sk = (void *)data;
         sk->len = keylen;
         sk->alloc = keylen;
         sk->flags = SDS_TYPE_8;
         memcpy(sk->buf, key, keylen);
         sk->buf[keylen] = '\0';
-        data += sdsHdrSize(SDS_TYPE_8) + keylen + 1;
-        /* Align the next header to an 8-byte boundary for hardware performance and safety */
-        uintptr_t current = (uintptr_t)data;
-        uintptr_t aligned = (current + 7) & ~7;
-        data += (aligned - current);
+        
+        data += khlen + keylen + 1;
     }
 
+    /* Align value header to 8-byte boundary */
+    uintptr_t v_current = (uintptr_t)data;
+    uintptr_t v_aligned = (v_current + 7) & ~7;
+    data += (v_aligned - v_current);
+
+    /* Initialize SDS header for the value */
+    uint8_t vh_len = (uint8_t)sdsHdrSize(SDS_TYPE_8);
     struct sdshdr8 *sh = (void *)data;
     sh->len = val_len;
-    /* Adjust sh->alloc based on remaining space in svi_payload (232 bytes) */
-    size_t used = data - (unsigned char *)o->svi_payload;
-    sh->alloc = (232 - used) - sdsHdrSize(SDS_TYPE_8) - 1;
-    
+    /* Capacity is the rest of svi_payload (232 bytes max payload area) */
+    size_t used_so_far = (unsigned char *)data - (unsigned char *)o->svi_payload;
+    sh->alloc = (232 - used_so_far) - vh_len - 1;
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
     sh->buf[val_len] = '\0';
@@ -275,7 +285,10 @@ static robj *createStringObjectWithKeyAndExpire(const char *ptr, size_t len, con
 
 void *objectGetVal(const robj *o) {
 #ifdef RUBIN_MODE
-    /* In Rubin-mode, o->ptr is always initialized even for embedded objects */
+    /* In Rubin-mode, o->ptr is initialized for embedded and raw objects. 
+     * However, if the object is integer-encoded, o->ptr contains the value,
+     * not a pointer. Callers must handle this. */
+    if (o->encoding == OBJ_ENCODING_INT) return NULL;
     return o->ptr;
 #else
     if (o->encoding == OBJ_ENCODING_EMBSTR) {
@@ -292,10 +305,12 @@ sds objectGetKey(const robj *o) {
     if (o->hasexpire) {
         data += sizeof(long long);
     }
-    /* Note: if hasexpire is true, data is at offset 8 of svi_payload.
-     * svi_payload starts at offset 24 of robj, so data is at offset 32.
-     * Both 24 and 32 are 8-byte aligned, so the SDS header starts at 
-     * an aligned address. After this, hlen is read. */
+    /* Skip to aligned key header */
+    uintptr_t current = (uintptr_t)data;
+    uintptr_t aligned = (current + 7) & ~7;
+    data += (aligned - current);
+
+    /* Read header size and skip it to return the string start */
     uint8_t hlen = *data++;
     return (sds)(data + hlen);
 #else

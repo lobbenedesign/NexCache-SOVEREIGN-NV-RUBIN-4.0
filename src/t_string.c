@@ -173,13 +173,17 @@ void setGenericCommand(client *c,
         int j;
         robj **argv = zmalloc((c->argc - 1) * sizeof(robj *));
         for (j = 0; j < c->argc; j++) {
-            char *a = objectGetVal(c->argv[j]);
-            /* Skip GET which may be repeated multiple times. */
-            if (j >= 3 && (a[0] == 'g' || a[0] == 'G') && (a[1] == 'e' || a[1] == 'E') &&
-                (a[2] == 't' || a[2] == 'T') && a[3] == '\0')
-                continue;
-            argv[argc++] = c->argv[j];
-            incrRefCount(c->argv[j]);
+            robj *arg = c->argv[j];
+            /* Skip check if it's an integer encoded object, as it can't be "GET" */
+            if (sdsEncodedObject(arg)) {
+                char *a = objectGetVal(arg);
+                /* Skip GET which may be repeated multiple times. */
+                if (a && j >= 3 && (a[0] == 'g' || a[0] == 'G') && (a[1] == 'e' || a[1] == 'E') &&
+                    (a[2] == 't' || a[2] == 'T') && a[3] == '\0')
+                    continue;
+            }
+            argv[argc++] = arg;
+            incrRefCount(arg);
         }
         replaceClientCommandVector(c, argc, argv);
     }
