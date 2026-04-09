@@ -1440,6 +1440,7 @@ typedef struct zskiplistNode {
     } level[1]; /* Flexible array member - actual levels determined at node creation. */
     /* For non-header nodes, after the level[], sds header length (1 byte) and an embedded sds element are stored. */
 } zskiplistNode;
+sds zslGetNodeElement(const zskiplistNode *x);
 
 /* The header node does not store actual data (no score, no backward pointer,
  * and its node height is fixed at ZSKIPLIST_MAXLEVEL).
