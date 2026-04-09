@@ -196,15 +196,20 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
         *(long long *)data = expire;
         data += sizeof(long long);
     }
+    
     if (has_embkey) {
         size_t keylen = sdslen(key);
-        /* Align key header to 8-byte boundary */
-        uintptr_t current = (uintptr_t)data;
-        uintptr_t aligned = (current + 7) & ~7;
-        data += (aligned - current);
+        /* Align KEY CONTENT to 8-byte boundary (offset 32 from robj start) 
+         * svi_payload starts at 24. We want content at 32.
+         * Metadata: 1 byte (khlen) + 3 bytes (sdshdr8) = 4 bytes.
+         * So metadata must start at 32 - 4 = 28.
+         */
+        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 4); 
+        if ((uintptr_t)data < (uintptr_t)o->svi_payload + 4) data = (unsigned char*)o->svi_payload + 4;
 
+        /* Now data points to offset for khlen. (Address should be aligned-to-8 + 4) */
         uint8_t khlen = (uint8_t)sdsHdrSize(SDS_TYPE_8);
-        *data++ = khlen; /* Store header size for reading skip */
+        *(data-1) = khlen; /* Store it JUST BEFORE the header */
         
         struct sdshdr8 *sk = (void *)data;
         sk->len = keylen;
@@ -213,31 +218,28 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
         memcpy(sk->buf, key, keylen);
         sk->buf[keylen] = '\0';
         
-        data += khlen + keylen + 1;
+        data = (unsigned char*)sk->buf + keylen + 1;
     }
 
-    /* Align value header to 8-byte boundary */
-    uintptr_t v_current = (uintptr_t)data;
-    uintptr_t v_aligned = (v_current + 7) & ~7;
-    data += (v_aligned - v_current);
+    /* Align VALUE CONTENT to 8-byte boundary */
+    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 3); /* +3 for sdshdr8 header */
+    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 3) data = (unsigned char*)o->svi_payload + 3;
 
     /* Initialize SDS header for the value */
-    uint8_t vh_len = (uint8_t)sdsHdrSize(SDS_TYPE_8);
-    struct sdshdr8 *sh = (void *)data;
+    struct sdshdr8 *sh = (void *)((char*)data - 3);
     sh->len = val_len;
     /* Capacity is the rest of svi_payload (232 bytes total) */
-    size_t used_so_far = (unsigned char *)data - (unsigned char *)o->svi_payload;
-    if (used_so_far + vh_len + 1 > 232) {
-        /* Should not happen due to shouldEmbedStringObject, but let's be safe */
+    size_t used_so_far = (unsigned char*)sh->buf + val_len + 1 - (unsigned char *)o->svi_payload;
+    if (used_so_far > 232) {
         sh->alloc = 0;
     } else {
-        sh->alloc = (232 - used_so_far) - vh_len - 1;
+        sh->alloc = (232 - used_so_far);
     }
     sh->flags = SDS_TYPE_8;
     if (ptr && val_len > 0) memcpy(sh->buf, ptr, val_len);
     sh->buf[val_len] = '\0';
 
-    /* Critical: Set o->ptr to the SDS string for compatibility with common macros */
+    /* Critical: Set o->ptr to the SDS string (which is now hardware-aligned) */
     o->ptr = sh->buf;
 
     return o;
@@ -319,18 +321,17 @@ void *objectGetVal(const robj *o) {
 sds objectGetKey(const robj *o) {
     if (!o || !o->hasembkey) return NULL;
 #ifdef RUBIN_MODE
+    /* Skip to content-aligned pointers */
     unsigned char *data = (unsigned char *)o->svi_payload;
     if (o->hasexpire) {
         data += sizeof(long long);
     }
-    /* Skip to aligned key header */
-    uintptr_t current = (uintptr_t)data;
-    uintptr_t aligned = (current + 7) & ~7;
-    data += (aligned - current);
-
-    /* Read header size and skip it to return the string start */
-    uint8_t hlen = *data++;
-    return (sds)(data + hlen);
+    
+    /* Key content is always at (aligned-to-8 + 4) because of 1-byte hlen + 3-byte hdr */
+    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 4);
+    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 4) data = (unsigned char*)o->svi_payload + 4;
+    
+    return (sds)data;
 #else
     /* Non-Rubin mode doesn't support embedded keys yet */
     return NULL;
