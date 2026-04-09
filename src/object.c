@@ -199,19 +199,16 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     
     if (has_embkey) {
         size_t keylen = sdslen(key);
-        /* Align KEY CONTENT to 8-byte boundary (offset 32 from robj start) 
-         * svi_payload starts at 24. We want content at 32.
-         * Metadata: 1 byte (khlen) + 3 bytes (sdshdr8) = 4 bytes.
-         * So metadata must start at 32 - 4 = 28.
+        /* Align KEY CONTENT to 8-byte boundary 
+         * Path: [8-aligned-base] + 5 (metadata) + 3 (header) = [8-aligned-content]
          */
-        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 4); 
-        if ((uintptr_t)data < (uintptr_t)o->svi_payload + 4) data = (unsigned char*)o->svi_payload + 4;
+        data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 5); 
+        if ((uintptr_t)data < (uintptr_t)o->svi_payload + 5) data = (unsigned char*)o->svi_payload + 5;
 
-        /* Now data points to offset for khlen. (Address should be aligned-to-8 + 4) */
-        uint8_t khlen = (uint8_t)sdsHdrSize(SDS_TYPE_8);
-        *(data-1) = khlen; /* Store it JUST BEFORE the header */
+        uint8_t khlen = 3; /* SDS_TYPE_8 header size */
+        *(data-2) = khlen; /* Store it at aligned+3, header starts at aligned+5 */
         
-        struct sdshdr8 *sk = (void *)data;
+        struct sdshdr8 *sk = (void *)(data - 3);
         sk->len = keylen;
         sk->alloc = keylen;
         sk->flags = SDS_TYPE_8;
@@ -222,8 +219,8 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     }
 
     /* Align VALUE CONTENT to 8-byte boundary */
-    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 3); /* +3 for sdshdr8 header */
-    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 3) data = (unsigned char*)o->svi_payload + 3;
+    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 5);
+    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 5) data = (unsigned char*)o->svi_payload + 5;
 
     /* Initialize SDS header for the value */
     struct sdshdr8 *sh = (void *)((char*)data - 3);
@@ -327,9 +324,9 @@ sds objectGetKey(const robj *o) {
         data += sizeof(long long);
     }
     
-    /* Key content is always at (aligned-to-8 + 4) because of 1-byte hlen + 3-byte hdr */
-    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 4);
-    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 4) data = (unsigned char*)o->svi_payload + 4;
+    /* Key content is always at (aligned-to-8 + 8) because of 5-byte metadata + 3-byte hdr */
+    data = (unsigned char*)((((uintptr_t)data + 7) & ~7) + 8);
+    if ((uintptr_t)data < (uintptr_t)o->svi_payload + 8) data = (unsigned char*)o->svi_payload + 8;
     
     return (sds)data;
 #else
