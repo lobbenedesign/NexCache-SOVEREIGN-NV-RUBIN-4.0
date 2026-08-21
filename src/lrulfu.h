@@ -33,7 +33,19 @@
  *     }
  */
 
-#define LRULFU_BITS 24
+/* NEX-FIX: this used to be 24, matching upstream Redis, but serverObject's
+ * actual storage field is `unsigned lru : 21` (server.h) -- deliberately
+ * narrowed to fit type/encoding/has* flags/lru into one 32-bit word.
+ * Every LRU value computed here at the (unchanged) 24-bit width was being
+ * silently truncated by the C bitfield assignment at every touch/import,
+ * corrupting the stored timestamp and producing huge idletime wraparound
+ * errors (e.g. OBJECT IDLETIME reporting ~8388611s after a 3s wait).
+ * Matching LRULFU_BITS to the real 21-bit field fixes LRU mode (the
+ * default maxmemory-policy) correctly. LFU mode's 16-bit-minutes +
+ * 8-bit-counter packing (see comment above) was designed for the original
+ * 24 bits and still doesn't fit in 21 -- that repacking is a separate,
+ * more invasive fix nobody has needed yet since LFU isn't the default. */
+#define LRULFU_BITS 21
 
 extern int lfu_config_log_factor; /* LFU logarithmic counter factor. */
 extern int lfu_config_decay_time; /* LFU counter decay factor. */
