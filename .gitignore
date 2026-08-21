@@ -10,6 +10,9 @@ bin/
 build/
 cmake-build-*/
 out/
+.make-settings
+.make-prerequisites
+nexcache-unit-gtests
 
 # Executables
 nexcache-server
