@@ -4,6 +4,11 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
+#elif defined(__aarch64__) && defined(__linux__)
+#include <sys/auxv.h>
+#ifndef HWCAP2_SVE2
+#define HWCAP2_SVE2 (1 << 1)
+#endif
 #endif
 
 hw_dna_t server_dna = HW_GENERIC;
@@ -48,8 +53,19 @@ void Sovereign_SenseDNA(void) {
         server_dna = HW_GENERIC; /* Apple Silicon without AMX (or generic ARM) */
     }
 #elif defined(__aarch64__)
-    /* Simplified check for ARM SVE2 (e.g., on Rubin/Grace) */
-    server_dna = HW_ARM_SVE2; 
+    /* PRIMA: assegnava sempre HW_ARM_SVE2 a qualunque CPU __aarch64__,
+     * senza verificare se la CPU reale supporta davvero SVE2 (era
+     * letteralmente commentato "Simplified check"). Su una CPU ARM64
+     * senza SVE2 (Graviton2/3, Ampere Altra, ecc.) questo faceva credere
+     * al resto del sistema di avere hardware che non ha — oggi l'unico
+     * effetto pratico è la scelta 4 vs 16 campioni in Sovereign_GardenerLoop
+     * (innocuo), ma è comunque un dato falso riportato da una funzione che
+     * si chiama esplicitamente "hardware DNA sensing". */
+#if defined(__linux__)
+    server_dna = (getauxval(AT_HWCAP2) & HWCAP2_SVE2) ? HW_ARM_SVE2 : HW_GENERIC;
+#else
+    server_dna = HW_GENERIC; /* Nessun modo portabile di verificare fuori da Linux qui */
+#endif
 #elif defined(__x86_64__) || defined(_M_X64)
     if (__builtin_cpu_supports("avx512f")) {
         server_dna = HW_INTEL_AVX512;

@@ -207,10 +207,23 @@ void freeObjAsync(robj *key, robj *obj, int dbid) {
  * create a new empty set of hash tables and scheduling the old ones for
  * lazy freeing. */
 void emptyDbAsync(serverDb *db) {
-    int slot_count_bits = 0;
+    /* NEX-FIX: era `int slot_count_bits = 0;` (0 fuori cluster, logica
+     * vanilla Redis). Ma createDatabase() in server.c usa SEMPRE
+     * `slot_count = 176` ("G3-GODMODE: 176 shards for Vera workers"),
+     * incondizionatamente dal cluster mode — questo path (FLUSHALL/FLUSHDB
+     * asincrono, lazyfree-lazy-user-flush default yes) non era mai stato
+     * allineato: il kvstore ricreato dopo un flush asincrono nasceva con
+     * num_hashtables=0. kvs->rehashing resta NULL per num_hashtables>1,
+     * ma il guard `if (kvs->num_hashtables == 1) return;` in kvstore.c
+     * (protegge l'accesso a quella lista) non intercetta 0 (0 != 1) —
+     * kvstoreHashtableRehashingStarted() prosegue fino a
+     * listAddNodeTail(NULL, ht) al primo resize dopo un FLUSHALL, SIGSEGV
+     * deterministico. Riprodotto e confermato anche su VERAM3.3 (stesso
+     * bug, stesso file, mai portato prima). Fix: stesso 176 di
+     * createDatabase, sempre. */
+    int slot_count_bits = 176;
     int flags = KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND;
     if (server.cluster_enabled) {
-        slot_count_bits = CLUSTER_SLOT_MASK_BITS;
         flags |= KVSTORE_FREE_EMPTY_HASHTABLES;
     }
     kvstore *oldkeys = db->keys, *oldexpires = db->expires, *oldkeyswithexpires = db->keys_with_volatile_items;

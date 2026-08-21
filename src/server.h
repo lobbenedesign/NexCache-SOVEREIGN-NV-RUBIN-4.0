@@ -1778,6 +1778,7 @@ struct nexcacheServer {
     _Atomic(uint64_t) next_client_id;         /* Next client unique ID. Incremental. */
     int protected_mode;                       /* Don't accept external connections. */
     int io_threads_num;                       /* Number of IO threads to use. */
+    int nex_engine_workers;                   /* NEX: start the legacy sharded engine worker threads. */
     int active_io_threads_num;                /* Current number of active IO threads, includes main thread. */
     int events_per_io_thread;                 /* Number of events on the event loop to trigger IO threads activation. */
     int prefetch_batch_max_size;              /* Maximum number of keys to prefetch in a single batch */
@@ -4192,6 +4193,7 @@ void pnincrCommand(client *c);
 void pncounterGetCommand(client *c);
 void orsetAddCommand(client *c);
 void orsetRemoveCommand(client *c);
+void orsetMembersCommand(client *c);
 void lwwSetCommand(client *c);
 void lwwGetCommand(client *c);
 void anomalyInfoCommand(client *c);

@@ -122,6 +122,14 @@ typedef struct NexSegcache {
     pthread_mutex_t locks[NEX_RCU_SHARDS];
     int running;
 
+    /* Reaper: chiama segcache_expire_segments() periodicamente. Senza di
+     * esso i segmenti scaduti non vengono mai restituiti al pool libero
+     * (nessun altro punto del codebase chiamava questa funzione), quindi
+     * una volta esaurito il pool ogni SET falliva permanentemente con
+     * "Out of segments" anche se la maggior parte dei dati era scaduta
+     * da tempo. Vedi segcache_reaper_thread in segcache.c. */
+    pthread_t reaper_thread;
+
     /* Statistiche per shard (zero contesa in update) */
     SegStats shard_stats[NEX_RCU_SHARDS];
 } NexSegcache;

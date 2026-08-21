@@ -63,7 +63,18 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     int has_expire = (expire != EXPIRY_NONE ||
                       (has_embkey && sdslen(key) >= KEY_SIZE_TO_INCLUDE_EXPIRE_THRESHOLD));
     size_t key_sds_len = has_embkey ? sdslen(key) : 0;
-    char key_sds_type = has_embkey ? sdsReqType(key_sds_len) : 0;
+    /* NEX-FIX: the embedded-key header below is ALWAYS written in sdshdr8
+     * layout (1-byte len + 1-byte alloc + 1-byte flags), regardless of what
+     * type gets picked here. sdsReqType() picks SDS_TYPE_5 for any key under
+     * 32 bytes, whose real on-wire layout has NO separate len/alloc fields
+     * (the length lives packed into the flags byte itself via
+     * SDS_TYPE_5_LEN). Writing an sdshdr8 body under a type_5 flags byte
+     * makes sdslen()/sdscmp() read back length 0, silently breaking lookup
+     * for every short key (see nexcache-project-state memory, 2026-08-10
+     * finding). Force SDS_TYPE_8 unconditionally here, mirroring what
+     * createEmbeddedStringObjectWithKeyAndExpire() already does safely. */
+    serverAssert(!has_embkey || key_sds_len <= 255 - sizeof(struct sdshdr8) - 1);
+    char key_sds_type = has_embkey ? SDS_TYPE_8 : 0;
     size_t key_sds_size = has_embkey ? sdsReqSize(key_sds_len, key_sds_type) : 0;
     size_t min_size = sizeof(robj);
     if (has_expire) {
@@ -208,18 +219,18 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
     }
     
     if (has_embkey) {
-        /* Align KEY CONTENT to 8-byte boundary (offset 32) 
+        /* Align KEY CONTENT to 8-byte boundary (offset 32)
          * Path: [8-aligned-base] + 8 = [8-aligned-content]
          * Metadata: 1 byte (khlen) + 3 bytes (sdshdr8) = 4 bytes.
          * Metadata must start at 32 - 4 = 28.
          */
         uintptr_t base = (uintptr_t)data & ~7;
-        data = (unsigned char*)(base + 8); 
+        data = (unsigned char*)(base + 8);
         if ((uintptr_t)data < (uintptr_t)o->svi_payload + 8) data = (unsigned char*)o->svi_payload + 8;
 
         uint8_t khlen = 3; /* SDS_TYPE_8 header size */
         *(data-4) = khlen; /* Store it at aligned+4 (offset 28) */
-        
+
         struct sdshdr8 *sk = (void *)(data - 3); /* Header at aligned+5 (offset 29) */
         size_t kl = sdslen(key);
         sk->len = kl;
@@ -227,7 +238,7 @@ static robj *createEmbeddedStringObjectWithKeyAndExpire(const char *ptr,
         sk->flags = SDS_TYPE_8;
         memcpy(sk->buf, key, kl);
         sk->buf[kl] = '\0';
-        
+
         data = (unsigned char*)sk->buf + kl + 1;
     }
 
@@ -318,8 +329,19 @@ void *objectGetVal(const robj *o) {
 #ifdef RUBIN_MODE
     /* In Rubin-mode, o->ptr is carefully synchronized during creation to point
      * to the hardware-aligned content (offset 32), even for embedded objects.
-     * We only return NULL if it's integer-encoded, as callers must decant it. */
-    if (o->encoding == OBJ_ENCODING_INT) return NULL;
+     * NEX-FIX: this used to return NULL for OBJ_ENCODING_INT, on the theory
+     * that callers must "decant" it separately. In practice every real
+     * caller (getLongLongFromObject, ll2string(...,(long)objectGetVal(o)),
+     * OBJECT ENCODING introspection, etc.) treats objectGetVal's result as
+     * the raw value for INT encoding, exactly like the non-Rubin branch
+     * below does (`return o->ptr`) -- returning NULL here silently turned
+     * every such read into 0 (see nexcache-project-state memory, 2026-08-10:
+     * INCR on an INT-encoded key read back 0 instead of the real value).
+     * decrRefCount()'s `objectGetVal(o) != NULL` guard does not depend on
+     * this: freeStringObject() already self-guards on
+     * `encoding == OBJ_ENCODING_RAW` before touching the pointer, so INT/
+     * EMBSTR objects are already a safe no-op there regardless of what
+     * objectGetVal returns. */
     return o->ptr;
 #else
     if (o->encoding == OBJ_ENCODING_EMBSTR) {
@@ -336,7 +358,7 @@ sds objectGetKey(const robj *o) {
     /* Key content is at offset 8 (no expire) or 16 (expire) */
     unsigned char *data = (unsigned char *)o->svi_payload + 8;
     if (o->hasexpire) data += 8;
-    
+
     return (sds)data;
 #else
     /* Non-Rubin mode doesn't support embedded keys yet */

@@ -14,6 +14,16 @@ static uint32_t seg_unix_now(void) {
     return (uint32_t)time(NULL);
 }
 
+static void *segcache_reaper_thread(void *arg) {
+    NexSegcache *sc = (NexSegcache *)arg;
+    while (sc->running) {
+        sleep(1);
+        if (!sc->running) break;
+        segcache_expire_segments(sc);
+    }
+    return NULL;
+}
+
 /* ── FNV-1a 64 bit per hash table ───────────────────────────── */
 static uint64_t seg_hash(const char *key, uint16_t key_len) {
     uint64_t h = 0xcbf29ce484222325ULL;
@@ -32,6 +42,27 @@ static uint32_t ttl_to_bucket(uint32_t ttl_seconds) {
     return (60 + 54 + 50 + (ttl_seconds - 3600) / 3600) % SEG_TTL_BUCKETS;
 }
 
+/* Inversa di ttl_to_bucket: dato un bucket, ricostruisce il TTL (in
+ * secondi) rappresentativo. PRIMA questa logica era duplicata tre volte
+ * (ht_find, segcache_exists, segcache_expire_segments) e in tutti e tre i
+ * punti usava solo 3 rami invece dei 4 del forward — per bucket>=164
+ * (cioè qualunque TTL originale >=3600s) applicava il fattore *60 del
+ * terzo ramo invece di *3600, ricostruendo un TTL molto più corto
+ * dell'originale (es. TTL=7200s → bucket 165 → ricostruito come 3660s):
+ * qualunque entry con TTL >=~1h scadeva con ~1h+ di anticipo.
+ * Nota: per bucket>=164 l'informazione oltre l'ora è comunque quantizzata
+ * a passi di 3600s (design del bucketing, non un bug), e per TTL
+ * abbastanza grandi da avvolgere SEG_TTL_BUCKETS il forward stesso fa
+ * aliasing via modulo — limite noto della granularità, non ricostruibile
+ * senza cambiare cosa viene persistito per segmento. */
+static uint32_t bucket_to_ttl_seconds(uint32_t b) {
+    if (b == 0) return 0;
+    if (b < 60) return b;
+    if (b < 114) return 60 + (b - 60) * 10;
+    if (b < 164) return 600 + (b - 114) * 60;
+    return 3600 + (b - 164) * 3600;
+}
+
 /* ── segcache_create ─────────────────────────────────────────── */
 NexSegcache *segcache_create(size_t max_memory, uint32_t segment_size) {
     if (segment_size == 0) segment_size = SEG_DEFAULT_SIZE;
@@ -42,6 +73,16 @@ NexSegcache *segcache_create(size_t max_memory, uint32_t segment_size) {
     sc->max_memory = max_memory;
     sc->n_segments = (uint32_t)(max_memory / segment_size);
     if (sc->n_segments == 0) sc->n_segments = 16;
+    /* NEX-FIX: il pool di segmenti è globale ma ogni shard TTL ha bisogno
+     * di poter tenere almeno un segmento vivo contemporaneamente. Con meno
+     * segmenti totali di NEX_RCU_SHARDS, non appena più shard di quanti
+     * segmenti disponibili ricevono la loro prima scrittura, seg_alloc()
+     * esaurisce il pool e segcache_set() fallisce silenziosamente per
+     * tutti gli shard "in eccesso" — anche con una cache quasi vuota.
+     * Garantiamo un pavimento pari al numero di shard (vedi VERAM3.3 dove
+     * NEX_RCU_SHARDS=176 rende il bug riproducibile con configurazioni
+     * di memoria realistiche). */
+    if (sc->n_segments < NEX_RCU_SHARDS) sc->n_segments = NEX_RCU_SHARDS;
     if (sc->n_segments > SEG_MAX_SEGMENTS) sc->n_segments = SEG_MAX_SEGMENTS;
 
     /* Pre-alloca tutti i segmenti con allineamento a 256-byte (SVI-Ready) */
@@ -89,6 +130,12 @@ NexSegcache *segcache_create(size_t max_memory, uint32_t segment_size) {
     }
     sc->running = 1;
 
+    if (pthread_create(&sc->reaper_thread, NULL, segcache_reaper_thread, sc) != 0) {
+        fprintf(stderr, "[NexCache Segcache] WARNING: reaper thread non avviato — "
+                        "i segmenti scaduti non verranno mai riciclati\n");
+        sc->reaper_thread = 0;
+    }
+
     fprintf(stderr,
             "[NexCache Segcache] G3-GODMODE Init: %d shards | %u segments @ %zuMB\n"
             "  Vera (Rubin) optimized RCU Shard Topology\n",
@@ -116,20 +163,41 @@ static NexSegment *seg_alloc(NexSegcache *sc, uint32_t ttl_bucket) {
 }
 
 /* ── Hash table: inserimento ─────────────────────────────────── */
-static int ht_insert(NexSegcache *sc, uint64_t hash, uint16_t key_fp, uint32_t seg_idx, uint32_t item_offset) {
+/* NEX-FIX: replace-or-insert. The old version blindly appended, so an
+ * overwrite of an existing key left BOTH versions in the bucket and lookups
+ * returned the OLDEST one (stale reads on every SET-overwrite). We now scan
+ * for an existing same-key entry first and update it in place. */
+static int ht_insert(NexSegcache *sc, uint64_t hash, uint16_t key_fp, uint32_t seg_idx, uint32_t item_offset,
+                     const char *key, uint16_t key_len) {
     int shard_id = (int)(hash % NEX_RCU_SHARDS);
     uint32_t local_idx = (uint32_t)((hash / NEX_RCU_SHARDS) % sc->buckets_per_shard);
     uint32_t global_idx = (uint32_t)(shard_id * sc->buckets_per_shard) + local_idx;
     SegHashBucket *bkt = &sc->hash_table[global_idx];
 
+    int free_slot = -1;
     for (int s = 0; s < SEG_ITEMS_PER_BUCKET; s++) {
         if (!((bkt->occupancy >> s) & 1)) {
-            bkt->entries[s].key_fp = key_fp;
+            if (free_slot < 0) free_slot = s;
+            continue;
+        }
+        if (bkt->entries[s].key_fp != key_fp) continue;
+        NexSegment *seg = &sc->segments[bkt->entries[s].seg_idx];
+        uint8_t *item_ptr = seg->data + bkt->entries[s].item_offset;
+        SegItemHeader hdr;
+        memcpy(&hdr, item_ptr, sizeof(hdr));
+        if (SEG_HDR_KEY_LEN(hdr) == key_len &&
+            memcmp((const char *)(item_ptr + sizeof(hdr)), key, key_len) == 0) {
             bkt->entries[s].seg_idx = (uint16_t)seg_idx;
             bkt->entries[s].item_offset = item_offset;
-            bkt->occupancy |= (1u << s);
             return 0;
         }
+    }
+    if (free_slot >= 0) {
+        bkt->entries[free_slot].key_fp = key_fp;
+        bkt->entries[free_slot].seg_idx = (uint16_t)seg_idx;
+        bkt->entries[free_slot].item_offset = item_offset;
+        bkt->occupancy |= (1u << free_slot);
+        return 0;
     }
     return -1; /* Bucket pieno */
 }
@@ -155,9 +223,7 @@ static SegHashEntry *ht_find(NexSegcache *sc, uint64_t hash, uint16_t key_fp, co
             const char *stored_key = (const char *)(item_ptr + sizeof(hdr));
             if (memcmp(stored_key, key, key_len) == 0) {
                 /* Verifica TTL: calc expire time dal segmento */
-                uint32_t ttl_b = seg->ttl_bucket;
-                uint32_t ttl_s = (uint32_t)(ttl_b < 60 ? ttl_b : ttl_b < 114 ? (ttl_b - 60) * 10 + 60
-                                                                             : (ttl_b - 114) * 60 + 600);
+                uint32_t ttl_s = bucket_to_ttl_seconds(seg->ttl_bucket);
                 uint32_t expire = seg->create_time + ttl_s;
                 if (ttl_s > 0 && expire <= seg_unix_now()) {
                     /* Scaduto: rimuovi dalla hash table */
@@ -219,8 +285,16 @@ int segcache_set(NexSegcache *sc, const char *key, uint16_t key_len, const uint8
     seg->write_offset += item_size;
     seg->n_items++;
 
-    /* Inserisci in hash table */
-    ht_insert(sc, hash64, key_fp, seg_idx, item_offset);
+    /* Inserisci in hash table.
+     * NEX-FIX: propagate index-insert failure — the old code discarded the
+     * return value, so a full bucket meant the item was written to the
+     * segment but unreachable forever, while the caller was told "OK". */
+    if (ht_insert(sc, hash64, key_fp, seg_idx, item_offset, key, key_len) != 0) {
+        seg->write_offset -= item_size;
+        seg->n_items--;
+        pthread_mutex_unlock(&sc->locks[shard_id]);
+        return -1;
+    }
 
     atomic_fetch_add(&sc->used_memory, item_size);
     st->sets++;
@@ -287,6 +361,22 @@ int segcache_del(NexSegcache *sc, const char *key, uint16_t key_len) {
     for (int s = 0; s < SEG_ITEMS_PER_BUCKET; s++) {
         if (!((bkt->occupancy >> s) & 1)) continue;
         if (bkt->entries[s].key_fp != key_fp) continue;
+
+        /* PRIMA: si cancellava al primo match sul solo key_fp a 16 bit,
+         * senza il memcmp della chiave reale che ht_find/segcache_exists
+         * fanno correttamente. Con due chiavi diverse che finiscono nello
+         * stesso bucket e condividono i 16 bit alti dell'hash (paradosso
+         * del compleanno, comune con molte chiavi), DEL su una chiave
+         * cancellava silenziosamente un'altra chiave del tutto estranea
+         * (perdita dati). Verifica la chiave completa prima di rimuovere. */
+        NexSegment *seg = &sc->segments[bkt->entries[s].seg_idx];
+        uint8_t *item_ptr = seg->data + bkt->entries[s].item_offset;
+        SegItemHeader hdr;
+        memcpy(&hdr, item_ptr, sizeof(hdr));
+        if (SEG_HDR_KEY_LEN(hdr) != key_len) continue;
+        const char *stored_key = (const char *)(item_ptr + sizeof(hdr));
+        if (memcmp(stored_key, key, key_len) != 0) continue;
+
         /* Trovato: rimuovi dall'hash table */
         bkt->occupancy &= ~(1u << s);
         st->dels++;
@@ -322,9 +412,7 @@ int segcache_exists(NexSegcache *sc, const char *key, uint16_t key_len) {
             const char *stored_key = (const char *)(item_ptr + sizeof(hdr));
             if (memcmp(stored_key, key, key_len) == 0) {
                 /* Verifica TTL */
-                uint32_t ttl_b = seg->ttl_bucket;
-                uint32_t ttl_s = (uint32_t)(ttl_b < 60 ? ttl_b : ttl_b < 114 ? (ttl_b - 60) * 10 + 60
-                                                                             : (ttl_b - 114) * 60 + 600);
+                uint32_t ttl_s = bucket_to_ttl_seconds(seg->ttl_bucket);
                 if (ttl_s > 0) {
                     uint32_t expire = seg->create_time + ttl_s;
                     if (expire <= (uint32_t)time(NULL)) {
@@ -353,8 +441,7 @@ uint32_t segcache_expire_segments(NexSegcache *sc) {
         for (uint32_t b = 0; b < SEG_TTL_BUCKETS; b++) {
             NexSegment *seg = sc->ttl_shards[shard_id][b];
             while (seg) {
-                uint32_t ttl_s = (uint32_t)(b < 60 ? b : b < 114 ? (b - 60) * 10 + 60
-                                                                 : (b - 114) * 60 + 600);
+                uint32_t ttl_s = bucket_to_ttl_seconds(b);
                 uint32_t expire_time = seg->create_time + ttl_s;
 
                 if (ttl_s > 0 && expire_time <= now) {
@@ -437,6 +524,8 @@ void segcache_print_stats(NexSegcache *sc) {
 
 void segcache_destroy(NexSegcache *sc) {
     if (!sc) return;
+    sc->running = 0;
+    if (sc->reaper_thread) pthread_join(sc->reaper_thread, NULL);
     for (uint32_t i = 0; i < sc->n_segments; i++) free(sc->segments[i].data);
     free(sc->segments);
 

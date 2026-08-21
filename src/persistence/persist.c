@@ -36,6 +36,8 @@ static struct {
     uint64_t dirty_keys;
 } g_persist;
 
+static void *persist_bg_thread(void *arg);
+
 /* ── Utility ────────────────────────────────────────────────── */
 static uint64_t persist_us_now(void) {
     struct timeval tv;
@@ -77,6 +79,22 @@ int aof_init(const PersistConfig *cfg) {
     }
 
     g_persist.last_rdb_save_us = persist_us_now();
+
+    /* PRIMA: persist_bg_thread (everysec fsync, auto-RDB, AOF rewrite)
+     * era implementato ma non veniva mai avviato qui — g_persist.running
+     * restava 0 e bg_thread restava azzerato dal memset iniziale, quindi
+     * nessun fsync periodico e nessun auto-save avveniva mai. Chi
+     * configurava AOF_EVERYSEC otteneva silenziosamente zero garanzie di
+     * durabilità oltre a quanto l'OS decideva di flushare per conto suo. */
+    g_persist.running = 1;
+    if (pthread_create(&g_persist.bg_thread, NULL, persist_bg_thread, NULL) != 0) {
+        fprintf(stderr, "[NexCache Persist] Cannot start background thread: %s\n",
+                strerror(errno));
+        g_persist.running = 0;
+        g_persist.bg_thread = 0;
+        return -1;
+    }
+
     return 0;
 }
 

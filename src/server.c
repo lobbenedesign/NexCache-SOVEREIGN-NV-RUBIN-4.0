@@ -3217,9 +3217,24 @@ void InitServerLast(void) {
     server.initial_memory_usage = zmalloc_used_memory() - mh->overhead_total;
     freeMemoryOverheadData(mh);
 
-    /* G3-GODMODE: Initialize the sharded engine (Auto-detect for M1 / Force 176 for Rubin) */
-    NexEngine *engine = engine_create(0, server.port + 1000, NULL);
-    if (engine) engine_start(engine);
+    /* G3-GODMODE: Initialize the sharded engine (Auto-detect for M1 / Force 176 for Rubin).
+     * NEX-FIX: era avviato incondizionatamente. engine_create() avvia 8 worker
+     * thread con uno spin-loop adattivo aggressivo (fino a 20000 iterazioni di
+     * CPU_YIELD + dequeue prima di un nanosleep da 50ns) che gira PRATICAMENTE
+     * SEMPRE, perché niente nel codebase alimenta mai cmd_queue — verificato
+     * con grep globale: zero chiamate a mpsc_enqueue su cmd_queue al di fuori
+     * di engine.c stesso. Risultato misurato: 8 thread che saturano quasi
+     * tutti i core (250-370% CPU su una macchina 8-core) da completamente
+     * inattivo, per zero lavoro utile — un motore fantasma che degrada ogni
+     * benchmark e ogni deployment reale. VERAM3.3 aveva già lo stesso fix
+     * (con lo stesso flag `nex-engine-workers`, default off) da una sessione
+     * precedente; SOVEREIGN, pur derivando da quella lineage, non l'aveva mai
+     * ricevuto. Nessuna perdita funzionale nel disattivarlo di default: il
+     * motore non serve traffico reale oggi comunque. */
+    if (server.nex_engine_workers) {
+        NexEngine *engine = engine_create(0, server.port + 1000, NULL);
+        if (engine) engine_start(engine);
+    }
 }
 
 /* The purpose of this function is to try to "glue" consecutive range

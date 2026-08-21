@@ -32,6 +32,31 @@ endif
 ifneq ($(OPTIMIZATION),-O0)
 	OPTIMIZATION+=-fno-omit-frame-pointer
 endif
+# NEX-FIX (2026-08-10, risolto): questa riga mancava, quindi -O3/-DRUBIN_MODE
+# non venivano mai applicati in nessuna build precedente (verificato con
+# `make V=1`). Riattivandola erano poi emersi due bug reali e distinti nel
+# modello a oggetti SVI (object.c), entrambi ora fixati e verificati (6/6
+# test suite + SET/GET/INCR/DECRBY/HSET/KEYS/DBSIZE/FLUSHALL a runtime):
+#   1. createUnembeddedObjectWithKeyAndExpire() sceglieva dinamicamente
+#      sdsReqType(key_len) per l'header della chiave embedded, che per
+#      chiavi <32 byte restituisce SDS_TYPE_5 (header 1 byte, lunghezza
+#      impacchettata nei bit alti del flags byte) — ma il codice scriveva
+#      SEMPRE un header sdshdr8 (3 byte: len+alloc+flags) indipendentemente
+#      dal tipo scelto, corrompendo la lettura di sdslen()/sdscmp() per
+#      qualunque chiave breve (DBSIZE/KEYS/INCR non trovavano più la voce).
+#      Fix: forzato SDS_TYPE_8 incondizionatamente, come già faceva
+#      createEmbeddedStringObjectWithKeyAndExpire().
+#   2. objectGetVal() ritornava NULL per OBJ_ENCODING_INT ("i chiamanti
+#      devono decantarlo"), ma getLongLongFromObject() e diversi altri punti
+#      del codice fanno `(long)objectGetVal(o)` aspettandosi il valore grezzo
+#      (stesso comportamento del ramo non-Rubin, `return o->ptr`) — quindi
+#      ogni INCR/DECRBY su una chiave INT-encoded leggeva 0 invece del
+#      valore reale. Fix: ritorna sempre o->ptr; decrRefCount() resta safe
+#      perché freeStringObject() si auto-protegge già su
+#      `encoding == OBJ_ENCODING_RAW`.
+# Vedi memoria di progetto (nexcache-project-state, 2026-08-10) per il
+# dettaglio completo del debug (fprintf mirati + byte-offset tracing).
+OPT=$(OPTIMIZATION)
 DEPENDENCY_TARGETS=libnexcache linenoise hdr_histogram fpconv
 NODEPS:=clean distclean
 
@@ -78,9 +103,25 @@ ifeq ($(uname_S),Linux)
 	MALLOC=jemalloc
 endif
 
-# NEX-VERA: SVE2 and ARM v9-A optimizations
+# NEX-VERA: ARM64 build flags.
+# PRIMA: -march=armv9-a+sve2 veniva applicato incondizionatamente a
+# QUALUNQUE build Linux aarch64/armv*, indipendentemente dalla CPU reale
+# che eseguirà il binario. Il codice che sfrutta SVE2 (bitops.c
+# popcountSVE2, gated solo da HAVE_ARM_SVE2 a compile-time, nessun check
+# runtime HWCAP) va quindi in SIGILL se il binario viene distribuito su
+# una CPU ARM64 senza SVE2 (Graviton2/3, Ampere Altra, Raspberry Pi —
+# praticamente qualunque ARM64 non-server-di-ultima-generazione), mentre
+# il buildatore poteva benissimo avere SVE2 (es. Graviton4). Il flag
+# forzava anche l'intero binario a quella ISA extension, non solo i
+# kernel che la usano davvero.
+# ORA: baseline portabile (nessun -march specifico oltre a -funwind-tables
+# per lo stack unwinding). Il dispatch SVE2/NEON è deciso a runtime da
+# arm_hwcap_probe() (memory/arch_probe.c) con verifica getauxval(AT_HWCAP)
+# prima di eseguire path SVE2, invece che dedotto dal solo flag di
+# compilazione — stesso pattern già usato correttamente per AVX2/AVX-512
+# su x86 in questo codebase (util.c, hyperloglog.c via __builtin_cpu_supports).
 ifneq (,$(filter aarch64 armv%,$(uname_M)))
-        CFLAGS+=-funwind-tables -march=armv9-a+sve2
+        CFLAGS+=-funwind-tables
 endif
 
 # Backwards compatibility for selecting an allocator
@@ -266,11 +307,18 @@ else
 
 	current_dir = $(shell pwd)
 	FINAL_CFLAGS+=-DLUA_ENABLED -DLUA_LIB=libnexcachelua.so
+# NEX-FIX: current_dir è il path assoluto del progetto, che su questa
+# macchina contiene spazi e parentesi ("...(VERAM 4.0)..."). Senza
+# quoting, il flag -Wl,-rpath,... finiva non quotato nella riga di
+# comando di ogni LINK, rompendo la shell con un syntax error su "("
+# (ogni build falliva, non solo quella innescata da persist-settings).
+# Le virgolette singole nel valore del flag proteggono l'intero token
+# quando la riga di comando viene passata a /bin/sh -c.
 ifeq ($(uname_S),Darwin)
-	FINAL_LDFLAGS+= -Wl,-rpath,$(PREFIX)/lib
-	FINAL_LDFLAGS+= -Wl,-rpath,$(current_dir)/modules/lua
+	FINAL_LDFLAGS+= '-Wl,-rpath,$(PREFIX)/lib'
+	FINAL_LDFLAGS+= '-Wl,-rpath,$(current_dir)/modules/lua'
 else
-	FINAL_LDFLAGS+= -Wl,-rpath,$(PREFIX)/lib:$(current_dir)/modules/lua -Wl,--disable-new-dtags
+	FINAL_LDFLAGS+= '-Wl,-rpath,$(PREFIX)/lib:$(current_dir)/modules/lua' -Wl,--disable-new-dtags
 endif
 endif
 
@@ -685,26 +733,33 @@ endif
 all-with-unit-tests: all $(ENGINE_UNIT_GTESTS)
 .PHONY: all
 
+# NEX-FIX: gli `echo VAR=$(X) >> .make-settings` non erano quotati — se una
+# qualunque variabile espansa (es. FINAL_LDFLAGS, che include il path assoluto
+# del progetto via -Wl,-rpath,...) contiene caratteri speciali per la shell
+# (qui: parentesi, perché la cartella si chiama "...(VERAM 4.0)..."), la riga
+# fallisce con un syntax error e l'intera build si ferma. Quotare l'intero
+# argomento di ogni `echo` protegge dalla shell senza alterare il valore
+# scritto nel file (echo "VAR=valore" stampa "VAR=valore" senza le virgolette).
 persist-settings: distclean
-	echo STD=$(STD) >> .make-settings
-	echo WARN=$(WARN) >> .make-settings
-	echo OPT=$(OPT) >> .make-settings
-	echo PROG_SUFFIX=$(PROG_SUFFIX) >> .make-settings
-	echo MALLOC=$(MALLOC) >> .make-settings
-	echo BUILD_TLS=$(BUILD_TLS) >> .make-settings
-	echo BUILD_RDMA=$(BUILD_RDMA) >> .make-settings
-	echo USE_SYSTEMD=$(USE_SYSTEMD) >> .make-settings
-	echo BUILD_LUA=$(BUILD_LUA) >> .make-settings
-	echo USE_FAST_FLOAT=$(USE_FAST_FLOAT) >> .make-settings
-	echo USE_LIBBACKTRACE=$(USE_LIBBACKTRACE) >> .make-settings
-	echo LIBBACKTRACE_PREFIX=$(LIBBACKTRACE_PREFIX) >> .make-settings
-	echo CFLAGS=$(CFLAGS) >> .make-settings
-	echo LDFLAGS=$(LDFLAGS) >> .make-settings
-	echo SERVER_CFLAGS=$(SERVER_CFLAGS) >> .make-settings
-	echo SERVER_LDFLAGS=$(SERVER_LDFLAGS) >> .make-settings
-	echo PREV_FINAL_CFLAGS=$(FINAL_CFLAGS) >> .make-settings
-	echo PREV_FINAL_LDFLAGS=$(FINAL_LDFLAGS) >> .make-settings
-	echo ENGINE_SERVER_OBJ=$(ENGINE_SERVER_OBJ) >> .make-settings
+	echo "STD=$(STD)" >> .make-settings
+	echo "WARN=$(WARN)" >> .make-settings
+	echo "OPT=$(OPT)" >> .make-settings
+	echo "PROG_SUFFIX=$(PROG_SUFFIX)" >> .make-settings
+	echo "MALLOC=$(MALLOC)" >> .make-settings
+	echo "BUILD_TLS=$(BUILD_TLS)" >> .make-settings
+	echo "BUILD_RDMA=$(BUILD_RDMA)" >> .make-settings
+	echo "USE_SYSTEMD=$(USE_SYSTEMD)" >> .make-settings
+	echo "BUILD_LUA=$(BUILD_LUA)" >> .make-settings
+	echo "USE_FAST_FLOAT=$(USE_FAST_FLOAT)" >> .make-settings
+	echo "USE_LIBBACKTRACE=$(USE_LIBBACKTRACE)" >> .make-settings
+	echo "LIBBACKTRACE_PREFIX=$(LIBBACKTRACE_PREFIX)" >> .make-settings
+	echo "CFLAGS=$(CFLAGS)" >> .make-settings
+	echo "LDFLAGS=$(LDFLAGS)" >> .make-settings
+	echo "SERVER_CFLAGS=$(SERVER_CFLAGS)" >> .make-settings
+	echo "SERVER_LDFLAGS=$(SERVER_LDFLAGS)" >> .make-settings
+	echo "PREV_FINAL_CFLAGS=$(FINAL_CFLAGS)" >> .make-settings
+	echo "PREV_FINAL_LDFLAGS=$(FINAL_LDFLAGS)" >> .make-settings
+	echo "ENGINE_SERVER_OBJ=$(ENGINE_SERVER_OBJ)" >> .make-settings
 	-(cd ../deps && $(MAKE) $(DEPENDENCY_TARGETS))
 
 .PHONY: persist-settings

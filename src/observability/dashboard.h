@@ -13,6 +13,11 @@ typedef struct DashboardConfig {
     int port;
     int enable_auth;
     char auth_token[64];
+    /* Se 0 (default), il listener binda solo su 127.0.0.1: la dashboard
+     * espone memoria usata, Raft term/node id, hit rate — dati interni
+     * che non devono essere raggiungibili dalla rete esterna per default.
+     * Impostare 1 per bindare su 0.0.0.0 (richiede enable_auth=1). */
+    int bind_all;
 } DashboardConfig;
 
 /* Info aggregata esposta dal dashboard */
