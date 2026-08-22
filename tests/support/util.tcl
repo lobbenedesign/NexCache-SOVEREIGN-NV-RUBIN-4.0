@@ -500,6 +500,27 @@ proc roundFloat f {
 }
 
 set ::last_port_attempted 0
+# NEX-FIX: `socket -server 127.0.0.1 $port` can report success even when a
+# real listener already owns that exact address:port (observed reliably on
+# this platform's Tcl socket implementation, likely a SO_REUSEADDR/REUSEPORT
+# default that lets a second bind-and-immediately-close attempt succeed
+# alongside an active LISTEN socket). A bind-only test can't tell "free"
+# from "occupied but reusable" apart, so a genuinely busy port was reported
+# available -- for nested start_server calls (master+replica alive at once,
+# e.g. "Connect a replica to the master instance" in scripting.tcl) this
+# meant the replica's spawn kept "finding" the master's own already-busy
+# port, its real bind failed, and the framework retried forever, always
+# recomputing that exact same falsely-available port. Actually attempting a
+# client connection is a reliable way to detect a real listener regardless
+# of what bind-side socket options allow.
+proc port_has_listener {host port} {
+    if {[catch {set fd [socket $host $port]} err]} {
+        return 0
+    }
+    close $fd
+    return 1
+}
+
 proc find_available_port {start count} {
     set port [expr $start]
     # use a larger count range directly here
@@ -511,7 +532,9 @@ proc find_available_port {start count} {
         set fd1 -1
         set err1 ""
         set err2 ""
-        if {[catch {set fd1 [socket -server 127.0.0.1 $port]} err1] ||
+        if {[port_has_listener 127.0.0.1 $port] ||
+            [port_has_listener 127.0.0.1 [expr $port+10000]] ||
+            [catch {set fd1 [socket -server 127.0.0.1 $port]} err1] ||
             [catch {set fd2 [socket -server 127.0.0.1 [expr $port+10000]]} err2]} {
             if {$fd1 != -1} {
                 close $fd1

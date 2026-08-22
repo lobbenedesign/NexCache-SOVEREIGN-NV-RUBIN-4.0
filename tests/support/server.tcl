@@ -616,7 +616,21 @@ proc start_server {options {code undefined}} {
         dict set config port $port
     }
 
-    set unixsocket [format "/tmp/nexc-%d-%d.sock" [pid] [clock clicks]]
+    # NEX-FIX: `clock clicks` resolution is platform-dependent and can be
+    # coarse enough (observed on both macOS/Tcl9 and Linux CI runners) that
+    # two start_server calls executing within the same tick -- exactly what
+    # happens for nested master/replica blocks like
+    # "Connect a replica to the master instance" in scripting.tcl -- computed
+    # the identical unixsocket path. The replica then failed to bind (path
+    # already held by the still-running master), which the harness reports
+    # generically as "port busy" and retries forever on a new TCP port while
+    # reusing the same colliding unix socket path every time -- an infinite
+    # loop that only a `puts`-visible symptom on the TCP side masked whatever
+    # its real cause was. A monotonic per-process counter can't collide
+    # regardless of clock resolution.
+    if {![info exists ::unixsocket_counter]} { set ::unixsocket_counter 0 }
+    incr ::unixsocket_counter
+    set unixsocket [format "/tmp/nexc-%d-%d.sock" [pid] $::unixsocket_counter]
     dict set config "unixsocket" $unixsocket
 
     # apply overrides from global space and arguments
