@@ -3000,7 +3000,16 @@ void initServer(void) {
      * (which has to be kvstore), see pubsubtype.serverPubSubChannels */
     server.pubsub_channels = kvstoreCreate(&kvstoreChannelHashtableType, 1, KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND);
     server.pubsub_patterns = dictCreate(&objToHashtableDictType);
-    server.pubsubshard_channels = kvstoreCreate(&kvstoreChannelHashtableType, 176,
+    /* NEX-FIX: shard pubsub channels are indexed directly by cluster slot
+     * (pubsub.c: "slot = getKeySlot(...)" whenever server.cluster_enabled &&
+     * type.shard, up to CLUSTER_SLOTS-1), not by the standalone-mode 176-way
+     * DJB2 shard scheme used elsewhere -- hardcoding 176 here regardless of
+     * cluster mode let a cluster-mode slot index far exceed this kvstore's
+     * actual bucket-array size, an out-of-bounds kvstore write. Same fix
+     * pattern already applied to db->keys/expires/keys_with_volatile_items
+     * above in createDatabase(). */
+    int pubsubshard_slot_count = server.cluster_enabled ? CLUSTER_SLOTS : 176;
+    server.pubsubshard_channels = kvstoreCreate(&kvstoreChannelHashtableType, pubsubshard_slot_count,
                                                 KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND | KVSTORE_FREE_EMPTY_HASHTABLES);
     server.pubsub_clients = 0;
     server.watching_clients = 0;
