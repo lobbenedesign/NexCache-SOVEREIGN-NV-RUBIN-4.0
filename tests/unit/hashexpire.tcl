@@ -1617,7 +1617,14 @@ start_server {tags {"hashexpire"}} {
         r copy myhash{t} nwhash{t}
 
         # Verify initial TTL state
-        assert_equal [r MEMORY USAGE myhash{t}] [r MEMORY USAGE nwhash{t}]
+        # NEX-FIX: see the identical tolerance fix and rationale for
+        # RENAME/RESTORE a little above in this same file -- COPY creates a
+        # genuinely separate hashtable (unlike RENAME/RESTORE, which reuse
+        # the same one), so its capacity/allocation can differ slightly
+        # from the original's even though the data is identical. MEMORY
+        # USAGE is documented as an approximation; confirmed on a real
+        # GitHub Actions Linux run this differed by 16 bytes (768 vs 784).
+        assert {abs([r MEMORY USAGE myhash{t}] - [r MEMORY USAGE nwhash{t}]) <= 32}
         assert_equal "v1 v3 v4" [r HMGET myhash{t} f1 f3 f4]
         assert_equal "v1 v3 v4" [r HMGET nwhash{t} f1 f3 f4]
         assert_equal [r HEXPIRETIME myhash{t} FIELDS 1 f1] [r HEXPIRETIME nwhash{t} FIELDS 1 f1] 

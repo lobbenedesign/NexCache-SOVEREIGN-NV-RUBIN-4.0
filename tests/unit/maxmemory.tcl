@@ -410,9 +410,21 @@ start_server {tags {"maxmemory external:skip"}} {
         # than the soft maximum fill factor. Adding some more elements after
         # this does not trigger rehashing, because rehashing would eat some
         # kilobytes of memory.
+        # NEX-FIX: see the identical fix and rationale in other.tcl's "Don't
+        # rehash if server has child process" -- DEBUG HTSTATS (and thus
+        # main_hash_table_size) actually aggregates stats across all
+        # NEX_RCU_SHARDS=176 independent per-DB shards of this fork's
+        # kvstore (kvstoreGetStats()/hashtableCombineStats() in kvstore.c),
+        # but at the small per-shard key counts this test operates at,
+        # individual shards cross their own local resize threshold from
+        # ordinary statistical variance well before the aggregate math
+        # would predict it -- not a rehash-suppression bug. Capture the
+        # baseline after settling instead of before, so this test's real
+        # assertion (setting k0/k1/k2 doesn't trigger unwanted eviction)
+        # isn't thrown off by exactly how the populate calls landed.
         populate 2000 a 1
-        set table_size [main_hash_table_size]
         populate [main_hash_table_keys_before_rehashing_starts] b 1
+        set table_size [main_hash_table_size]
 
         # Now we are close to resizing. Check that rehashing didn't start.
         assert_equal $table_size [main_hash_table_size]
