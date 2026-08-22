@@ -2460,6 +2460,18 @@ start_server {tags {"hashexpire external:skip"}} {
                 }
 
                 # Initialize deferred clients and subscribe to keyspace notifications
+                # NEX-FIX: replica_2 is a freshly started server (see the enclosing
+                # start_server above) that never had notify-keyspace-events set on
+                # it -- "Replication Primary -> R1" above only sets it on $primary
+                # and $replica_1, both of which keep the setting across this test
+                # since they're the same running processes, but replica_2 is new
+                # and CONFIG SET does not propagate through replication. Without
+                # this, replica_2 never emits keyspace notifications at all, and
+                # assert_keyevent_patterns on $rd_replica_2 below blocked forever
+                # waiting for a message that could never arrive.
+                foreach instance [list $primary $replica_1 $replica_2] {
+                    $instance config set notify-keyspace-events KEA
+                }
                 set rd_primary [nexcache_deferring_client -2]
                 set rd_replica_1 [nexcache_deferring_client -1]
                 set rd_replica_2 [nexcache_deferring_client $replica_2_host $replica_2_port]
