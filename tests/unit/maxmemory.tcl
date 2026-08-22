@@ -1,5 +1,32 @@
 start_server {tags {"maxmemory external:skip"}} {
-    r config set maxmemory 11mb
+    # NEX-FIX: this budget must leave enough headroom above the 50x100KB
+    # dataset (~5MB of raw payload) for the "client eviction: true" tests
+    # below to keep global memory under maxmemory using ONLY client
+    # eviction (maxmemory-clients 3mb), with zero key eviction. Under
+    # RUBIN_MODE/SVI (NexSegcache-backed strings, 256-byte-rounded
+    # allocations, ~24-byte slot headers), the same 50 keys measured
+    # ~10.4MB of real used_memory here (vs. vanilla Redis' much leaner
+    # per-key overhead) -- confirmed directly via MEMORY USAGE (131584
+    # bytes for a 100000-byte value). With the original 11mb budget,
+    # baseline dataset memory alone (10.4MB) plus the 3MB client budget
+    # already totals ~13.4MB, so key eviction was mathematically
+    # guaranteed to fire regardless of how correctly client eviction
+    # behaved -- confirmed with server-side instrumentation showing
+    # evictClients() reactively holding client memory right at the 3MB
+    # limit the whole time, while dataset+client memory together still
+    # exceeded the old 11mb ceiling.
+    #
+    # Can't just raise this arbitrarily high, though: the "dead client
+    # input buffer" test below sends a bounded amount of unparsed input
+    # (30 clients * 249 * ~1008 bytes =~ 7.5MB total, not unbounded like
+    # the MGET-flood tests), and its "client eviction: false" variant
+    # relies on dataset+querybuf crossing maxmemory to prove KEY eviction
+    # still works when client eviction is disabled. 20mb was too generous
+    # for that (10.4+7.5=17.9MB stayed under it, so nothing ever got
+    # evicted and the test timed out). 15mb keeps both invariants true:
+    # 10.4+3=13.4 < 15 (client eviction alone suffices, no key eviction)
+    # and 10.4+7.5=17.9 > 15 (key eviction still fires when disabled).
+    r config set maxmemory 15mb
     r config set maxmemory-policy allkeys-lru
     set server_pid [s process_id]
     # Disable copy avoidance because it affects memory usage
