@@ -1161,7 +1161,14 @@ start_server {tags {"scripting"}} {
         }
 
         catch {[r fcall f1 0]} e
-        assert_equal  [r fcall get_version_v1 0] [r fcall get_version_v2 0]
+        # NEX-FIX: NEXCACHE_VERSION_NUM is a pure X.Y.Z triplet packed into an
+        # int, but this fork's NEXCACHE_VERSION string carries a "-SOVEREIGN"
+        # branding suffix (e.g. "4.0.0-SOVEREIGN") that has no numeric
+        # equivalent to encode -- the two were never going to be byte-equal
+        # here. Compare only the dotted-triplet prefix of the string version.
+        set v1 [r fcall get_version_v1 0]
+        set v2 [r fcall get_version_v2 0]
+        assert_equal $v1 [lindex [split $v2 "-"] 0]
     }
 
     test {FUNCTION - function stats} {
