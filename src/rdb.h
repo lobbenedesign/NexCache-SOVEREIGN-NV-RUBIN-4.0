@@ -148,8 +148,17 @@ enum RdbType {
 /* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdb_type_string[] */
 
 /* When our RDB format diverges, we need to reject types/opcodes for which we
- * may have assigned a different meaning compared to other implementations. */
-#define RDB_FOREIGN_TYPE_MIN 22
+ * may have assigned a different meaning compared to other implementations.
+ *
+ * NEX-FIX: this used to start at 22, which is RDB_TYPE_HASH_2 -- this fork's
+ * own, legitimate type for hashes with field-level expiration (see above).
+ * The safeguard in rdbLoadRioWithLoadingCtx() that rejects
+ * RDB_FOREIGN_TYPE_MIN..MAX therefore rejected every hash-field-TTL value
+ * this fork itself ever wrote, with "Can't handle foreign type or opcode 22
+ * in RDB with version 80" -- which made replicating (or reloading from
+ * disk/AOF-preamble) any hash with a field TTL fail outright. The foreign
+ * range must start one past the last real type this fork defines. */
+#define RDB_FOREIGN_TYPE_MIN 23
 #define RDB_FOREIGN_TYPE_MAX 243
 
 /* Test if a type is an object type. */
