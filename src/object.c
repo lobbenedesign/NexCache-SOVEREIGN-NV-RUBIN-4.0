@@ -63,26 +63,40 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
     int has_expire = (expire != EXPIRY_NONE ||
                       (has_embkey && sdslen(key) >= KEY_SIZE_TO_INCLUDE_EXPIRE_THRESHOLD));
     size_t key_sds_len = has_embkey ? sdslen(key) : 0;
-    /* NEX-FIX: the embedded-key header below is ALWAYS written in sdshdr8
-     * layout (1-byte len + 1-byte alloc + 1-byte flags), regardless of what
-     * type gets picked here. sdsReqType() picks SDS_TYPE_5 for any key under
-     * 32 bytes, whose real on-wire layout has NO separate len/alloc fields
-     * (the length lives packed into the flags byte itself via
-     * SDS_TYPE_5_LEN). Writing an sdshdr8 body under a type_5 flags byte
-     * makes sdslen()/sdscmp() read back length 0, silently breaking lookup
-     * for every short key (see nexcache-project-state memory, 2026-08-10
-     * finding). Force SDS_TYPE_8 unconditionally here, mirroring what
-     * createEmbeddedStringObjectWithKeyAndExpire() already does safely. */
-    serverAssert(!has_embkey || key_sds_len <= 255 - sizeof(struct sdshdr8) - 1);
-    char key_sds_type = has_embkey ? SDS_TYPE_8 : 0;
-    size_t key_sds_size = has_embkey ? sdsReqSize(key_sds_len, key_sds_type) : 0;
+    /* NEX-FIX: this used to force SDS_TYPE_8 unconditionally (1-byte len,
+     * max key length 251) and hard-serverAssert() any longer key -- a real,
+     * remotely triggerable crash: any command that embeds a key with an
+     * expire (e.g. SETEX) on a key longer than 251 bytes brought the whole
+     * process down (confirmed via a real GitHub Actions Linux run,
+     * "maxmemory - is the memory limit honoured?" uses such keys and hit
+     * this assert every time). The original fix this replaced was solving a
+     * real, different bug: sdsReqType() picks SDS_TYPE_5 for keys under 32
+     * bytes, whose on-wire layout has no separate len/alloc fields (length
+     * is packed into the flags byte itself), so writing an sdshdr8 *body*
+     * under a type_5 *flags byte* made sdslen()/sdscmp() read back length 0
+     * (see nexcache-project-state memory, 2026-08-10). Fix both bugs at
+     * once: pick the real minimum type via sdsReqType(), just remap
+     * SDS_TYPE_5 to SDS_TYPE_8 (the only remapping actually needed), and
+     * write the header generically for whichever type is chosen instead of
+     * assuming sdshdr8 -- see the generic header-write block below. */
+    char key_sds_type = 0;
+    if (has_embkey) {
+        key_sds_type = sdsReqType(key_sds_len);
+        if (key_sds_type == SDS_TYPE_5) key_sds_type = SDS_TYPE_8;
+    }
+    /* Reserved gap (in bytes, before the key content) that keeps the key's
+     * sds buffer 8-byte aligned regardless of header size: 1 byte to record
+     * the header size (needed by objectGetKey()) plus the header itself,
+     * rounded up to the next multiple of 8. */
+    size_t key_gap = has_embkey ? (((1 + sdsHdrSize(key_sds_type)) + 7) / 8) * 8 : 0;
     size_t min_size = sizeof(robj);
     if (has_expire) {
         min_size += sizeof(long long);
     }
     if (has_embkey) {
-        /* Size of embedded key, incl. 1 byte for prefixed sds hdr size. */
-        min_size += 1 + key_sds_size;
+        /* Reserved (aligned) gap covering the khlen byte + sds header,
+         * plus the key content and its null terminator. */
+        min_size += key_gap + key_sds_len + 1;
     }
     /* Allocate and set the declared fields. */
     size_t bufsize = 0;
@@ -121,20 +135,57 @@ static robj *createUnembeddedObjectWithKeyAndExpire(int type, void *val, const_s
         data += sizeof(long long);
     }
 
-    /* Copy embedded key. Content must be at offset 8 (no expire) or 16 (expire) 
-     * to ensure the SDS buf (starts at data+0) is 8-byte aligned. */
+    /* Copy embedded key. The key region starts right after the expire slot
+     * (if any); its first byte always records the header size so
+     * objectGetKey() can find the content without knowing the key's type
+     * ahead of time, then content starts key_gap bytes in -- key_gap is
+     * rounded up to a multiple of 8, so the SDS buf (at data+0) stays
+     * 8-byte aligned regardless of which header type was picked above. */
     if (o->hasembkey) {
-        data = (char *)o->svi_payload + 8;
-        if (o->hasexpire) data += 8;
+        unsigned char *key_region_start = (unsigned char *)o->svi_payload;
+        if (o->hasexpire) key_region_start += 8;
 
         uint8_t khlen = sdsHdrSize(key_sds_type);
-        *(data - 4) = khlen;
-        struct sdshdr8 *sk = (void *)(data - 3);
-        sk->len = key_sds_len;
-        sk->alloc = key_sds_len;
-        sk->flags = key_sds_type;
-        memcpy(sk->buf, key, key_sds_len);
-        sk->buf[key_sds_len] = '\0';
+        *key_region_start = khlen;
+        data = (char *)key_region_start + key_gap;
+        switch (key_sds_type) {
+        case SDS_TYPE_8: {
+            struct sdshdr8 *sk = (void *)(data - khlen);
+            sk->len = key_sds_len;
+            sk->alloc = key_sds_len;
+            sk->flags = key_sds_type;
+            memcpy(sk->buf, key, key_sds_len);
+            sk->buf[key_sds_len] = '\0';
+            break;
+        }
+        case SDS_TYPE_16: {
+            struct sdshdr16 *sk = (void *)(data - khlen);
+            sk->len = key_sds_len;
+            sk->alloc = key_sds_len;
+            sk->flags = key_sds_type;
+            memcpy(sk->buf, key, key_sds_len);
+            sk->buf[key_sds_len] = '\0';
+            break;
+        }
+        case SDS_TYPE_32: {
+            struct sdshdr32 *sk = (void *)(data - khlen);
+            sk->len = key_sds_len;
+            sk->alloc = key_sds_len;
+            sk->flags = key_sds_type;
+            memcpy(sk->buf, key, key_sds_len);
+            sk->buf[key_sds_len] = '\0';
+            break;
+        }
+        default: {
+            struct sdshdr64 *sk = (void *)(data - khlen);
+            sk->len = key_sds_len;
+            sk->alloc = key_sds_len;
+            sk->flags = key_sds_type;
+            memcpy(sk->buf, key, key_sds_len);
+            sk->buf[key_sds_len] = '\0';
+            break;
+        }
+        }
     }
 
     return o;
@@ -354,12 +405,19 @@ void *objectGetVal(const robj *o) {
 sds objectGetKey(const robj *o) {
     if (!o || !o->hasembkey) return NULL;
 #ifdef RUBIN_MODE
-    /* Skip to content-aligned pointers */
-    /* Key content is at offset 8 (no expire) or 16 (expire) */
-    unsigned char *data = (unsigned char *)o->svi_payload + 8;
-    if (o->hasexpire) data += 8;
+    /* The key region starts right after the expire slot (if any); its
+     * first byte always records the header size (written by
+     * createUnembeddedObjectWithKeyAndExpire()), which is all that's
+     * needed to recompute key_gap and find the content -- see that
+     * function for why the header size can vary (keys longer than 251
+     * bytes need a bigger sds header than the fixed sdshdr8 this used to
+     * assume unconditionally). */
+    unsigned char *key_region_start = (unsigned char *)o->svi_payload;
+    if (o->hasexpire) key_region_start += 8;
+    uint8_t khlen = *key_region_start;
+    size_t key_gap = ((1 + khlen) + 7) / 8 * 8;
 
-    return (sds)data;
+    return (sds)(key_region_start + key_gap);
 #else
     /* Non-Rubin mode doesn't support embedded keys yet */
     return NULL;
