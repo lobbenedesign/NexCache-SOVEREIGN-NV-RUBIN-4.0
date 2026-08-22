@@ -219,9 +219,21 @@ void emptyDbAsync(serverDb *db) {
      * kvstoreHashtableRehashingStarted() prosegue fino a
      * listAddNodeTail(NULL, ht) al primo resize dopo un FLUSHALL, SIGSEGV
      * deterministico. Riprodotto e confermato anche su VERAM3.3 (stesso
-     * bug, stesso file, mai portato prima). Fix: stesso 176 di
-     * createDatabase, sempre. */
-    int slot_count_bits = 176;
+     * bug, stesso file, mai portato prima).
+     *
+     * NEX-FIX 2: quel fix (176 fisso, sempre) era ANCORA incompleto per il
+     * cluster mode -- createDatabase() usa
+     * `server.cluster_enabled ? CLUSTER_SLOTS : 176`, ma qui era rimasto
+     * 176 fisso incondizionatamente. getKVStoreIndexForKey() in cluster
+     * mode restituisce getKeySlot() (0..CLUSTER_SLOTS-1), quindi dopo un
+     * FLUSHDB/FLUSHALL asincrono in cluster mode, un SET su uno slot >= 176
+     * scriveva fuori dai limiti dell'array kvs->hashtables[] (rilevato
+     * come corruzione dell'heap da glibc su un run reale GitHub Actions
+     * Linux cluster-mode, e riprodotto localmente: "SET" dopo un secondo
+     * FLUSHDB in un cluster reale crashava con didx fino a migliaia contro
+     * un kvstore da 176 bucket). Allineato allo stesso identico schema di
+     * createDatabase(). */
+    int slot_count_bits = server.cluster_enabled ? CLUSTER_SLOTS : 176;
     int flags = KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND;
     if (server.cluster_enabled) {
         flags |= KVSTORE_FREE_EMPTY_HASHTABLES;
