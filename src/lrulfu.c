@@ -83,10 +83,26 @@ uint32_t lru_getIdleSecs(uint32_t lru) {
 
 #define LFU_INIT_VAL 5
 
+/* NEX-FIX: this packing used to be 16-bit minutes + 8-bit freq counter (24
+ * bits total), which fit the serverObject `lru` field when it was 24 bits
+ * wide. That field is now `unsigned lru : 21` (server.h) -- deliberately
+ * narrowed to fit type/encoding/has*-flags/lru into one 32-bit word (see
+ * the LRULFU_BITS fix in lrulfu.h for the LRU-mode half of this same
+ * story). The 24-bit LFU value was still being silently truncated by the
+ * C bitfield assignment on every write, corrupting the encoding (OBJECT
+ * FREQ on a freshly-added key, which should read back LFU_INIT_VAL,
+ * returned something else -- confirmed on a real GitHub Actions Linux
+ * run). Repacked to 13-bit minutes + 8-bit freq (21 bits total, matching
+ * the real field width) instead of 16+8. The only behavior change is the
+ * "minutes" clock wrapping roughly every 8192 minutes (~5.7 days) instead
+ * of 65536 (~45 days) -- harmless, since LFUDecay()'s elapsed-time
+ * subtraction is wrap-tolerant either way, exactly like the LRU clock. */
+#define LFU_MINUTES_BITS 13
+#define LFU_MINUTES_MASK ((1 << LFU_MINUTES_BITS) - 1)
 
-// Current time in minutes (16 least significant bits).  Designed to roll over.
+// Current time in minutes (13 least significant bits).  Designed to roll over.
 static uint16_t LFUGetTimeInMinutes(void) {
-    return lfu_clock_minutes;
+    return lfu_clock_minutes & LFU_MINUTES_MASK;
 }
 
 
@@ -98,9 +114,9 @@ uint32_t lfu_import(uint8_t freq) {
 /* Update an LFU to consider decay, but doesn't add a "touch" */
 static uint32_t LFUDecay(uint32_t lfu) {
     uint16_t now = LFUGetTimeInMinutes();
-    uint16_t prev_time = (uint16_t)(lfu >> 8);
+    uint16_t prev_time = (uint16_t)((lfu >> 8) & LFU_MINUTES_MASK);
     uint8_t freq = (uint8_t)lfu;
-    uint16_t elapsed = now - prev_time; // Wrap-around expected/valid
+    uint16_t elapsed = (now - prev_time) & LFU_MINUTES_MASK; // Wrap-around expected/valid
     uint16_t num_periods = lfu_config_decay_time ? elapsed / lfu_config_decay_time : 0;
     freq = (num_periods > freq) ? 0 : freq - num_periods;
     return ((uint32_t)now << 8) | freq;
