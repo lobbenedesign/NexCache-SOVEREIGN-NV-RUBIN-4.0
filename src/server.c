@@ -2861,7 +2861,15 @@ bool dbsHaveNoKeys(void) {
 }
 
 serverDb *createDatabase(int id) {
-    int slot_count = 176; // G3-GODMODE: 176 shards for Vera workers
+    /* NEX-FIX: this was hardcoded to 176 unconditionally, including in
+     * cluster mode. Cluster slot indices (didx passed to kvstore*
+     * functions like kvstoreIsImporting) range over CLUSTER_SLOTS (16384),
+     * so any real cluster deployment crashed as soon as a command touched
+     * a slot >= 176: "Assertion failed: (didx < kvs->num_hashtables),
+     * function kvstoreIsImporting" -- reproduced with a real 3-node
+     * cluster + slot migration. Standalone mode keeps the 176-shard
+     * "G3-GODMODE" tuning; cluster mode needs one shard per slot. */
+    int slot_count = server.cluster_enabled ? CLUSTER_SLOTS : 176; // G3-GODMODE: 176 shards for Vera workers (standalone only)
     int flags = KVSTORE_ALLOCATE_HASHTABLES_ON_DEMAND;
     if (server.cluster_enabled) {
         flags |= KVSTORE_FREE_EMPTY_HASHTABLES;
