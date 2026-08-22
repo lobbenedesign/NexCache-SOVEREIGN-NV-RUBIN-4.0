@@ -1274,6 +1274,8 @@ start_server {tags {"introspection"}} {
             rdma-rx-size
             rdma-bind
             rdma-port
+            nex-engine-workers
+            nexcache-node-id
         }
 
         if {!$::tls} {

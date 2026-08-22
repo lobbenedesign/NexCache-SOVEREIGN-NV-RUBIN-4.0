@@ -485,7 +485,13 @@ start_server {tags {"other external:skip"}} {
             assert_equal "$::host:$port" [lindex $cmdline 2]
             assert_equal $expect_port [lindex $cmdline 3]
             assert_equal $expect_tls_port [lindex $cmdline 4]
-            assert_match "*/tests/tmp/server.*/socket" [lindex $cmdline 5]
+            # NEX-FIX: this test harness's server.tcl puts each server's unix
+            # socket at /tmp/nexc-<pid>-<n>.sock (see its own NEX-FIX comment,
+            # added to dodge a real Tcl socket-availability-check bug and a
+            # clock-resolution collision in nested master/replica setups),
+            # not inside its own tests/tmp/server.NNN/ directory as this
+            # assertion assumed. Match the real, current convention.
+            assert_match "/tmp/nexc-*.sock" [lindex $cmdline 5]
             assert_match "*/tests/tmp/nexcache.conf.*" [lindex $cmdline 6]
 
             # Try setting a bad template
