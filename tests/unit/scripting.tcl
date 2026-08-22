@@ -1328,7 +1328,19 @@ start_server {tags {"scripting"}} {
         # 1. eval "while 1 do nexcache.call('ping') end" 0
         # 2. ping
         if {$is_eval == 1} {
-            set buf "*3\r\n\$4\r\neval\r\n\$33\r\nwhile 1 do nexcache.call('ping') end\r\n\$1\r\n0\r\n"
+            # NEX-FIX: bulk length was still "$33" -- the length of
+            # "while 1 do redis.call('ping') end" (pre-rebrand) -- but the
+            # actual script content here is "while 1 do
+            # nexcache.call('ping') end", which is 36 bytes, not 33. The
+            # RESP parser read only the first 33 bytes as the script,
+            # truncating it mid-call ("...nexcache.call('ping'", missing
+            # the closing "') end"), so the script sometimes failed to
+            # parse into an actual infinite loop -- explaining why this
+            # test was intermittently unable to observe the server ever
+            # entering BUSY state ("Can't wait for script to start
+            # running"), not genuine CI scheduling jitter as previously
+            # assumed.
+            set buf "*3\r\n\$4\r\neval\r\n\$36\r\nwhile 1 do nexcache.call('ping') end\r\n\$1\r\n0\r\n"
             append buf "*1\r\n\$4\r\nping\r\n"
         } else {
             set buf "*4\r\n\$8\r\nfunction\r\n\$4\r\nload\r\n\$7\r\nreplace\r\n\$99\r\n#!lua name=test\nserver.register_function('test', function() while 1 do server.call('ping') end end)\r\n"
