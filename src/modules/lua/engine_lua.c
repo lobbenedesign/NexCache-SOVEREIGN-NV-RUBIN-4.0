@@ -206,7 +206,6 @@ static void destroyEngineContext(luaEngineCtx *lua_engine_ctx) {
     lua_close(lua_engine_ctx->function_lua);
     NexCacheModule_Free(lua_engine_ctx->nexcache_version);
     NexCacheModule_Free(lua_engine_ctx->server_name);
-    NexCacheModule_Free(lua_engine_ctx->nexcache_version);
     NexCacheModule_Free(lua_engine_ctx);
 }
 
