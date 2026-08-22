@@ -1680,7 +1680,15 @@ start_server {tags {"scripting needs:debug external:skip"}} {
     test {Test scripting debug lua stack overflow} {
         r script debug sync
         r eval {return 'hello'} 0
-        set cmd "*101\r\n\$5\r\nnexcache\r\n"
+        # NEX-FIX: bulk length was still "$5" (redis's length) after the
+        # redis->nexcache rebrand of this literal -- "nexcache" is 8 bytes,
+        # not 5, so the RESP parser read only "nexca" as the command name
+        # and then desynced on the leftover "che\r\n", corrupting the rest
+        # of this multibulk and bleeding into the next test's connection
+        # (confirmed on a real GitHub Actions Linux run: this test got
+        # "<endsession>" instead of the expected error, and the following
+        # test then hit a raw protocol error on the same connection).
+        set cmd "*101\r\n\$8\r\nnexcache\r\n"
         append cmd [string repeat "\$4\r\ntest\r\n" 100]
         r write $cmd
         r flush
