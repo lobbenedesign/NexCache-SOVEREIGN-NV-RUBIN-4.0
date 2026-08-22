@@ -144,11 +144,11 @@ start_server {tags {"scripting"}} {
     if {$is_eval eq 1 && $script_compatibility_api == "nexcache"} {
     # eval sha is only relevant for is_eval Lua
     test {EVALSHA - Can we call a SHA1 if already defined?} {
-        r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey
+        r evalsha baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey
     } {myval}
 
     test {EVALSHA_RO - Can we call a SHA1 if already defined?} {
-        r evalsha_ro fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey
+        r evalsha_ro baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey
     } {myval}
 
     test {EVALSHA - Can we call a SHA1 in uppercase?} {
@@ -600,16 +600,16 @@ start_server {tags {"scripting"}} {
         r set mykey myval
 
         r script load {return nexcache.call('get',KEYS[1])}
-        set v [r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey]
+        set v [r evalsha baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey]
         assert_equal $v myval
         r script flush
-        assert_error {NOSCRIPT*} {r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey}
+        assert_error {NOSCRIPT*} {r evalsha baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey}
 
         r eval {return nexcache.call('get',KEYS[1])} 1 mykey
-        set v [r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey]
+        set v [r evalsha baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey]
         assert_equal $v myval
         r script flush
-        assert_error {NOSCRIPT*} {r evalsha fd758d1589d044dd850a6f05d52f2eefd27f033f 1 mykey}
+        assert_error {NOSCRIPT*} {r evalsha baa8a86dfd5ab65f12f3d5be31f8cefdb7228456 1 mykey}
     }
 
 
