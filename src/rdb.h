@@ -51,11 +51,26 @@
  * string. */
 #define RDB_VERSION 80
 
-/* Mapping between RDB version and the NexCache version where it was added. */
+/* Mapping between RDB version and the NexCache version where it was added.
+ *
+ * NEX-FIX: the {80, 0x090000} entry meant "RDB 80 requires product version
+ * >= 9.0.0" -- true for whatever upstream project this table was copied
+ * from, but this fork's own product version is "4.0.0-SOVEREIGN"
+ * (NEXCACHE_VERSION, version.h), which never clears that threshold.
+ * replicaRdbVersion() calls version2num() on the version a replica
+ * announces via `REPLCONF version` and walks this table to pick the
+ * highest RDB version both sides understand; with the threshold at
+ * 0x090000, every SOVEREIGN node talking to another SOVEREIGN node fell
+ * through to the RDB 11 fallback instead of using RDB_VERSION (80) --
+ * a different, far less exercised code path that (combined with a
+ * separate rdbSaveRio() magic-header bug, fixed alongside this) made
+ * every full sync between two nodes of this fork fail outright. Since
+ * this fork has no earlier release that ever used a different RDB
+ * version, RDB 80 has been in use since version 0.0.0 of this product. */
 static const int RDB_VERSION_MAP[][2] = {
     /* {RDB version, added in NexCache version} from oldest to newest. */
     {11, 0x070200},
-    {80, 0x090000},
+    {80, 0x000000},
 };
 
 /* Reserved range for foreign (unsupported, non-OSS) RDB format. */

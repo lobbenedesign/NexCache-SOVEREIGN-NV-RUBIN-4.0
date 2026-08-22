@@ -1470,16 +1470,36 @@ werr:
  * integer pointed by 'error' is set to the value of errno just after the I/O
  * error. */
 int rdbSaveRio(int req, int rdbver, rio *rdb, int *error, int rdbflags, rdbSaveInfo *rsi) {
-    char magic[10];
+    /* NEX-FIX: this used to be char[10] with a hardcoded 9-byte write and a
+     * %03d version. The reader (rdbLoadRioWithLoadingCtx) reads 12 bytes and
+     * parses the version as the 4 digits after an 8-byte "NEXCACHE" prefix
+     * (see its own comment: expects "NEXCACHE0080"). Writing only 9 bytes of
+     * a 3-digit version truncated "NEXCACHE080" down to "NEXCACHE0", so the
+     * reader's atoi() on the following (unrelated stream) bytes parsed as
+     * version 0 and every full sync was rejected with "Can't handle RDB
+     * format version 0" -- this made master/replica sync unconditionally
+     * fail. Fixed to a 4-digit version and a buffer/write length that both
+     * match what's actually produced, instead of hardcoded assumptions left
+     * over from the original 5-byte "REDIS" + 4-digit convention. */
+    char magic[16];
     uint64_t cksum;
     long key_counter = 0;
     int j;
 
     if (server.rdb_checksum) rdb->update_cksum = rioGenericUpdateChecksum;
-    const char *magic_prefix = rdbUseNexCacheMagic(rdbver) ? "NEXCACHE" : "NEXCACHE0";
+    /* NEX-FIX: was "NEXCACHE0" for the legacy branch, an 9-byte prefix that
+     * doesn't match anything rdbLoadRioWithLoadingCtx() recognizes (it only
+     * ever checks for "NEXCACHE" (8), "VALKEY" (6), or "REDIS" (5)).
+     * rdbIsVersionAccepted() requires versions <= RDB_FOREIGN_VERSION_MAX
+     * (used whenever a replica's announced version can't be determined, see
+     * replicaRdbVersion()'s fallback to 11) to use the legacy magic, not a
+     * NEXCACHE-flavored one -- so this path must produce "REDIS" here, the
+     * same legacy magic every other NexCache/Redis/Valkey fork writes for
+     * old RDB versions. */
+    const char *magic_prefix = rdbUseNexCacheMagic(rdbver) ? "NEXCACHE" : "REDIS";
     serverAssert(rdbver >= 0 && rdbver <= RDB_VERSION);
-    snprintf(magic, sizeof(magic), "%s%03d", magic_prefix, rdbver);
-    if (rdbWriteRaw(rdb, magic, 9) == -1) goto werr;
+    snprintf(magic, sizeof(magic), "%s%04d", magic_prefix, rdbver);
+    if (rdbWriteRaw(rdb, magic, strlen(magic)) == -1) goto werr;
     if (rdbSaveInfoAuxFields(rdb, rdbflags, rsi) == -1) goto werr;
     if (!(req & REPLICA_REQ_RDB_EXCLUDE_DATA) && rdbSaveModulesAux(rdb, NEXCACHEMODULE_AUX_BEFORE_RDB) == -1) goto werr;
 

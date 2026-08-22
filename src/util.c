@@ -1068,7 +1068,24 @@ void getHashSeedFromString(unsigned char *seed_array, size_t outlen, const char 
 
 
 /* Parses a version string on the form "major.minor.patch" and returns an
- * integer on the form 0xMMmmpp. Returns -1 on parse error. */
+ * integer on the form 0xMMmmpp. Returns -1 on parse error.
+ *
+ * NEX-FIX: this server's own NEXCACHE_VERSION (version.h) is
+ * "4.0.0-SOVEREIGN", not a bare "major.minor.patch" -- the trailing "-..."
+ * build tag made this function reject its own version string outright.
+ * That mattered because replication.c sends NEXCACHE_VERSION verbatim via
+ * `REPLCONF version`, and the primary calls this function on whatever the
+ * replica sent to decide the RDB version to use (replicaRdbVersion()). A
+ * parse failure here isn't just cosmetic: it left replica_version at its
+ * zero-value default, which replicaRdbVersion() can't match against any
+ * entry in RDB_VERSION_MAP, so it silently fell back to legacy RDB version
+ * 11 -- an old version/magic-string combination that, combined with a
+ * separate bug in rdbSaveRio()'s magic-prefix selection (see the NEX-FIX
+ * comment there), corrupted the RDB header and made every single full sync
+ * fail with "Can't handle RDB format version 1". Tolerating one trailing
+ * non-numeric build tag after major.minor.patch (stopping there rather
+ * than erroring) fixes replication between two nodes of this fork without
+ * changing what valid upstream-style version strings ("7.2.0") do. */
 int version2num(const char *version) {
     int v = 0, part = 0, numdots = 0;
     const char *p = version;
@@ -1080,6 +1097,10 @@ int version2num(const char *version) {
             if (++numdots > 2) return -1;
             v = (v << 8) | part;
             part = 0;
+        } else if (numdots == 2) {
+            /* Trailing build tag (e.g. "-SOVEREIGN") after major.minor.patch
+             * is already fully parsed -- ignore the rest of the string. */
+            break;
         } else {
             return -1;
         }
