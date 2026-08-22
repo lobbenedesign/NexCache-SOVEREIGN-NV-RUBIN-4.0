@@ -1452,12 +1452,12 @@ start_server {tags {"scripting"}} {
         start_server {} {
             test "Before the replica connects we issue two EVAL commands" {
                 # One with an error, but still executing a command.
-                # SHA is: 67164fc43fa971f76fd1aaeeaf60c1c178d25876
+                # SHA is: f5be060f05276ef61b9f7b9c48afc6b67a0893ec
                 catch {
                     run_script {nexcache.call('incr',KEYS[1]); nexcache.call('nonexisting')} 1 x
                 }
                 # One command is correct:
-                # SHA is: 6f5ade10a69975e903c6d07b10ea44c6382381a5
+                # SHA is: f464fea20830abdd24b3c303bd304416fda0aba4
                 run_script {return nexcache.call('incr',KEYS[1])} 1 x
             } {2}
 
@@ -1476,9 +1476,9 @@ start_server {tags {"scripting"}} {
                 # The server should replicate successful and unsuccessful
                 # commands as EVAL instead of EVALSHA.
                 catch {
-                    r evalsha 67164fc43fa971f76fd1aaeeaf60c1c178d25876 1 x
+                    r evalsha f5be060f05276ef61b9f7b9c48afc6b67a0893ec 1 x
                 }
-                r evalsha 6f5ade10a69975e903c6d07b10ea44c6382381a5 1 x
+                r evalsha f464fea20830abdd24b3c303bd304416fda0aba4 1 x
             } {4}
 
             test "'x' should be '4' for EVALSHA being replicated by effects" {
@@ -1511,8 +1511,8 @@ start_server {tags {"scripting"}} {
             test "EVALSHA replication when first call is readonly" {
                 r del x
                 r eval {if tonumber(ARGV[1]) > 0 then nexcache.call('incr', KEYS[1]) end} 1 x 0
-                r evalsha 6e0e2745aa546d0b50b801a20983b70710aef3ce 1 x 0
-                r evalsha 6e0e2745aa546d0b50b801a20983b70710aef3ce 1 x 1
+                r evalsha 858bfd9ed481ff2e928a61bda7a3f2ccd64f1492 1 x 0
+                r evalsha 858bfd9ed481ff2e928a61bda7a3f2ccd64f1492 1 x 1
                 wait_for_condition 50 100 {
                     [r -1 get x] eq {1}
                 } else {
