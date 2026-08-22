@@ -522,7 +522,6 @@ start_server {} {
         r debug replybuffer resizing 0
 
         # Run over all sizes and create some clients using up that size
-        set total_client_mem 0
         set rrs {}
         for {set i 0} {$i < [llength $sizes]} {incr i} {
             set size [lindex $sizes $i]
@@ -540,9 +539,6 @@ start_server {} {
             # slightly more than expected because of allocator bins
             assert {$client_mem >= $size}
             set sizes [lreplace $sizes $i $i $client_mem]
-
-            # Account total client memory usage
-            incr total_mem [expr $clients_per_size * $client_mem]
         }
 
         # Make sure all clients are connected
@@ -553,16 +549,32 @@ start_server {} {
 
         # For each size reduce maxmemory-clients so relevant clients should be evicted
         # do this from largest to smallest
-        foreach size [lreverse $sizes] {
+        # NEX-FIX: compute the new limit from freshly measured memory
+        # (clients_sum / client_field) at the moment of each reduction,
+        # instead of decrementing the "total_mem" running total tracked
+        # from the tot-mem snapshots taken once back at setup. Client
+        # output-buffer memory accounting can drift by a small amount
+        # between setup time and whenever a later iteration in this loop
+        # runs (allocator/timing variance, more pronounced on loaded CI
+        # runners than locally) -- and this test's formula computes the
+        # new limit as EXACTLY the surviving clients' memory with zero
+        # safety margin, so even a tiny drift was enough to tip an
+        # unrelated, supposedly-untouched smaller-bucket client into
+        # eviction on a real GitHub Actions run (observed: "Expected '2'
+        # to be equal to '3'" on a bucket that should not have been
+        # touched at all). Measuring everything fresh at the point of
+        # decision removes the drift by construction.
+        for {set idx [expr {[llength $sizes] - 1}]} {$idx >= 0} {incr idx -1} {
             set control_mem [client_field control tot-mem]
-            set total_mem [expr $total_mem - $clients_per_size * $size]
-            r config set maxmemory-clients [expr $total_mem + $control_mem]
+            set bucket_mem [client_field client-$idx tot-mem]
+            set current_total [clients_sum tot-mem]
+            set surviving_mem [expr {$current_total - $control_mem - $clients_per_size * $bucket_mem}]
+            r config set maxmemory-clients [expr {$surviving_mem + $control_mem}]
             set clients [split [string trim [r client list]] "\r\n"]
             # Verify only relevant clients were evicted
             for {set i 0} {$i < [llength $sizes]} {incr i} {
-                set verify_size [lindex $sizes $i]
                 set count [llength [lsearch -all $clients "*name=client-$i *"]]
-                if {$verify_size < $size} {
+                if {$i < $idx} {
                     assert_equal $count $clients_per_size
                 } else {
                     assert_equal $count 0
