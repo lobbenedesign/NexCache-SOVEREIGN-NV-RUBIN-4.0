@@ -492,7 +492,19 @@ start_server {tags {"other external:skip"}} {
             # not inside its own tests/tmp/server.NNN/ directory as this
             # assertion assumed. Match the real, current convention.
             assert_match "/tmp/nexc-*.sock" [lindex $cmdline 5]
-            assert_match "*/tests/tmp/nexcache.conf.*" [lindex $cmdline 6]
+            # NEX-FIX: process titles are ultimately written into the
+            # process's own argv+envp memory (the classic setproctitle()
+            # technique), whose size is fixed at exec() time -- a title
+            # longer than that gets silently truncated by the OS, no matter
+            # what this server writes. On a CI checkout whose absolute path
+            # is long (e.g. GitHub Actions' repo-name-doubled work
+            # directory), the full config-file path pushed the rendered
+            # title past that limit and the tail of this argument was cut
+            # off entirely (confirmed on a real GitHub Actions Linux run: it
+            # arrived as ".../tests/tmp/nexcach " instead of
+            # ".../nexcache.conf.NNN"). Match a short, truncation-safe
+            # prefix instead of the full filename.
+            assert_match "*/tests/tmp/nexcach*" [lindex $cmdline 6]
 
             # Try setting a bad template
             catch {r config set "proc-title-template" "{invalid-var}"} err

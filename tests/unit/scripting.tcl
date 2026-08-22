@@ -152,7 +152,7 @@ start_server {tags {"scripting"}} {
     } {myval}
 
     test {EVALSHA - Can we call a SHA1 in uppercase?} {
-        r evalsha FD758D1589D044DD850A6F05D52F2EEFD27F033F 1 mykey
+        r evalsha BAA8A86DFD5AB65F12F3D5BE31F8CEFDB7228456 1 mykey
     } {myval}
 
     test {EVALSHA - Do we get an error on invalid SHA1?} {
