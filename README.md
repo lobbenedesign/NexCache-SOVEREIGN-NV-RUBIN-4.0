@@ -8,7 +8,11 @@
 ## 🇮🇹 Versione Italiana
 
 ### Visione e Obiettivo del Progetto
-**NexCache-SOVEREIGN (VERAM 4.0)** rappresenta l'apice della ricerca tecnologica per l'architettura **NVIDIA Rubin-class**. Non è un semplice database in-memory, ma un motore di "Intelligenza Agentica" che trasforma la memoria da statica a dinamica, adattandosi nativamente al DNA dell'hardware sottostante.
+**NexCache-SOVEREIGN (VERAM 4.0)** è un fork di Redis in C che sperimenta un layer di ottimizzazioni adattive pensato per l'architettura **NVIDIA Rubin-class** (rilevamento hardware a boot-time, filtro speculativo dei miss, eviction "biologica" invece di LRU/LFU puro). È il seguito diretto di [nexcache-VERAM3.3](https://github.com/lobbenedesign/nexcache-VERAM3.3), con gli stessi 4 pilastri concettuali riportati qui sotto in un design più recente.
+
+**Cosa è verificato oggi**: **2.420 test reali passano, 0 fallimenti** (subset curato dell'intera suite Redis-derivata, eseguito in CI su ogni push — vedi `.github/workflows/`; l'intera suite non curata gira ~6h, quindi la CI ne esegue un sottoinsieme deliberato, non tutto). Non è ancora stato ripetuto per questo fork il tipo di benchmark indipendente reale (vs. Redis stock, hardware diverso da quello di sviluppo) fatto per `nexcache-VERAM3.3` — vedi quel repository per l'unico confronto di performance di questa famiglia di progetti attualmente verificato in questo modo.
+
+**Nota di onestà**: le percentuali di impatto per-pillar più sotto (es. "riduzione cicli CPU", "riduzione latenza") descrivono l'obiettivo di design di ciascuna ottimizzazione, non un benchmark misurato e riproducibile per questo repository — a differenza dei numeri di `nexcache-VERAM3.3`, che sono legati a un'issue GitHub dedicata e a una run di benchmark reale. Non li ho cancellati (documentano l'intento architetturale), ma vanno letti come tali.
 
 ---
 
@@ -52,7 +56,11 @@ Sono **Giuseppe Lobbene**, ingegnere del software appassionato di architetture a
 ## 🇺🇸 English Version
 
 ### Project Vision and Goal
-**NexCache-SOVEREIGN (VERAM 4.0)** is the pinnacle of technological research for the **NVIDIA Rubin-class** architecture. It is an "Agentic Intelligence" engine that transforms memory from static to dynamic, natively adapting to the underlying hardware DNA.
+**NexCache-SOVEREIGN (VERAM 4.0)** is a Redis fork in C experimenting with an adaptive optimization layer aimed at **NVIDIA Rubin-class** hardware (boot-time hardware sensing, speculative miss filtering, "biological" eviction instead of plain LRU/LFU). It's the direct follow-up to [nexcache-VERAM3.3](https://github.com/lobbenedesign/nexcache-VERAM3.3), sharing the same 4 conceptual pillars below in a newer design.
+
+**What's verified today**: **2,420 real tests pass, 0 failures** (a curated subset of the full Redis-derived suite, run in CI on every push — see `.github/workflows/`; the full, un-curated suite takes ~6h, so CI runs a deliberate subset, not everything). This fork hasn't yet been through the kind of independent real benchmark (vs. stock Redis, on hardware different from the dev machine) done for `nexcache-VERAM3.3` — see that repository for the only performance comparison in this project family currently verified that way.
+
+**Honesty note**: the per-pillar impact percentages below (e.g. "CPU cycle reduction", "latency reduction") describe each optimization's design target, not a measured, reproducible benchmark for this repository — unlike `nexcache-VERAM3.3`'s numbers, which are tied to a dedicated GitHub issue and a real benchmark run. They haven't been deleted (they document the architectural intent), but should be read as such.
 
 ---
 
