@@ -109,8 +109,18 @@ void Sovereign_UpdateFilterSds(sds key) {
 }
 
 int Sovereign_SpeculativeMiss(robj *key) {
+    return Sovereign_SpeculativeMissByHash(hash_key(key));
+}
+
+/* Exposed so hot callers (lookupKey) can hash a key once and reuse the value
+ * across every pillar that needs it, instead of each pillar re-hashing the
+ * same key independently on every command. */
+uint64_t Sovereign_HashKey(robj *key) {
+    return hash_key(key);
+}
+
+int Sovereign_SpeculativeMissByHash(uint64_t h) {
     if (!sovereign_filter) return 0;
-    uint64_t h = hash_key(key);
     uint32_t bit = h % FILTER_SIZE;
     if (!(sovereign_filter[bit / 8] & (1 << (bit % 8)))) {
         return 1; /* Definite miss */
@@ -195,11 +205,14 @@ void Sovereign_LinkKeys(robj *key1, robj *key2) {
 }
 
 void Sovereign_PrefetchAssociates(robj *key) {
-    uint64_t h = hash_key(key);
+    Sovereign_PrefetchAssociatesByHash(hash_key(key));
+}
+
+void Sovereign_PrefetchAssociatesByHash(uint64_t h) {
     if (h == 0) return;
-    
+
     int idx = h % SYNAPTIC_SLOTS;
-    
+
     if (synaptic_map[idx].trigger == h && synaptic_map[idx].strength > 10) {
         /* 
          * SPECULATIVE RETRIEVAL:

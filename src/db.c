@@ -83,8 +83,20 @@ static robj *dbFindWithDictIndex(serverDb *db, sds key, int dict_index);
 extern NexStorage *global_nexstorage;
 
 robj *lookupKey(serverDb *db, robj *key, int flags) {
-    if (Sovereign_SpeculativeMiss(key)) return NULL;
-    Sovereign_PrefetchAssociates(key);
+    /* PRIMA: Sovereign_SpeculativeMiss() e Sovereign_PrefetchAssociates()
+     * ri-hashavano indipendentemente la stessa chiave (due chiamate a
+     * hash_key(), ciascuna col proprio ll2string per le INT-encoded keys)
+     * su OGNI singola lookupKey(), cioè su ogni GET e ogni SET (che chiama
+     * lookupKeyWrite prima di scrivere). Overhead minuscolo per singola
+     * chiamata ma pagato due volte per comando sul path piu' caldo del
+     * server: con pipelining (CPU-bound, RTT non piu' il collo di
+     * bottiglia) questo si sommava e degradava il throughput; a P=1
+     * (RTT-bound) era mascherato dal costo della rete.
+     * ORA: la chiave viene hashata una sola volta e il valore riusato da
+     * entrambi i pillar via le varianti *ByHash(). */
+    uint64_t key_hash = Sovereign_HashKey(key);
+    if (Sovereign_SpeculativeMissByHash(key_hash)) return NULL;
+    Sovereign_PrefetchAssociatesByHash(key_hash);
     robj *decoded_key = (key->encoding == OBJ_ENCODING_INT) ? getDecodedObject(key) : key;
     int dict_index = getKVStoreIndexForKey(objectGetVal(decoded_key));
     robj *val = dbFindWithDictIndex(db, objectGetVal(decoded_key), dict_index);
